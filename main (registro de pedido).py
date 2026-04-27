@@ -235,44 +235,39 @@ def main() -> None:
     nombre_completo = "ACIDO ACETILSALICILICO - 500 mg - TABLET -"
     nombre_base = obtener_nombre_base(nombre_completo)
 
-    # 🔹 usar base para buscar
+    # 🔹 buscar con nombre base
     escribir_input(txt_busca, nombre_base)
 
     sleep(0.3)
-
     auto.SendKeys("{Enter}")
     sleep(0.3)
 
-    # print("")
-    sleep(0.3)
-
-    # Leer tabla de agregar producto
+    # 🔹 leer tabla
     table_med = TableControl(Name="GrdMed")
     view_1 = table_med.TableControl(searchDepth=1, Name="View 1")
+
     items_len = 17
+
     for i in range(items_len):
         index = i + 1
         row = view_1.CustomControl(searchDepth=1, Name=str(index))
-
-        # childs = item.GetChildren()
-
-        # NOTE: Iter cells
-        # for i2 in range(5):
-        # cell_found_index = i2 + 1
-        # cell = item.DataItemControl(searchDepth=1, foundIndex=cell_found_index)
-        # edit = cell.EditControl(searchDepth=1, Name="Text1")
-        # value = edit.GetValuePattern().Value
 
         description_cell = row.DataItemControl(searchDepth=1, foundIndex=1)
         description_edit = description_cell.EditControl(searchDepth=1, Name="Text1")
         description_value = description_edit.GetValuePattern().Value
 
-        # 🔹 usar completo para validar
-        if nombre_completo.lower() in description_value.lower():
-            print("✔ correcto")
-        pass
+        print(description_value)  # debug opcional
 
-    return None
+        # 🔹 comparar EXACTAMENTE con el nombre completo
+        if description_value.strip().lower() == nombre_completo.strip().lower():
+            print("✔ encontrado correcto")
+
+            row.Click()  # seleccionar fila
+            auto.SendKeys("{Enter}")  # confirmar
+
+            break  # 🔥 detener el loop cuando lo encuentra
+
+        sleep(0.3)
 
 
 # =========================================================
