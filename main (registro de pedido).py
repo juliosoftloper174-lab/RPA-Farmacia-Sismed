@@ -1,117 +1,21 @@
-from datetime import datetime
 from os import environ
 from subprocess import Popen
 from time import sleep
 
 import uiautomation as auto
-from dotenv import load_dotenv
 from uiautomation import PaneControl, TableControl, WindowControl
 
-# =========================================================
-# 🔹 CARGA DE VARIABLES DE ENTORNO
-# =========================================================
-load_dotenv()
-
-SISMED_EXE: str = environ["SISMED_EXE"]
+from src.config import SISMED_EXE
+from src.helpers.cliente import seleccionar_cliente
+from src.helpers.combo import seleccionar_combo_click_ciego
+from src.helpers.diagnosticos import rellenar_diagnosticos
+from src.helpers.input import escribir_input
+from src.helpers.ventana import esperar_ventana
+from src.models.producto import Producto
 
 # =========================================================
 # 🔹 FUNCIONES REUTILIZABLES
 # =========================================================
-
-
-def esperar_ventana(nombre: str, timeout: int = 10) -> WindowControl:
-    ventana = WindowControl(searchDepth=4, Name=nombre)
-    if not ventana.Exists(timeout):
-
-        raise Exception(f"No se encontró la ventana: {nombre}")
-    return ventana
-
-
-def seleccionar_combo_click_ciego(combo, posicion: int):
-    if not combo.Exists(5):
-        raise Exception("ComboBox no encontrado")
-
-    combo.SetFocus()
-    sleep(0.3)
-
-    for _ in range(posicion):
-        combo.Click()
-        sleep(0.3)
-
-        auto.SendKeys("{Down}")
-        sleep(0.2)
-
-    auto.SendKeys("{Enter}")
-
-
-def escribir_input(control, texto: str):
-    if not control.Exists(5):
-        raise Exception("Input no encontrado")
-
-    control.SetFocus()
-    sleep(0.2)
-    control.SendKeys(texto)
-
-
-def seleccionar_cliente(nombre_cliente: str):
-    auto.Click(770, 410)
-    sleep(0.5)
-
-    ventana_cliente = WindowControl(searchDepth=4, Name="Seleccionar Clientes")
-    ventana_cliente.Exists(5)
-
-    txt_busca = ventana_cliente.EditControl(Name="TxtBusca")
-    txt_busca.SetFocus()
-    sleep(0.2)
-
-    txt_busca.SendKeys(nombre_cliente)
-    sleep(0.5)
-
-    auto.SendKeys("{Enter}")
-    sleep(0.5)
-
-    boton_seleccionar = ventana_cliente.ButtonControl(Name="Seleccionar")
-    boton_seleccionar.Click()
-
-
-# 👇 ESTA FUNCIÓN VA AFUERA
-
-
-def rellenar_diagnosticos(registro_window, lista_diagnosticos):
-
-    if len(lista_diagnosticos) == 0:
-        raise Exception("Debe haber al menos 1 diagnóstico")
-
-    inputs = [
-        registro_window.EditControl(Name="TxtCodCIE"),
-        registro_window.EditControl(Name="TxtCodCIE1"),
-        registro_window.EditControl(Name="TxtCodCIE2"),
-    ]
-
-    for i, diag in enumerate(lista_diagnosticos):
-        if i >= len(inputs):
-            break
-
-        print(f"Escribiendo diagnóstico {i+1}: {diag}")
-
-        escribir_input(inputs[i], diag)
-        sleep(0.3)
-
-        # 🔥 SIEMPRE Enter (incluido el último)
-        auto.SendKeys("{Enter}")
-        sleep(0.4)
-
-    # =====================================================
-    # 🔥 LIMPIAR FILAS VACÍAS (justo después del último Enter)
-    # =====================================================
-
-    print("[BOT] Limpiando filas vacías...")
-
-    auto.SendKeys("{CONTROL}{DEL}")
-    sleep(0.6)
-
-    auto.SendKeys("{CONTROL}{DEL}")
-    sleep(0.6)
 
 
 def obtener_nombre_base(nombre_completo: str) -> str:
@@ -122,7 +26,72 @@ def obtener_nombre_base(nombre_completo: str) -> str:
 # =========================================================
 
 
-def main() -> None:
+def agregar_producto(producto: Producto) -> None:
+
+    auto.SendKeys("{CONTROL}{INSERT}")
+    auto.SendKeys("{Enter}")
+
+    ventana_medicamentos = esperar_ventana("Seleccionar medicamento")
+
+    txt_busca = ventana_medicamentos.EditControl(Name="TxtBusca")
+
+    # escribir_input(txt_busca, "ACIDO ACETILSALICILICO")
+
+    nombre_completo = producto.nombre
+    nombre_base = obtener_nombre_base(nombre_completo)
+
+    # 🔹 buscar con nombre base
+    escribir_input(txt_busca, nombre_base)
+
+    sleep(1)
+    txt_busca.SendKeys("{Enter}")
+    sleep(1)
+
+    # 🔹 leer tabla
+    table_med = TableControl(Name="GrdMed")
+    view_1 = table_med.TableControl(searchDepth=1, Name="View 1")
+
+    items_len = 17
+
+    # NOTE: For some weird reason, first row is 2nd row, because first one has a fixed value, idk why or if this means trouble in the future.
+
+    elements = []  # NOTE: Para debugear, no sirve en produccion
+    for i in range(items_len):
+        index = i + 1
+        row = view_1.CustomControl(searchDepth=1, Name=str(index))
+
+        description_cell = row.DataItemControl(searchDepth=1, foundIndex=1)
+        description_edit = description_cell.EditControl(searchDepth=1, Name="Text1")
+        description_value = description_edit.GetValuePattern().Value
+
+        if not description_value:
+            continue
+
+        elements.append((row, description_value))
+
+        print(f"{description_value = }")  # debug opcional
+
+        # 🔹 comparar EXACTAMENTE con el nombre completo
+        if description_value.strip().lower() == nombre_completo.strip().lower():
+            print("✔ encontrado correcto")
+
+            row.Click()  # seleccionar fila
+            row.SendKeys("{Enter}")  # confirmar
+
+            break  # 🔥 detener el loop cuando lo encuentra
+
+        sleep(1)
+
+    return None
+
+
+def agregar_productos(productos: tuple[Producto, ...]):
+    for producto in productos:
+        agregar_producto(producto)
+    return None
+
+
+def main(productos: tuple[Producto, ...]) -> None:
     """
     TODO: Backup in github.
     TODO: Use parameters
@@ -189,8 +158,35 @@ def main() -> None:
     Registro_pedido = esperar_ventana("Registro de Pedido")
 
     # 🔹 Forma de pago (posición 9: sis)
+
     combo_formadepago = Registro_pedido.ComboBoxControl(Name="CboDato")
-    seleccionar_combo_click_ciego(combo_formadepago, 9)
+    fila_bd = {"forma_pago_id": 9}
+
+    id_forma_pago = fila_bd["forma_pago_id"]
+
+    mapa_forma_pago = {
+        0: 0,  # Contado (default)
+        1: 1,
+        2: 2,
+        3: 3,
+        4: 4,
+        5: 5,
+        6: 6,  # Intervención Sanitaria
+        7: 7,
+        8: 8,
+        9: 9,  # SIS
+        10: 10,
+    }
+
+    posicion = mapa_forma_pago.get(id_forma_pago)
+
+    if posicion is None:
+        raise Exception(f"Forma de pago no mapeada: {id_forma_pago}")
+
+    seleccionar_combo_click_ciego(combo_formadepago, posicion)
+
+    # combo_formadepago = Registro_pedido.ComboBoxControl(Name="CboDato")
+    # seleccionar_combo_click_ciego(combo_formadepago, 9)
 
     # 🔹 FUA
     fua_input = Registro_pedido.EditControl(Name="Txtfua")
@@ -221,57 +217,17 @@ def main() -> None:
     diagnosticos = ["R100", "R05X", "K750"]
     rellenar_diagnosticos(Registro_pedido, diagnosticos)
 
-    # Vayamos a agregar productos de la cabecera_detallle
-
-    auto.SendKeys("{CONTROL}{INSERT}")
-    auto.SendKeys("{Enter}")
-
-    ventana_medicamentos = esperar_ventana("Seleccionar medicamento")
-
-    txt_busca = ventana_medicamentos.EditControl(Name="TxtBusca")
-
-    # escribir_input(txt_busca, "ACIDO ACETILSALICILICO")
-
-    nombre_completo = "ACIDO ACETILSALICILICO - 500 mg - TABLET -"
-    nombre_base = obtener_nombre_base(nombre_completo)
-
-    # 🔹 buscar con nombre base
-    escribir_input(txt_busca, nombre_base)
-
-    sleep(0.3)
-    auto.SendKeys("{Enter}")
-    sleep(0.3)
-
-    # 🔹 leer tabla
-    table_med = TableControl(Name="GrdMed")
-    view_1 = table_med.TableControl(searchDepth=1, Name="View 1")
-
-    items_len = 17
-
-    for i in range(items_len):
-        index = i + 1
-        row = view_1.CustomControl(searchDepth=1, Name=str(index))
-
-        description_cell = row.DataItemControl(searchDepth=1, foundIndex=1)
-        description_edit = description_cell.EditControl(searchDepth=1, Name="Text1")
-        description_value = description_edit.GetValuePattern().Value
-
-        print(description_value)  # debug opcional
-
-        # 🔹 comparar EXACTAMENTE con el nombre completo
-        if description_value.strip().lower() == nombre_completo.strip().lower():
-            print("✔ encontrado correcto")
-
-            row.Click()  # seleccionar fila
-            auto.SendKeys("{Enter}")  # confirmar
-
-            break  # 🔥 detener el loop cuando lo encuentra
-
-        sleep(0.3)
+    agregar_productos(productos)
+    return None
 
 
 # =========================================================
 # 🔹 EJECUCIÓN
 # =========================================================
 if __name__ == "__main__":
-    main()
+    productos = (
+        Producto(nombre="ACIDO ACETILSALICILICO - 500 mg - TABLET -"),
+        Producto(nombre="ACIDO ACETILSALICILICO - 100 mg - TABLET -"),
+    )
+    main(productos)
+    # # GrdDeta is the other table
