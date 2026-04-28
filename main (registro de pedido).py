@@ -81,7 +81,9 @@ def agregar_producto(producto: Producto) -> None:
             break  # 🔥 detener el loop cuando lo encuentra
 
         sleep(1)
-
+    auto.SendKeys(str(producto.cantidad))
+    auto.SendKeys("{CONTROL}{INSERT}")
+    auto.SendKeys("{CONTROL}{DELETE}")
     return None
 
 
@@ -89,6 +91,154 @@ def agregar_productos(productos: tuple[Producto, ...]):
     for producto in productos:
         agregar_producto(producto)
     return None
+
+
+def seleccionar_farmacia(nombre_farmacia: str):
+    from time import sleep
+
+    import uiautomation as auto
+
+    farmacias = {
+        "HOSP. DE RIOJA": 0,
+        "HOSP. CENTRAL": 1,
+        "DOSIS UNIT.": 2,
+        "EMERGENCIA": 3,
+        "SOP": 4,
+        "UPSS": 5,
+    }
+
+    # 🔹 Abrir ventana
+    auto.Click(440, 115)
+    sleep(0.5)
+    auto.SendKeys("{Enter}")
+    sleep(0.7)
+
+    ventana = auto.WindowControl(Name="Selección de Farmacias")
+
+    if not ventana.Exists(3):
+        raise Exception("No se encontró la ventana")
+
+    ventana.SetActive()
+    sleep(0.5)
+
+    # 🔥 recorrer árbol completo (forma compatible)
+    filas = []
+
+    for control, depth in auto.WalkControl(ventana):
+        # buscamos los "1", "2", "3"... que viste en inspector
+        if control.ControlTypeName == "CustomControl" and control.Name.isdigit():
+            filas.append(control)
+
+    # ordenar correctamente
+    filas.sort(key=lambda x: int(x.Name))
+
+    if not filas:
+        raise Exception("No se encontraron filas numeradas")
+
+    # 🔹 índice desde BD
+    indice = farmacias.get(nombre_farmacia.upper(), 0)
+
+    if indice >= len(filas):
+        raise Exception(f"Índice fuera de rango: {indice}")
+
+    fila = filas[indice]
+
+    # 🔹 interactuar
+    try:
+        fila.SetFocus()
+    except:
+        pass
+
+    fila.Click()
+    sleep(0.2)
+
+    auto.SendKeys("{Enter}")
+
+
+def normalizar(texto: str) -> str:
+    if not texto:
+        return ""
+    return texto.replace(" ", "").strip().upper()
+
+
+def obtener_texto_edit(ctrl):
+    """Busca texto dentro de EditControl (Text1)"""
+    import uiautomation as auto
+
+    for hijo in ctrl.GetChildren():
+        if hijo.ControlType == auto.ControlType.EditControl:
+            try:
+                vp = hijo.GetValuePattern()
+                if vp:
+                    return vp.Value
+            except:
+                pass
+
+            try:
+                return hijo.Name
+            except:
+                pass
+
+    return ""
+
+
+def seleccionar_farmacia_por_codigo(codigo_objetivo: str):
+    from time import sleep
+
+    import uiautomation as auto
+
+    codigo_objetivo = normalizar(codigo_objetivo)
+
+    # 🔹 Abrir ventana
+    auto.Click(440, 115)
+    sleep(0.5)
+    auto.SendKeys("{Enter}")
+    sleep(0.7)
+
+    ventana = auto.WindowControl(Name="Selección de Farmacias")
+
+    if not ventana.Exists(3):
+        raise Exception("No se encontró la ventana")
+
+    ventana.SetActive()
+    sleep(0.5)
+
+    filas = []
+
+    # 🔥 obtener filas ("1","2","3"...)
+    for control, _ in auto.WalkControl(ventana):
+        if control.ControlTypeName == "CustomControl" and control.Name.isdigit():
+            filas.append(control)
+
+    filas.sort(key=lambda x: int(x.Name))
+
+    if not filas:
+        raise Exception("No se encontraron filas")
+
+    # 🔍 buscar por código dentro del EditControl
+    for fila in filas:
+        try:
+            celdas = fila.GetChildren()
+
+            if len(celdas) >= 2:
+                celda_codigo = celdas[1]
+
+                texto = obtener_texto_edit(celda_codigo)
+                texto = normalizar(texto)
+
+                # DEBUG
+                # print("Código leído:", texto)
+
+                if codigo_objetivo == texto:
+                    fila.Click()
+                    sleep(0.2)
+                    auto.SendKeys("{Enter}")
+                    return
+
+        except:
+            continue
+
+    raise Exception(f"No se encontró farmacia con código: {codigo_objetivo}")
 
 
 def main(productos: tuple[Producto, ...]) -> None:
@@ -132,19 +282,14 @@ def main(productos: tuple[Producto, ...]) -> None:
     # =====================================================
     # 3. 📂 NAVEGACIÓN EN EL MENÚ
     # =====================================================
-    print("Navegando al módulo de ingresos...")
+    print("Navegando al módulo de Registro de Pedido...")
 
     panel_window = PaneControl(foundIndex=1, searchDepth=5)
     panel_window.SetFocus()
 
-    auto.Click(440, 115)  # Control de farmacia
-    sleep(0.3)
-    auto.SendKeys("{Enter}")
-
-    auto.SendKeys(
-        "{Enter}"
-    )  # seleccionar farmacia, aqui segun se debe de leer la base de datos y aplicar logica para que selecione 1 de las 6
-
+    # 🔹 Selecionar farmacia por su nombre
+    # seleccionar_farmacia("HOSP. CENTRAL")
+    seleccionar_farmacia_por_codigo("06732F02")
     sleep(0.3)
     auto.Click(48, 122)  # Procesos
 
@@ -185,6 +330,7 @@ def main(productos: tuple[Producto, ...]) -> None:
 
     seleccionar_combo_click_ciego(combo_formadepago, posicion)
 
+    # 🔹 Forma de pago en la forma antigua como lo haciamos antes sin logica y ingresando el dato nosotros mismos (posición 9: sis)
     # combo_formadepago = Registro_pedido.ComboBoxControl(Name="CboDato")
     # seleccionar_combo_click_ciego(combo_formadepago, 9)
 
@@ -196,7 +342,6 @@ def main(productos: tuple[Producto, ...]) -> None:
 
     combo_tipo_receta = Registro_pedido.ComboBoxControl(Name="cmbTipoReceta")
     seleccionar_combo_click_ciego(combo_tipo_receta, 3)
-
     # meteler el cliente:
     # clcik en 770 y 410
     # ABAD CARDENAS, SELOMIT ABIGAIL este es el nombre del cliente
@@ -226,8 +371,18 @@ def main(productos: tuple[Producto, ...]) -> None:
 # =========================================================
 if __name__ == "__main__":
     productos = (
-        Producto(nombre="ACIDO ACETILSALICILICO - 500 mg - TABLET -"),
-        Producto(nombre="ACIDO ACETILSALICILICO - 100 mg - TABLET -"),
+        Producto(nombre="ACIDO ACETILSALICILICO - 500 mg - TABLET -", cantidad=3),
+        Producto(nombre="ACIDO ACETILSALICILICO - 100 mg - TABLET -", cantidad=7),
+        Producto(nombre="ACIDO TRANEXAMICO - 250 mg - TABLET -", cantidad=6),
+        Producto(nombre="ACIDO TRANEXAMICO - 1 g - INYECT - 10 mL", cantidad=4),
     )
     main(productos)
     # # GrdDeta is the other table
+
+    """
+        Producto(nombre="ACIDO ACETILSALICILICO - 500 mg - TABLET -", cantidad=3),
+        Producto(nombre="ACIDO ACETILSALICILICO - 100 mg - TABLET -", cantidad=7),
+        Producto(nombre="ACIDO TRANEXAMICO - 250 mg - TABLET -", cantidad=6),
+        Producto(nombre="ACIDO TRANEXAMICO - 1 g - INYECT - 10 mL", cantidad=4),
+        Producto(nombre="ALCOHOL ETILICO (ETANOL) - 96 % - SOLUCI - 1 L", cantidad=5),
+    """

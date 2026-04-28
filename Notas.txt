@@ -1,0 +1,8 @@
+Esta version esta estable
+
+Registro de pedido : llega hasta agregar productos con tipo de pago sis. falta el boton de guardar pero es lo de menos.
+Nota de ingreso: llega a agregar productos, se debe de mejorar el flujo ya que no usa funciones, eo lo hare en la proxima.
+nota de salida: no he hecho nada.
+
+Para la proxima version quiero tener nota de pedido usando un objeto pedido el cual tiene una lista de objetos y ya no harcodear si no que lea nomas segun lo que se le indique
+Para la proxima version quiero nota de ingreso con funciones y usar tambien un objeto ingreso jaja.
