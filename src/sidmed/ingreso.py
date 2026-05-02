@@ -66,18 +66,17 @@ def cerrar_ventana_inicial():
 
 
 def navegar_a_ingresos():
-    panel = PaneControl(foundIndex=1)
-    panel.SetFocus()
-
-    auto.Click(355, 115)
-    sleep(0.3)
     auto.SendKeys("{Enter}")
-
     sleep(0.3)
-    auto.Click(48, 122)
-
+    # quiero mandarle hacia abajo para que se posicione en ingresos
+    auto.SendKeys("{DOWN}")
     sleep(0.3)
-    auto.Click(355, 115)
+    auto.SendKeys("{DOWN}")
+    sleep(0.3)
+    auto.SendKeys("{ENTER}")
+    sleep(0.3)
+    auto.Click(360, 100)
+    sleep(0.3)
     auto.SendKeys("{Enter}")
 
 
@@ -113,7 +112,13 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
 
     combo = auto.ComboBoxControl(Name="cmbConcepto")
     combo.Click()
-    auto.ListItemControl(RegexName=ingreso.concepto).Click()
+    children = combo.GetChildren()
+    lista = [child.Name for child in children]
+    for child in children:
+        # print(child.Name)
+        # NOTE: Cuidado, los nombres traen len fijo
+        if child.Name.strip() == ingreso.concepto:
+            child.Click()
 
     codigo = generar_codigo_ngr()
     registro.EditControl(Name="txtGuiaRemision").SendKeys(codigo)
@@ -178,7 +183,8 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
 def procesar_ingreso(ingreso: Ingreso):
 
     login()
-
+    cerrar_ventana_inicial()
+    navegar_a_ingresos()
     registro = abrir_registro()
 
     rellenar_cabecera(registro, ingreso)
