@@ -1,20 +1,16 @@
 from time import sleep
 
 import uiautomation as auto
-
-from src.helpers.ui_helper import normalizar, obtener_texto_edit
+from uiautomation import Click, SendKeys
+from ..helpers.ui_helper import normalizar, obtener_texto_edit
+from uiautomation import WindowControl
 
 
 def seleccionar_farmacia_por_codigo(codigo_objetivo: str):
 
     codigo_objetivo = normalizar(codigo_objetivo)
 
-    auto.Click(440, 115)
-    sleep(0.5)
-    auto.SendKeys("{Enter}")
-    sleep(0.7)
-
-    ventana = auto.WindowControl(Name="Selección de Farmacias")
+    ventana: WindowControl = WindowControl(Name="Selección de Farmacias")
 
     if not ventana.Exists(3):
         raise Exception("No se encontró la ventana")
@@ -44,7 +40,8 @@ def seleccionar_farmacia_por_codigo(codigo_objetivo: str):
                     auto.SendKeys("{Enter}")
                     return
 
-        except:
+        except Exception as e:
+            print(f"Error occurred while processing fila: {e}")
             continue
 
     raise Exception(f"No se encontró farmacia con código: {codigo_objetivo}")

@@ -7,6 +7,8 @@ from src.models.prescriptor import Prescriptor
 from src.models.producto import Producto
 from src.sidmed.pedido import procesar_pedidos
 
+from src.models.enums import TipoReceta
+
 
 def test_procesar_pedidos_llama_procesar_pedido(monkeypatch):
     llamadas = []
@@ -20,15 +22,16 @@ def test_procesar_pedidos_llama_procesar_pedido(monkeypatch):
         farmacia=Farmacia("HOSP. CENTRAL", "06732F02"),
         cliente=Cliente("00033257", "ABAD CARDENAS, SELOMIT ABIGAIL"),
         prescriptor=Prescriptor("14571"),
-        forma_pago=FormaPago.SIS,
-        # tipo_receta=RecetaTipo.RecetaSinNumero,
+        forma_pago=FormaPago.INTERVENCION_SANITARIA,
+        tipo_receta=TipoReceta.SIN_NUMERO,
         diagnosticos=[Diagnostico("R100"), Diagnostico("R05X"), Diagnostico("K750")],
         productos=[
-            Producto("00091", 3),
-            Producto("36413", 7),
-            Producto("10145", 6),
+            Producto("00091", 1),
+            Producto("36413", 1),
+            Producto("10145", 1),
         ],
         fua="786636652",
+        ups_codigo="407",
     )
 
     procesar_pedidos((pedido,))

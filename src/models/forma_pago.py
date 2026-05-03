@@ -1,7 +1,9 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class FormaPago(Enum):
-    CONTADO = 0
-    SIS = 9
-    INTERVENCION_SANITARIA = 6
+class FormaPago(StrEnum):
+    """NOTE: Others may exists."""
+
+    CONTADO = "CONTADO"
+    INTERVENCION_SANITARIA = "INTERVENCION SANITAR"
+    SIS = "SIS"
