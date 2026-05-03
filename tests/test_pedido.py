@@ -18,15 +18,15 @@ def test_procesar_pedidos_llama_procesar_pedido(monkeypatch):
     """
     pedido = Pedido(
         farmacia=Farmacia("HOSP. CENTRAL", "06732F02"),
-        cliente=Cliente("ABAD CARDENAS, SELOMIT ABIGAIL"),
+        cliente=Cliente("00033257", "ABAD CARDENAS, SELOMIT ABIGAIL"),
         prescriptor=Prescriptor("14571"),
         forma_pago=FormaPago.SIS,
+        # tipo_receta=RecetaTipo.RecetaSinNumero,
         diagnosticos=[Diagnostico("R100"), Diagnostico("R05X"), Diagnostico("K750")],
         productos=[
-            Producto("ACIDO ACETILSALICILICO - 500 mg - TABLET -", 3),
-            Producto("ACIDO ACETILSALICILICO - 100 mg - TABLET -", 7),
-            Producto("ACIDO TRANEXAMICO - 250 mg - TABLET -", 6),
-            Producto("ACIDO TRANEXAMICO - 1 g - INYECT - 10 mL", 4),
+            Producto("00091", 3),
+            Producto("36413", 7),
+            Producto("10145", 6),
         ],
         fua="786636652",
     )

@@ -10,12 +10,15 @@ from uiautomation import WindowControl
 from src.models.producto_ingreso import ProductoIngreso
 from src.models.Salidas import Salidas
 
+from ..sidmed._login import login
+
 # =========================================================
 # 🔹 CONFIG
 # =========================================================
 load_dotenv()
 SISMED_EXE: str = environ["SISMED_EXE"]
-
+username: str = environ["SISMED_USERNAME"]
+password: str = environ["SISMED_PASSWORD"]
 # =========================================================
 # 🔹 HELPERS
 # =========================================================
@@ -171,7 +174,7 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
 
 def procesar_salida(salidas: Salidas):
 
-    Login()
+    login(username, password)
     registro = Navegar_Salidas()
 
     rellenar_cabecera_salidas(registro, salidas)

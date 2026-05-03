@@ -9,6 +9,7 @@ from uiautomation import PaneControl, WindowControl
 
 from src.models.ingreso import Ingreso
 from src.models.producto_ingreso import ProductoIngreso
+from src.sidmed._login import login
 
 # =========================================================
 # 🔹 CONFIG
@@ -19,50 +20,54 @@ SISMED_EXE: str = environ["SISMED_EXE"]
 # =========================================================
 # 🔹 HELPERS
 # =========================================================
+username: str = environ["SISMED_USERNAME"]
+password: str = environ["SISMED_PASSWORD"]
 
 
 def generar_codigo_ngr() -> str:
     return datetime.now().strftime("%Y%m%d%H%M")
 
 
-def seleccionar_combo_por_indice(nombre_combo: str, indice: int):
+def seleccionar_combo_por_texto(nombre_combo: str, texto_objetivo: str):
     combo = auto.ComboBoxControl(Name=nombre_combo)
 
     if not combo.Exists():
         raise Exception(f"No se encontró combo: {nombre_combo}")
 
     combo.Click()
-    sleep(0.3)
+    for i in range(10):  # NOTE: Generic way to go up, not necesarily eficient.
+        auto.SendKeys("{UP}")
+    children = combo.GetChildren()
+    elementos = [child.Name.strip() for child in children]
+    for child in children:
+        if child.Name.strip() == texto_objetivo:
+            child.Click()
+            return
 
-    for _ in range(indice):
-        auto.SendKeys("{DOWN}")
-        sleep(0.1)
+    raise Exception(f"No se encontró el texto: {texto_objetivo}")
 
-    auto.SendKeys("{ENTER}")
+
+def seleccionar_combo_por_texto_con_autoenter(nombre_combo: str, texto_objetivo: str):
+    """Aqui, si pones Up o DOWN se selecciona la opcion, tener cuidado."""
+    combo = auto.ComboBoxControl(Name=nombre_combo)
+
+    if not combo.Exists():
+        raise Exception(f"No se encontró combo: {nombre_combo}")
+
+    combo.Click()
+    children = combo.GetChildren()
+    elementos = [child.Name.strip() for child in children]
+    for child in children:
+        if child.Name.strip() == texto_objetivo:
+            child.Click()
+            return
+
+    raise Exception(f"No se encontró el texto: {texto_objetivo}")
 
 
 # =========================================================
 # 🔹 FLUJO BASE
 # =========================================================
-
-
-def login():
-    Popen(SISMED_EXE)
-
-    login_window = WindowControl(Name="Acceso al Sistema")
-    login_window.Exists(10)
-
-    login_window.EditControl(Name="txtUsuario").SendKeys(environ["SISMED_USERNAME"])
-    login_window.EditControl(Name="txtClave").SendKeys(environ["SIDMED_PASSWORD"])
-
-    login_window.ButtonControl(Name="Aceptar").Click()
-
-
-def cerrar_ventana_inicial():
-    ventana = WindowControl(Name="Productos Vencidos y por Vencer")
-
-    if ventana.Exists():
-        ventana.ButtonControl(Name="Salir").Click()
 
 
 def navegar_a_ingresos():
@@ -110,15 +115,7 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
     auto.Click(580, 360)
     auto.SendKeys("{Enter}")
 
-    combo = auto.ComboBoxControl(Name="cmbConcepto")
-    combo.Click()
-    children = combo.GetChildren()
-    lista = [child.Name for child in children]
-    for child in children:
-        # print(child.Name)
-        # NOTE: Cuidado, los nombres traen len fijo
-        if child.Name.strip() == ingreso.concepto:
-            child.Click()
+    seleccionar_combo_por_texto_con_autoenter("cmbConcepto", ingreso.concepto)
 
     codigo = generar_codigo_ngr()
     registro.EditControl(Name="txtGuiaRemision").SendKeys(codigo)
@@ -152,8 +149,8 @@ def agregar_producto(registro: WindowControl, producto: ProductoIngreso):
     sleep(0.5)
 
     # 🔥 combos nuevos
-    seleccionar_combo_por_indice("cbotipsum", producto.tipo_sum)
-    seleccionar_combo_por_indice("cboffin", producto.fuente_fin)
+    seleccionar_combo_por_texto("cbotipsum", producto.tipo_sum)
+    seleccionar_combo_por_texto("cboffin", producto.fuente_fin)
 
     registro.EditControl(Name="txtCantidad").SendKeys(str(producto.cantidad))
     auto.SendKeys("{Enter}")
@@ -180,14 +177,19 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
     return None
 
 
+def guardar():
+    CmdSave = auto.ButtonControl(Name="CmdSave")
+    CmdSave.Click()
+    sleep(0.3)
+
+
 def procesar_ingreso(ingreso: Ingreso):
 
-    login()
-    cerrar_ventana_inicial()
+    login(username, password)
     navegar_a_ingresos()
+    abrir_registro()
     registro = abrir_registro()
-
     rellenar_cabecera(registro, ingreso)
     agregar_productos(registro, ingreso)
-
+    guardar()
     sleep(0.3)

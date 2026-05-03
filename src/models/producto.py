@@ -3,5 +3,5 @@ from dataclasses import dataclass
 
 @dataclass
 class Producto:
-    nombre: str
+    codigo: str
     cantidad: int = 1

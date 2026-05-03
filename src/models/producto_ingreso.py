@@ -4,8 +4,8 @@ class ProductoIngreso:
         codigo: str,
         lote: str,
         cantidad: int,
-        tipo_sum: int,
-        fuente_fin: int,
+        tipo_sum: str,
+        fuente_fin: str,
     ):
         self.codigo = codigo
         self.lote = lote

@@ -3,7 +3,7 @@ from time import sleep
 from uiautomation import ButtonControl, Click, EditControl, SendKeys, WindowControl
 
 
-def seleccionar_cliente(nombre_cliente: str) -> None:
+def seleccionar_cliente(codigo_cliente: str) -> None:
     Click(770, 410)
     sleep(0.5)
 
@@ -12,11 +12,16 @@ def seleccionar_cliente(nombre_cliente: str) -> None:
     )
     ventana_cliente.Exists(5)
 
+    # 🔹 Cambiar a búsqueda por código
+    Click(760, 340)
+    sleep(0.3)
+
     txt_busca: EditControl = ventana_cliente.EditControl(Name="TxtBusca")
     txt_busca.SetFocus()
     sleep(0.2)
 
-    txt_busca.SendKeys(nombre_cliente)
+    # 🔹 Ahora sí: enviamos código
+    txt_busca.SendKeys(codigo_cliente)
     sleep(0.5)
 
     SendKeys("{Enter}")
@@ -24,4 +29,3 @@ def seleccionar_cliente(nombre_cliente: str) -> None:
 
     boton_seleccionar: ButtonControl = ventana_cliente.ButtonControl(Name="Seleccionar")
     boton_seleccionar.Click()
-    return None

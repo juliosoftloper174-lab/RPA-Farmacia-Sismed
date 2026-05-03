@@ -5,6 +5,7 @@ from src.sidmed.ingreso import procesar_ingresos
 
 def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
     llamadas = []
+
     """
     def fake_procesar_ingreso(ingreso):
         llamadas.append(ingreso)
@@ -12,13 +13,25 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
     monkeypatch.setattr("src.sidmed.ingreso.procesar_ingreso", fake_procesar_ingreso)
     """
     ingreso = Ingreso(
-        almacen_origen="ALM. ANEXO RIOJA",
+        almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN   ",
         almacen_destino="FARM",
         concepto="DISTRIBUCION",
         referencia="B.O.T",
         productos=[
-            ProductoIngreso("30588", "2080015", 27, 0, 0),
-            ProductoIngreso("30588", "2080015", 7, 4, 3),
+            ProductoIngreso(
+                "30588",
+                "2080015",
+                27,
+                "SISMED-CENTRALIZADO (SC)",
+                "Contribuciones a Fondos (CON)",
+            ),
+            ProductoIngreso(
+                "30588",
+                "2080015",
+                7,
+                "SISMED-COMPRA REGIONAL (CR)",
+                "Recursos Determinados (RDE)",
+            ),
         ],
     )
 

@@ -3,6 +3,7 @@ from subprocess import Popen
 from time import sleep
 
 import uiautomation as auto
+from dotenv import load_dotenv
 from uiautomation import PaneControl, WindowControl
 
 from ..config import SISMED_EXE
@@ -20,57 +21,37 @@ from ..models.forma_pago import FormaPago
 from ..models.pedido import Pedido
 from ..models.prescriptor import Prescriptor
 from ..models.producto import Producto
+from ..sidmed._login import login
+from ..sidmed._login import cerrar_ventana_inicial
+from src.models import pedido
+
+from src.helpers import ventana
+
+load_dotenv()
+
+username = environ["SISMED_USERNAME"]
+password = environ["SISMED_PASSWORD"]
 
 
-def procesar_pedido(pedido: Pedido) -> None:
-
-    # =====================================================
-    # 1. 🔐 LOGIN
-    # =====================================================
-    print("Abriendo SISMED...")
-    Popen(SISMED_EXE)
-
-    login_window = esperar_ventana("Acceso al Sistema")
-
-    escribir_input(
-        login_window.EditControl(Name="txtUsuario"), environ["SISMED_USERNAME"]
-    )
-
-    escribir_input(
-        login_window.EditControl(Name="txtClave"), environ["SIDMED_PASSWORD"]
-    )
-
-    login_window.ButtonControl(Name="Aceptar").Click()
-
-    # =====================================================
-    # 2. ❌ CERRAR POPUP
-    # =====================================================
-    productos_window = WindowControl(
-        searchDepth=3, Name="Productos Vencidos y por Vencer"
-    )
-
-    if productos_window.Exists():
-        productos_window.ButtonControl(Name="Salir").Click()
-
-    # =====================================================
-    # 3. 📂 NAVEGACIÓN
-    # =====================================================
-    panel = PaneControl(foundIndex=1, searchDepth=5)
-    panel.SetFocus()
+def navegar_a_pedidos(pedido: Pedido):
+    auto.SendKeys("{RIGHT}")
+    auto.SendKeys("{Enter}")
+    sleep(0.3)
 
     seleccionar_farmacia_por_codigo(pedido.farmacia.codigo)
 
     sleep(0.3)
-    auto.Click(48, 122)
-
+    auto.SendKeys("{DOWN}")
     sleep(0.3)
-    auto.Click(355, 115)
+    auto.SendKeys("{DOWN}")
+    sleep(0.3)
+
+    auto.Click(360, 100)
+    sleep(0.3)
     auto.SendKeys("{Enter}")
 
-    # =====================================================
-    # 4. 🧾 REGISTRO DE PEDIDO
-    # =====================================================
-    ventana = esperar_ventana("Registro de Pedido")
+
+def r_cabecera(ventana, pedido: Pedido):
 
     # Forma de pago
     combo = ventana.ComboBoxControl(Name="CboDato")
@@ -84,7 +65,7 @@ def procesar_pedido(pedido: Pedido) -> None:
 
     # Cliente
     auto.Click(770, 410)
-    seleccionar_cliente(pedido.cliente.nombre)
+    seleccionar_cliente(pedido.cliente.codigo)
 
     # Prescriptor
     presc = ventana.EditControl(Name="TxtColPresc")
@@ -94,9 +75,24 @@ def procesar_pedido(pedido: Pedido) -> None:
     # Diagnósticos
     rellenar_diagnosticos(ventana, [d.codigo for d in pedido.diagnosticos])
 
+
+def guardar():
+    CmdSave = auto.ButtonControl(Name="CmdSave")
+    CmdSave.Click()
+    sleep(0.3)
+
+
+def procesar_pedido(pedido: Pedido) -> None:
+
+    login(username, password)
+    cerrar_ventana_inicial()
+    navegar_a_pedidos(pedido)
+    ventana = esperar_ventana("Registro de Pedido")
+    r_cabecera(ventana, pedido)
+
     # Productos
     agregar_productos(tuple(pedido.productos))
-
+    guardar()
     return sleep(0.5)
 
 

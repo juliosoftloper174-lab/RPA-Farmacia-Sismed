@@ -15,8 +15,12 @@ from .sidmed.pedido import (
     procesar_pedidos,
 )
 from .sidmed.salidas import ProductoIngreso, Salidas, procesar_salidas
+from .sidmed.wrapper import Sismed
 
 load_dotenv()
+
+sismed_username = environ["SISMED_USERNAME"]
+sismed_password = environ["SISMED_PASSWORD"]
 
 
 class Database:
@@ -34,14 +38,6 @@ class Database:
 
     def obtener_salidas(self) -> list[dict]:
         return []
-
-
-class Sismed:
-    def __init__(self):
-        pass
-
-    def insertar_datos(self, pedidos: list[Pedido]):
-        pass
 
 
 def main() -> None:
