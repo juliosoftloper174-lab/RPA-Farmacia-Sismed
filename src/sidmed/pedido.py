@@ -85,7 +85,6 @@ def guardar():
 def procesar_pedido(pedido: Pedido) -> None:
 
     login(username, password)
-    cerrar_ventana_inicial()
     navegar_a_pedidos(pedido)
     ventana = esperar_ventana("Registro de Pedido")
     r_cabecera(ventana, pedido)
