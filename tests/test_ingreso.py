@@ -21,14 +21,14 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
             ProductoIngreso(
                 "30588",
                 "2080015",
-                27,
+                1,
                 "SISMED-CENTRALIZADO (SC)",
                 "Contribuciones a Fondos (CON)",
             ),
             ProductoIngreso(
                 "30588",
                 "2080015",
-                7,
+                1,
                 "SISMED-COMPRA REGIONAL (CR)",
                 "Recursos Determinados (RDE)",
             ),

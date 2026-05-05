@@ -177,6 +177,7 @@ def procesar_pedido(pedido: Pedido) -> None:
     # Productos
     agregar_productos(tuple(pedido.productos))
     guardar()
+    sleep(0.3)
     return sleep(0.5)
 
 

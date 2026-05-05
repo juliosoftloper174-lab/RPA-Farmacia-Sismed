@@ -129,11 +129,12 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
     auto.Click(1140, 230)
     auto.SendKeys(ingreso.almacen_destino)
     auto.SendKeys("{Enter}")
-
+    # NOTE: aqui se rellena el almacen virtual, esto no lee la base de datos, se asume que siempre sera el primero, se puede mejorar este apartado, por ahora trabajemoslo asi
     sleep(0.3)
     auto.Click(780, 250)
     sleep(0.3)
     auto.Click(580, 360)
+
     auto.SendKeys("{Enter}")
 
     seleccionar_combo_por_texto_con_autoenter("cmbConcepto", ingreso.concepto)
@@ -141,6 +142,7 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
     codigo = generar_codigo_ngr()
     registro.EditControl(Name="txtGuiaRemision").SendKeys(codigo)
 
+    # Note: aqui se rellena el UPS esto no lee la base de datos se asume que siempre sera el primero (SIN UPS), se puede mejorar este apartado, por ahora trabajemoslo asi
     registro.ButtonControl(Name="...", foundIndex=5).Click()
     auto.SendKeys("{Enter}")
 

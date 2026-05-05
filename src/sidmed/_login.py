@@ -18,7 +18,6 @@ def login(username: str, password: str) -> None:
 
     if not LOGIN_WINDOW.Exists(maxSearchSeconds=0):
         Popen(SISMED_EXE)
-
     LOGIN_WINDOW.EditControl(Name="txtUsuario").SendKeys(username)
     LOGIN_WINDOW.EditControl(Name="txtClave").SendKeys(password)
     LOGIN_WINDOW.ButtonControl(Name="Aceptar").Click()
