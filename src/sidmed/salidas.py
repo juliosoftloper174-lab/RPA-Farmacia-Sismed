@@ -5,10 +5,15 @@ from time import sleep
 
 import uiautomation as auto
 from dotenv import load_dotenv
-from uiautomation import WindowControl
-
+from uiautomation import EditControl, WindowControl
+from uiautomation import CustomControl, DataItemControl
 from src.models.producto_ingreso import ProductoIngreso
 from src.models.Salidas import Salidas
+from src.sidmed.ingreso import (
+    guardar,
+    seleccionar_combo_por_texto,
+    seleccionar_combo_por_texto_con_autoenter,
+)
 
 from ..sidmed._login import login
 
@@ -47,25 +52,6 @@ def seleccionar_combo_sismed(nombre_combo: str, texto_objetivo: str, max_intento
         sleep(0.2)
 
     raise Exception(f"❌ No se encontró el concepto: {texto_objetivo}")
-
-
-def seleccionar_almacen_destino_por_codigo(codigo_objetivo: str):
-    tabla = auto.TableControl(Name="GrdCatalogo")
-
-    if not tabla.Exists(5):
-        raise Exception("❌ No se encontró la tabla de almacenes")
-
-    filas = tabla.GetChildren()
-
-    for fila in filas:
-        texto = fila.Name  # 🔥 aquí viene todo el contenido de la fila
-
-        if codigo_objetivo in texto:
-            fila.Click()
-            print(f"✅ Seleccionado: {codigo_objetivo}")
-            return
-
-    raise Exception(f"❌ No se encontró el código: {codigo_objetivo}")
 
 
 # =========================================================
@@ -131,6 +117,61 @@ def Navegar_Salidas() -> WindowControl:
 # =========================================================
 
 
+def debug_tabla_almacenes():
+    tabla = auto.TableControl(Name="GrdCatalogo")
+
+    if not tabla.Exists(5):
+        raise Exception("❌ No se encontró la tabla de almacenes")
+
+    print("🔍 ===== INICIO DEBUG TABLA =====")
+
+    filas = tabla.GetChildren()
+
+    for i, fila in enumerate(filas):
+        print(f"\n🧾 FILA {i} → {fila.ControlTypeName}")
+
+        grupos = fila.GetChildren()
+
+        for j, grupo in enumerate(grupos):
+            print(f"   📦 GRUPO {j} → {grupo.ControlTypeName}")
+
+            celdas = grupo.GetChildren()
+
+            for k, celda in enumerate(celdas):
+                texto = celda.Name.strip()
+                print(f"      🔹 Col {k}: '{texto}'")
+
+    print("\n🔍 ===== FIN DEBUG TABLA =====")
+
+
+def seleccionar_almacen_destino_por_codigo(codigo_objetivo: str):
+    codigo_objetivo = str(codigo_objetivo).strip()
+
+    tabla_padre = auto.TableControl(Name="GrdCatalogo")
+    tabla = tabla_padre.TableControl(Name="View 1")
+
+    children = tabla.GetChildren()
+    header = children[0]
+    filas: list[CustomControl] = children[1:]
+    # Lookin for code
+
+    for fila in filas:
+        code_data_item: DataItemControl = fila.DataItemControl(
+            searchDepth=1, foundIndex=2, Name=""
+        )
+        xd = code_data_item.GetChildren()
+        xdd = xd[0].GetChildren()
+        text_edit = code_data_item.EditControl(searchDepth=1, Name="Text1")
+        codigo = text_edit.GetValuePattern().Value
+
+        if codigo.strip() == codigo_objetivo:
+
+            code_data_item.Click()  # más preciso
+            return None
+
+    raise Exception(f"❌ No se encontró el código: {codigo_objetivo}")
+
+
 def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
 
     sleep(1)
@@ -142,28 +183,34 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
     sleep(0.3)
 
     # 🔹 Almacén destino (nombre)
-    # auto.Click(1140, 230)
-    # seleccionar_almacen_destino_por_codigo("06732F04")
-    # auto.ButtonControl(Name="Aceptar").Click()
-
+    auto.Click(1140, 230)
+    sleep(2)  # 🔥 importante que cargue la tabla
+    seleccionar_almacen_destino_por_codigo(salidas.almacen_destino)
+    auto.ButtonControl(Name="Aceptar").Click()
     sleep(0.3)
 
-    # 🔹 Alamcen virtual
+    # 🔹 Almacen virtual
     auto.Click(780, 250)
-    sleep(0.3)
-    auto.Click(580, 360)
+    sleep(1)  # 🔥 espera que abra la ventana
+
+    auto.SendKeys(salidas.almacen_virtual_origen)
+    sleep(1)
+
+    # 🔥 buscar
+
     auto.SendKeys("{Enter}")
 
     # 🔹 Concepto (combo)
-    seleccionar_combo_sismed("cmbConcepto", salidas.concepto)
+    # seleccionar_combo_por_texto("cmbConcepto", salidas.concepto)
+    # NOTE: Se tomo la decision de Harcodear ya que almenos se tiene entendido que siempre sera distribucion, ademas de que esta muy dificil poder selecionar la acion ya que si jugamos con las opciones algunas quitan el almacen destino y a volver a querer poner distribucion nos da error
+    auto.Click(700, 280)
+    sleep(0.3)
+    auto.Click(704, 340)
+    sleep(0.3)
+    auto.Click(507, 307)
+    sleep(0.3)
 
-    # 🔹 Referencia
     registro.EditControl(Name="txtReferencia").SendKeys(salidas.referencia)
-
-
-# =========================================================
-# 🔹 MAIN
-# =========================================================
 
 
 def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
@@ -172,11 +219,37 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
     return None
 
 
+def agregar_producto(producto: ProductoIngreso):
+
+    # se iba a trabajar usando inspecto pero la ventana cambia de nombre segun el almacen virtual seleccionado, alm destino, almacen origen, etc, por lo que es muy dificil asegurar el nombre de la ventana, por lo que se decidio trabajar con clicks en coordenadas especificas, ya que se tiene entendido que la ventana siempre va a tener la misma estructura y los mismos campos en las mismas posiciones
+
+    auto.SendKeys("{CONTROL}{INSERT}")  # abre ventana de agregar producto
+    sleep(1)
+    auto.Click(825, 355)  # clic en el campo de codigo
+    sleep(0.3)
+    auto.Click(615, 315)  # clic en el txt busca
+    sleep(0.3)
+    auto.SendKeys(producto.codigo)  # busca el producto
+    sleep(0.3)
+    auto.SendKeys("{Enter}")
+    sleep(0.3)
+    auto.SendKeys("{Enter}")  # selecciona el producto
+    sleep(0.3)
+    auto.SendKeys("{Enter}")
+    sleep(0.3)
+    auto.SendKeys(str(producto.cantidad))  # ingresa la cantidad
+    sleep(0.3)
+    auto.SendKeys("{Enter}")
+    auto.SendKeys("{Enter}")
+    pass
+
+
 def procesar_salida(salidas: Salidas):
 
     login(username, password)
     registro = Navegar_Salidas()
-
     rellenar_cabecera_salidas(registro, salidas)
-
+    for producto in salidas.productos:
+        agregar_producto(producto)
+    guardar()
     sleep(0.5)
