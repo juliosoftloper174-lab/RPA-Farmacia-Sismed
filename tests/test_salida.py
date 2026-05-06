@@ -15,7 +15,7 @@ def test_procesar_salidas_llama_procesar_salida(monkeypatch):
     """
     salida = Salidas(
         almacen_origen="06732F02",
-        almacen_destino="030S01",
+        almacen_destino="06732F01",
         almacen_virtual_origen="06732F0201",
         concepto="DISTRIBUCION",
         referencia="TEST",

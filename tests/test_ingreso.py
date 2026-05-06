@@ -13,8 +13,9 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
     monkeypatch.setattr("src.sidmed.ingreso.procesar_ingreso", fake_procesar_ingreso)
     """
     ingreso = Ingreso(
-        almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN   ",
-        almacen_destino="FARM",
+        almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN   ",  # no se puede buscar por codigo
+        almacen_destino="06732F01",  # no se puede buscar por codigo y no str
+        # almacen_virtual_origen="EN EL CODIGO LO HARCODEO A LO PRIMERO QUE HAYA.
         concepto="DISTRIBUCION",
         referencia="B.O.T",
         productos=[

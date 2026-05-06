@@ -1,4 +1,4 @@
 class Farmacia:
-    def __init__(self, nombre: str, codigo: str):
-        self.nombre = nombre
+    # Agrega 'codigo' después de 'self'
+    def __init__(self, codigo):
         self.codigo = codigo

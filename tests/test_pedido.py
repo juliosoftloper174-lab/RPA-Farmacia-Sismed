@@ -19,8 +19,8 @@ def test_procesar_pedidos_llama_procesar_pedido(monkeypatch):
     monkeypatch.setattr("src.sidmed.pedido.procesar_pedido", fake_procesar_pedido)
     """
     pedido = Pedido(
-        farmacia=Farmacia("HOSP. CENTRAL", "06732F02"),
-        cliente=Cliente("00033257", "ABAD CARDENAS, SELOMIT ABIGAIL"),
+        farmacia=Farmacia("06732F02"),
+        cliente=Cliente("00033257"),
         prescriptor=Prescriptor("14571"),
         forma_pago=FormaPago.INTERVENCION_SANITARIA,
         tipo_receta=TipoReceta.SIN_NUMERO,

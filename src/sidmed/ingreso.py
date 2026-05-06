@@ -1,12 +1,13 @@
 from datetime import datetime
 from os import environ
-from subprocess import Popen
+
 from time import sleep
 from uiautomation import ListItemControl
 import uiautomation as auto
-from dotenv import load_dotenv
-from uiautomation import PaneControl, WindowControl
 
+from dotenv import load_dotenv
+from uiautomation import TextControl, WindowControl
+from polars import DataFrame
 from src.models.ingreso import Ingreso
 from src.models.producto_ingreso import ProductoIngreso
 from src.sidmed._login import login
@@ -107,6 +108,7 @@ def navegar_a_ingresos():
 
 
 def abrir_registro() -> WindowControl:
+
     registro = WindowControl(Name="Registro de Ingresos .")
     registro.Exists(10)
 
@@ -195,8 +197,19 @@ def agregar_productos(registro: WindowControl, ingreso: Ingreso):
 
 
 def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
-    for ingreso in ingresos:
-        procesar_ingreso(ingreso)
+    processes: list = list()
+    for simulated_id, ingreso in enumerate(ingresos):
+        try:
+            correlativo = procesar_ingreso(ingreso)
+            processes.append((simulated_id, correlativo))
+        except Exception as e:
+            print(f"Error al procesar el ingreso: {e}")
+            processes.append((simulated_id, str(e)))
+    # Save to excel
+
+    df: DataFrame = DataFrame(processes, schema=["Ingreso", "Correlativo"])
+    df.write_excel("ingresos.xlsx")
+
     return None
 
 
@@ -206,13 +219,54 @@ def guardar():
     sleep(0.3)
 
 
-def procesar_ingreso(ingreso: Ingreso):
+def test_captura_correlativo():
+    resultado = extraer_correlativo_nota_ingreso()
 
+    # Esto hará que el test falle y te muestre el valor en la cara
+    assert resultado == "FORZAR_FALLO", f"El correlativo capturado fue: {resultado}"
+
+
+ALMACEN_WINDOW: WindowControl = WindowControl(
+    searchDepth=1, Name="ALMACEN - MINSA SISMED"
+)
+AVISO_DIALOG: WindowControl = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
+CORRELATIVO_SAVED_TEXT: TextControl = AVISO_DIALOG.TextControl(
+    NameRegex=r"Se grabó correctamente la Nota de Ingreso N° \d+"
+)
+
+MINSA_DIALOG: WindowControl = ALMACEN_WINDOW.WindowControl(
+    searchDepth=1, Name="MINSA SISMED"
+)
+ERROR_TEXT: TextControl = MINSA_DIALOG.TextControl(searchDepth=1, foundIndex=1)
+
+
+def extraer_correlativo_nota_ingreso() -> str:
+    if not CORRELATIVO_SAVED_TEXT.Exists():
+        raise ValueError(ERROR_TEXT.Name.strip())
+    if not (text := CORRELATIVO_SAVED_TEXT.Name.strip()):
+        raise ValueError("Correlativo cannot be empty.")
+    correlativo: str = text.split(" ", 1)[-1].strip()
+    return correlativo
+
+
+def procesar_ingreso(ingreso: Ingreso) -> str:
     login(username, password)
     navegar_a_ingresos()
-    abrir_registro()
+
+    # 🔹 Solo una vez
     registro = abrir_registro()
+
     rellenar_cabecera(registro, ingreso)
-    agregar_productos(registro, ingreso)
+    # agregar_productos(registro, ingreso)
+
     guardar()
+
+    # 🔹 Esperamos un momento a que Sismed procese y salga el aviso
+    sleep(2)
+
+    # 🔹 Capturamos el correlativo
+    correlativo: str = extraer_correlativo_nota_ingreso()
+
     sleep(0.3)
+
+    return correlativo
