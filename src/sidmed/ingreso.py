@@ -217,7 +217,7 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
         k_salud_correlativo += 1
 
     df = DataFrame(rows)
-    df.write_excel("ingresos.xlsx")
+    df.write_excel(".temp/ingresos.xlsx")
 
 
 def guardar():

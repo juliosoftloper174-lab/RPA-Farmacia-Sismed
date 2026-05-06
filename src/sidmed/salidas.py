@@ -227,7 +227,7 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
     # Save to excel
 
     df: DataFrame = DataFrame(processes, schema=["Salida", "Correlativo"])
-    df.write_excel("salidas.xlsx")
+    df.write_excel(".temp/salidas.xlsx")
 
     return None
 
