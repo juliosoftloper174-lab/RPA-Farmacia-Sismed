@@ -9,9 +9,11 @@ class Ingreso:
         concepto: str,
         referencia: str,
         productos: list[ProductoIngreso],
+        ups_codigo: str | None = None,
     ):
         self.almacen_origen = almacen_origen
         self.almacen_destino = almacen_destino
         self.concepto = concepto
         self.referencia = referencia
         self.productos = productos
+        self.ups_codigo = ups_codigo

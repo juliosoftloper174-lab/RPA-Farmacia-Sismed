@@ -31,7 +31,7 @@ def test_procesar_pedidos_llama_procesar_pedido(monkeypatch):
             Producto("10145", 1),
         ],
         fua="786636652",
-        ups_codigo="407",
+        ups_codigo="301",  # NOTE: regla de negocio, este numero de ups se mantendra para pedido
     )
 
     procesar_pedidos((pedido,))

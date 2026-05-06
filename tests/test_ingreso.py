@@ -18,6 +18,7 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
         # almacen_virtual_origen="EN EL CODIGO LO HARCODEO A LO PRIMERO QUE HAYA.
         concepto="DISTRIBUCION",
         referencia="B.O.T",
+        ups_codigo="407",
         productos=[
             ProductoIngreso(
                 "30588",

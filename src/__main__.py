@@ -49,7 +49,7 @@ def main() -> None:
 
     raw_pedidos: list[dict] = db.obtener_pedidos()
     raw_ingresos: list[dict] = db.obtener_ingresos()
-    raw_salidas: list[dict] = Database().obtener_salidas()
+    raw_salidas: list[dict] = db.obtener_salidas()
 
     pedidos = tuple(Pedido(**d) for d in raw_pedidos)
     ingresos = tuple(Ingreso(**d) for d in raw_ingresos)
@@ -92,6 +92,10 @@ def main() -> None:
             ProductoIngreso("30588", "2080015", 7, 4, 3),
         ],
     )
+
+    pedidos = (pedido,)
+    ingresos = (ingreso,)
+    salidas = (salida,)
 
     procesar_pedidos(pedidos)
     procesar_ingresos(ingresos)
