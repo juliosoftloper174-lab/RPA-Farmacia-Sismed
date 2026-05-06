@@ -119,6 +119,8 @@ def main() -> None:
     ingresos = (ingreso,)
     salidas = (salida,)
 
+    # TODO: por ahora hacer que se cierren las ventanas al terminar, hasta conseguir una forma de reutilizar la misma ventana.
+
     procesar_pedidos(pedidos)
     procesar_ingresos(ingresos)
     procesar_salidas(salidas)

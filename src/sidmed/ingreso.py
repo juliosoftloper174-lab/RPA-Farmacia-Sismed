@@ -1,8 +1,8 @@
 from datetime import datetime
 from os import environ
-
+from re import Pattern, compile
 from time import sleep
-from uiautomation import ButtonControl, Click, ListItemControl, SendKeys
+from uiautomation import ButtonControl, Click, DocumentControl, SendKeys
 import uiautomation as auto
 from ..helpers.selecionar import seleccionar_combo_por_texto
 from ..helpers.selecionar import seleccionar_combo_por_texto_con_autoenter
@@ -14,6 +14,7 @@ from src.models.ingreso import Ingreso
 from src.models.producto_ingreso import ProductoIngreso
 from src.sidmed._login import login
 from src.sidmed.pedido import REGISTRO_PEDIDO_WINDOW
+from random import randint
 
 # =========================================================
 # 🔹 CONFIG
@@ -169,20 +170,54 @@ def agregar_productos(registro: WindowControl, ingreso: Ingreso):
 
 
 def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
-    processes: list = list()
-    for simulated_id, ingreso in enumerate(ingresos):
+    rows: list[dict] = []
+
+    k_salud_correlativo = randint(1_000_000, 9_999_999)
+
+    for i, ingreso in enumerate(ingresos, 1):
         try:
             correlativo = procesar_ingreso(ingreso)
-            processes.append((simulated_id, correlativo))
+
+            now = datetime.now()
+
+            row = {
+                "Nº de Procesado": i,
+                "Nº correlativo Ksalud": k_salud_correlativo,  # TODO: Put the right k salud correlativo
+                "Nº correlativo Sismed": correlativo,
+                "Fecha": now.strftime("%Y-%m-%d"),
+                "Hora": now.strftime("%H:%M:%S"),
+                "Usuario": username,
+                "TipoMovimiento": "INGRESO",
+                "almOrigen": ingreso.almacen_origen,
+                "almDestino": ingreso.almacen_destino,
+                "almVirtual": "",  # si luego lo capturas, lo pones aquí
+                "Concepto": ingreso.concepto,
+                "Referencia": ingreso.referencia,
+                "UPS": ingreso.ups_codigo,
+            }
+
         except Exception as e:
-            print(f"Error al procesar el ingreso: {e}")
-            processes.append((simulated_id, str(e)))
-    # Save to excel
+            row = {
+                "Nº de Procesado": i,
+                "Nº correlativo Ksalud": k_salud_correlativo,
+                "Nº correlativo Sismed": f"ERROR: {e}",
+                "Fecha": "",
+                "Hora": "",
+                "Usuario": username,
+                "TipoMovimiento": "INGRESO",
+                "almOrigen": ingreso.almacen_origen,
+                "almDestino": ingreso.almacen_destino,
+                "almVirtual": "",
+                "Concepto": ingreso.concepto,
+                "Referencia": ingreso.referencia,
+                "UPS": ingreso.ups_codigo,
+            }
 
-    df: DataFrame = DataFrame(processes, schema=["Ingreso", "Correlativo"])
+        rows.append(row)
+        k_salud_correlativo += 1
+
+    df = DataFrame(rows)
     df.write_excel("ingresos.xlsx")
-
-    return None
 
 
 def guardar():
@@ -191,25 +226,36 @@ def guardar():
     sleep(0.3)
 
 
-def test_captura_correlativo():
-    resultado = extraer_correlativo_almacen()
-
-    # Esto hará que el test falle y te muestre el valor en la cara
-    assert resultado == "FORZAR_FALLO", f"El correlativo capturado fue: {resultado}"
-
-
 ALMACEN_WINDOW: WindowControl = WindowControl(
     searchDepth=1, Name="ALMACEN - MINSA SISMED"
 )
+BOTON_CLOOSE_ALMACEN = ALMACEN_WINDOW.ButtonControl(Name="Cerrar")
 AVISO_DIALOG: WindowControl = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
 CORRELATIVO_SAVED_TEXT: TextControl = AVISO_DIALOG.TextControl(
     NameRegex=r"Se grabó correctamente la Nota de (Ingreso|Salida) N° \d+"
 )
+BOTON_ACEPTAR_AVISO: ButtonControl = AVISO_DIALOG.ButtonControl(Name="Aceptar")
 
 MINSA_DIALOG: WindowControl = ALMACEN_WINDOW.WindowControl(
     searchDepth=1, Name="MINSA SISMED"
 )
 ERROR_TEXT: TextControl = MINSA_DIALOG.TextControl(searchDepth=1, foundIndex=1)
+
+# DOCUMENT_CONTROL: DocumentControlTypeId
+REPORT_DESIGNER_WINDOW = DocumentControl(
+    Name="Report Designer - rptalmregisting.frx - Page 1"
+)
+BOTON_CLOOSE_REPORT_DESIGNER = REPORT_DESIGNER_WINDOW.ButtonControl(Name="Cerrar")
+
+ALMACENPRINCIPAL_WINDOW = WindowControl(Name="ALMACEN - MINSA SISMED")
+BOTON_CLOOSE_ALMACEN_PRINCIPAL = ALMACENPRINCIPAL_WINDOW.ButtonControl(Name="Cerrar")
+
+VENTANA_ERROR = WindowControl(Name="Program Error")
+BOTON_IGNORAR_ERROR = VENTANA_ERROR.ButtonControl(Name="Ignore")
+# I just want the digits after the N°
+CORRELATIVO_PATTERN: Pattern = compile(
+    r"Se grabó correctamente la Nota de (Ingreso|Salida) N° (\d+)"
+)
 
 
 def extraer_correlativo_almacen() -> str:
@@ -217,8 +263,72 @@ def extraer_correlativo_almacen() -> str:
         raise ValueError(ERROR_TEXT.Name.strip())
     if not (text := CORRELATIVO_SAVED_TEXT.Name.strip()):
         raise ValueError("Correlativo cannot be empty.")
-    correlativo: str = text.split(" ", 1)[-1].strip()
+    correlativo: str = CORRELATIVO_PATTERN.search(text).group(2)
     return correlativo
+
+
+def cerrar_sismed():
+
+    # Se cierra el aviso
+    if AVISO_DIALOG.Exists():
+        print("Cerrando ventana aviso...")
+        AVISO_DIALOG.SetFocus()
+        sleep(0.3)
+        BOTON_ACEPTAR_AVISO.Click()
+        sleep(1)
+
+        # CERRAR VENTANA DE ERROR
+
+    if VENTANA_ERROR.Exists():
+        print("Cerrando ventana de error...")
+        VENTANA_ERROR.SetFocus()
+        sleep(0.3)
+        BOTON_IGNORAR_ERROR.Click()
+        sleep(1)
+
+    if REPORT_DESIGNER_WINDOW.Exists():
+        print("Cerrando Report Designer...")
+        REPORT_DESIGNER_WINDOW.SetFocus()
+        sleep(0.3)
+        BOTON_CLOOSE_REPORT_DESIGNER.Click()
+        sleep(1)
+
+    # CERRAR VENTANA DE ALMACEN
+
+    if ALMACEN_WINDOW.Exists():
+        print("Cerrando ventana de Almacén...")
+        ALMACEN_WINDOW.SetFocus()
+        sleep(0.3)
+        BOTON_CLOOSE_ALMACEN.Click()
+        sleep(1)
+
+    # AHORA DEBEMMOS CERRAR LA VENTANA PRINCIPAL
+
+    if ALMACENPRINCIPAL_WINDOW.Exists():
+        print("Cerrando ventana principal de Almacén...")
+        ALMACENPRINCIPAL_WINDOW.SetFocus()
+        sleep(0.3)
+        BOTON_CLOOSE_ALMACEN_PRINCIPAL.Click()
+        sleep(1)
+
+
+def cerrar_sismned_click_ciego():
+    auto.Click(950, 500)
+    sleep(0.5)
+    auto.Click(650, 65)
+    sleep(0.5)
+    auto.Click(1582, 15)
+    sleep(0.5)
+
+    if ALMACENPRINCIPAL_WINDOW.Exists(3):
+        print("Cerrando ventana principal de Almacén...")
+        ALMACENPRINCIPAL_WINDOW.SetFocus()
+        sleep(0.3)
+        BOTON_CLOOSE_ALMACEN_PRINCIPAL.Click()
+        sleep(1)
+
+    auto.Click(370, 564)
+    auto.SendKeys("Estoy en vs code sin hacer nada")
 
 
 def procesar_ingreso(ingreso: Ingreso) -> str:
@@ -229,7 +339,7 @@ def procesar_ingreso(ingreso: Ingreso) -> str:
     registro = abrir_registro()
 
     rellenar_cabecera(registro, ingreso)
-    # agregar_productos(registro, ingreso)
+    agregar_productos(registro, ingreso)
 
     guardar()
 
@@ -239,6 +349,9 @@ def procesar_ingreso(ingreso: Ingreso) -> str:
     # 🔹 Capturamos el correlativo
     correlativo: str = extraer_correlativo_almacen()
 
-    sleep(0.3)
+    sleep(5)
+
+    cerrar_sismed()
+    sleep(5)
 
     return correlativo

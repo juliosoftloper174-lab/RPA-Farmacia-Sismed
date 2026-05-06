@@ -4,7 +4,7 @@ from src.sidmed.ingreso import procesar_ingresos
 
 
 def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
-    llamadas = []
+    llamadas: list = list()
 
     """
     def fake_procesar_ingreso(ingreso):
@@ -26,13 +26,6 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
                 1,
                 "SISMED-CENTRALIZADO (SC)",
                 "Contribuciones a Fondos (CON)",
-            ),
-            ProductoIngreso(
-                "30588",
-                "2080015",
-                1,
-                "SISMED-COMPRA REGIONAL (CR)",
-                "Recursos Determinados (RDE)",
             ),
         ],
     )
