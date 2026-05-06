@@ -13,7 +13,7 @@ from polars import DataFrame
 from src.models.ingreso import Ingreso
 from src.models.producto_ingreso import ProductoIngreso
 from src.sidmed._login import login
-from src.sidmed.pedido import REGISTRO_PEDIDO_WINDOW
+from src.sidmed.pedido import MAIN_WINDOW, REGISTRO_PEDIDO_WINDOW
 from random import randint
 
 # =========================================================
@@ -226,6 +226,9 @@ def guardar():
     sleep(0.3)
 
 
+MAIN_WINDOW: WindowControl = WindowControl(searchDepth=1, Name="MINSA SISMED")
+BOTON_CLOOSE_MAIN_WINDOW = MAIN_WINDOW.ButtonControl(Name="Cerrar")
+
 ALMACEN_WINDOW: WindowControl = WindowControl(
     searchDepth=1, Name="ALMACEN - MINSA SISMED"
 )
@@ -309,7 +312,9 @@ def cerrar_sismed():
         ALMACENPRINCIPAL_WINDOW.SetFocus()
         sleep(0.3)
         BOTON_CLOOSE_ALMACEN_PRINCIPAL.Click()
-        sleep(1)
+        sleep(3)
+    if MAIN_WINDOW.Exists():
+        MAIN_WINDOW.GetWindowPattern().Close()
 
 
 def cerrar_sismned_click_ciego():
@@ -353,5 +358,5 @@ def procesar_ingreso(ingreso: Ingreso) -> str:
 
     cerrar_sismed()
     sleep(5)
-
+    sleep(5)
     return correlativo
