@@ -7,12 +7,14 @@ import uiautomation as auto
 from dotenv import load_dotenv
 from uiautomation import EditControl, WindowControl
 from uiautomation import CustomControl, DataItemControl
+from polars import DataFrame
 from src.models.producto_ingreso import ProductoIngreso
 from src.models.Salidas import Salidas
 from src.sidmed.ingreso import (
     guardar,
     seleccionar_combo_por_texto,
     seleccionar_combo_por_texto_con_autoenter,
+    extraer_correlativo_almacen,
 )
 
 from ..sidmed._login import login
@@ -214,8 +216,19 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
 
 
 def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
-    for salida in salidas:
-        procesar_salida(salida)
+    processes: list = list()
+    for simulated_id, salida in enumerate(salidas):
+        try:
+            correlativo = procesar_salida(salida)
+            processes.append((simulated_id, correlativo))
+        except Exception as e:
+            print(f"Error al procesar la salida: {e}")
+            processes.append((simulated_id, str(e)))
+    # Save to excel
+
+    df: DataFrame = DataFrame(processes, schema=["Salida", "Correlativo"])
+    df.write_excel("salidas.xlsx")
+
     return None
 
 
@@ -244,7 +257,7 @@ def agregar_producto(producto: ProductoIngreso):
     pass
 
 
-def procesar_salida(salidas: Salidas):
+def procesar_salida(salidas: Salidas) -> str:
 
     login(username, password)
     registro = Navegar_Salidas()
@@ -252,4 +265,13 @@ def procesar_salida(salidas: Salidas):
     for producto in salidas.productos:
         agregar_producto(producto)
     guardar()
-    sleep(0.5)
+
+    # 🔹 Esperamos un momento a que Sismed procese y salga el aviso
+    sleep(2)
+
+    # 🔹 Capturamos el correlativo
+    correlativo: str = extraer_correlativo_almacen()
+
+    sleep(0.3)
+
+    return correlativo

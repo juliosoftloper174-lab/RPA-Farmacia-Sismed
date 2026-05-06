@@ -220,7 +220,7 @@ def guardar():
 
 
 def test_captura_correlativo():
-    resultado = extraer_correlativo_nota_ingreso()
+    resultado = extraer_correlativo_almacen()
 
     # Esto hará que el test falle y te muestre el valor en la cara
     assert resultado == "FORZAR_FALLO", f"El correlativo capturado fue: {resultado}"
@@ -231,7 +231,7 @@ ALMACEN_WINDOW: WindowControl = WindowControl(
 )
 AVISO_DIALOG: WindowControl = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
 CORRELATIVO_SAVED_TEXT: TextControl = AVISO_DIALOG.TextControl(
-    NameRegex=r"Se grabó correctamente la Nota de Ingreso N° \d+"
+    NameRegex=r"Se grabó correctamente la Nota de (Ingreso|Salida) N° \d+"
 )
 
 MINSA_DIALOG: WindowControl = ALMACEN_WINDOW.WindowControl(
@@ -240,7 +240,7 @@ MINSA_DIALOG: WindowControl = ALMACEN_WINDOW.WindowControl(
 ERROR_TEXT: TextControl = MINSA_DIALOG.TextControl(searchDepth=1, foundIndex=1)
 
 
-def extraer_correlativo_nota_ingreso() -> str:
+def extraer_correlativo_almacen() -> str:
     if not CORRELATIVO_SAVED_TEXT.Exists():
         raise ValueError(ERROR_TEXT.Name.strip())
     if not (text := CORRELATIVO_SAVED_TEXT.Name.strip()):
@@ -265,7 +265,7 @@ def procesar_ingreso(ingreso: Ingreso) -> str:
     sleep(2)
 
     # 🔹 Capturamos el correlativo
-    correlativo: str = extraer_correlativo_nota_ingreso()
+    correlativo: str = extraer_correlativo_almacen()
 
     sleep(0.3)
 
