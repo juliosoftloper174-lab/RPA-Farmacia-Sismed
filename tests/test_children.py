@@ -1,3 +1,4 @@
+from enum import auto
 from time import sleep
 
 from uiautomation import ButtonControl, TextControl, WindowControl
@@ -33,45 +34,5 @@ VENTANA_ERROR = WindowControl(Name="Program Error")
 BOTON_IGNORAR_ERROR = VENTANA_ERROR.ButtonControl(Name="Ignore")
 
 
-def test_children(monkeypatch):
-    # Se cierra el aviso
-    if AVISO_DIALOG.Exists(3):
-        print("Cerrando ventana aviso...")
-        AVISO_DIALOG.SetFocus()
-        sleep(0.3)
-        BOTON_ACEPTAR_AVISO.Click()
-        sleep(4)
-
-        # CERRAR VENTANA DE ERROR
-
-    if VENTANA_ERROR.Exists(3):
-        print("Cerrando ventana de error...")
-        VENTANA_ERROR.SetFocus()
-        sleep(0.3)
-        BOTON_IGNORAR_ERROR.Click()
-        sleep(4)
-
-    if REPORT_DESIGNER_WINDOW.Exists(3):
-        print("Cerrando Report Designer...")
-        REPORT_DESIGNER_WINDOW.SetFocus()
-        sleep(0.3)
-        BOTON_CLOOSE_REPORT_DESIGNER.Click()
-        sleep(4)
-
-    # CERRAR VENTANA DE ALMACEN
-
-    if ALMACEN_WINDOW.Exists(3):
-        print("Cerrando ventana de Almacén...")
-        ALMACEN_WINDOW.SetFocus()
-        sleep(0.3)
-        BOTON_CLOOSE_ALMACEN.Click()
-        sleep(1)
-
-    # AHORA DEBEMMOS CERRAR LA VENTANA PRINCIPAL
-
-    if ALMACENPRINCIPAL_WINDOW.Exists(3):
-        print("Cerrando ventana principal de Almacén...")
-        ALMACENPRINCIPAL_WINDOW.SetFocus()
-        sleep(0.3)
-        BOTON_CLOOSE_ALMACEN_PRINCIPAL.Click()
-        sleep(1)
+MAIN_MENU_WINDOW: WindowControl = WindowControl(searchDepth=1, Name="Menu Principal")
+BOTON_CLOOSE_MAIN_WINDOW = MAIN_MENU_WINDOW.ButtonControl(Name="Cerrar")

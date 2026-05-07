@@ -11,6 +11,7 @@ from polars import DataFrame
 from src.models.producto_ingreso import ProductoIngreso
 from src.models.Salidas import Salidas
 from src.sidmed.ingreso import (
+    cerrar_sismed,
     guardar,
     seleccionar_combo_por_texto,
     seleccionar_combo_por_texto_con_autoenter,
@@ -227,8 +228,8 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
     # Save to excel
 
     df: DataFrame = DataFrame(processes, schema=["Salida", "Correlativo"])
-    df.write_excel(".temp/salidas.xlsx")
-
+    df.write_excel("salidas.xlsx")
+    sleep(5)
     return None
 
 
@@ -272,6 +273,9 @@ def procesar_salida(salidas: Salidas) -> str:
     # 🔹 Capturamos el correlativo
     correlativo: str = extraer_correlativo_almacen()
 
-    sleep(0.3)
+    sleep(5)
 
+    cerrar_sismed()
+    sleep(5)
+    sleep(5)
     return correlativo

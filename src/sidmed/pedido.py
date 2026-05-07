@@ -25,41 +25,12 @@ from ..helpers.input import escribir_input
 from ..helpers.producto import agregar_productos
 from ..models.pedido import Pedido
 from ..sidmed._login import login
+from ..helpers.windows import *
 
 load_dotenv()
 
 username = environ["SISMED_USERNAME"]
 password = environ["SISMED_PASSWORD"]
-
-MINSA_SISMED_WINDOW: WindowControl = WindowControl(searchDepth=1, Name="MINSA SISMED")
-MINSA_SISMED_PANEL: PaneControl = MINSA_SISMED_WINDOW.PaneControl(
-    searchDepth=1, Name="MINSA SISMED"
-)
-MAIN_WINDOW: WindowControl = MINSA_SISMED_PANEL.WindowControl(
-    searchDepth=1, Name="Menu Principal"
-)
-SYSTEM_INFO_PANEL: PaneControl = MAIN_WINDOW.PaneControl(
-    searchDepth=1, foundIndex=1, Name=""
-)
-
-FARMACIA_WINDOW: WindowControl = WindowControl(
-    searchDepth=1, Name="FARMACIA - MINSA SISMED C:\sismedv2_hospitalrioja ()"
-)
-FARMACIA_PANEL: PaneControl = FARMACIA_WINDOW.PaneControl(
-    searchDepth=1, Name="FARMACIA - MINSA SISMED C:\sismedv2_hospitalrioja ()"
-)
-CONTROL_FARMARCIA_WINDOW: WindowControl = FARMACIA_PANEL.WindowControl(
-    searchDepth=1, Name="Control de Farmacia"
-)
-MODULO_CONTROL_FARMACIA_PANEL: PaneControl = CONTROL_FARMARCIA_WINDOW.PaneControl(
-    searchDepth=1, foundIndex=1, Name=""
-)
-REGISTRO_PEDIDO_WINDOW: WindowControl = FARMACIA_PANEL.WindowControl(
-    searchDepth=1, Name="Registro de Pedido"
-)
-BARRA_GROUP: GroupControl = REGISTRO_PEDIDO_WINDOW.GroupControl(
-    searchDepth=1, Name="Barra"
-)
 
 
 def navegar_a_pedidos(pedido: Pedido) -> None:
