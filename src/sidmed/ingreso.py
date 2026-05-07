@@ -175,6 +175,7 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
     k_salud_correlativo = randint(1_000_000, 9_999_999)
 
     for i, ingreso in enumerate(ingresos, 1):
+
         try:
             correlativo = procesar_ingreso(ingreso)
 
@@ -182,41 +183,50 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
 
             row = {
                 "Nº de Procesado": i,
-                "Nº correlativo Ksalud": k_salud_correlativo,  # TODO: Put the right k salud correlativo
+                "Nº correlativo Ksalud": k_salud_correlativo,
                 "Nº correlativo Sismed": correlativo,
                 "Fecha": now.strftime("%Y-%m-%d"),
                 "Hora": now.strftime("%H:%M:%S"),
                 "Usuario": username,
                 "TipoMovimiento": "INGRESO",
-                "almOrigen": ingreso.almacen_origen,
-                "almDestino": ingreso.almacen_destino,
-                "almVirtual": "",  # si luego lo capturas, lo pones aquí
-                "Concepto": ingreso.concepto,
-                "Referencia": ingreso.referencia,
-                "UPS": ingreso.ups_codigo,
-            }
-
-        except Exception as e:
-            row = {
-                "Nº de Procesado": i,
-                "Nº correlativo Ksalud": k_salud_correlativo,
-                "Nº correlativo Sismed": f"ERROR: {e}",
-                "Fecha": "",
-                "Hora": "",
-                "Usuario": username,
-                "TipoMovimiento": "INGRESO",
+                "Estado": "OK",
+                "Error": "",
                 "almOrigen": ingreso.almacen_origen,
                 "almDestino": ingreso.almacen_destino,
                 "almVirtual": "",
                 "Concepto": ingreso.concepto,
                 "Referencia": ingreso.referencia,
                 "UPS": ingreso.ups_codigo,
+                "CantidadProductos": len(ingreso.productos),
+            }
+
+        except Exception as e:
+
+            row = {
+                "Nº de Procesado": i,
+                "Nº correlativo Ksalud": k_salud_correlativo,
+                "Nº correlativo Sismed": "",
+                "Fecha": "",
+                "Hora": "",
+                "Usuario": username,
+                "TipoMovimiento": "INGRESO",
+                "Estado": "ERROR",
+                "Error": str(e),
+                "almOrigen": ingreso.almacen_origen,
+                "almDestino": ingreso.almacen_destino,
+                "almVirtual": "",
+                "Concepto": ingreso.concepto,
+                "Referencia": ingreso.referencia,
+                "UPS": ingreso.ups_codigo,
+                "CantidadProductos": len(ingreso.productos),
             }
 
         rows.append(row)
+
         k_salud_correlativo += 1
 
     df = DataFrame(rows)
+
     df.write_excel("ingresos.xlsx")
 
 

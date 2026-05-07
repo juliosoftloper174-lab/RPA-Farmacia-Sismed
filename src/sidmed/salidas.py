@@ -217,20 +217,59 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
 
 
 def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
-    processes: list = list()
-    for simulated_id, salida in enumerate(salidas):
+
+    rows: list[dict] = []
+
+    for i, salida in enumerate(salidas, 1):
+
         try:
             correlativo = procesar_salida(salida)
-            processes.append((simulated_id, correlativo))
-        except Exception as e:
-            print(f"Error al procesar la salida: {e}")
-            processes.append((simulated_id, str(e)))
-    # Save to excel
 
-    df: DataFrame = DataFrame(processes, schema=["Salida", "Correlativo"])
+            now = datetime.now()
+
+            row = {
+                "N° Procesado": i,
+                "Fecha": now.strftime("%Y-%m-%d"),
+                "Hora": now.strftime("%H:%M:%S"),
+                "Usuario": username,
+                "TipoMovimiento": "SALIDA",
+                "Estado": "OK",
+                "Error": "",
+                "CorrelativoSismed": correlativo,
+                "AlmacenOrigen": salida.almacen_origen,
+                "AlmacenDestino": salida.almacen_destino,
+                "AlmacenVirtual": salida.almacen_virtual_origen,
+                "Concepto": salida.concepto,
+                "Referencia": salida.referencia,
+                "CantidadProductos": len(salida.productos),
+            }
+
+        except Exception as e:
+
+            row = {
+                "N° Procesado": i,
+                "Fecha": "",
+                "Hora": "",
+                "Usuario": username,
+                "TipoMovimiento": "SALIDA",
+                "Estado": "ERROR",
+                "Error": str(e),
+                "CorrelativoSismed": "",
+                "AlmacenOrigen": salida.almacen_origen,
+                "AlmacenDestino": salida.almacen_destino,
+                "AlmacenVirtual": salida.almacen_virtual_origen,
+                "Concepto": salida.concepto,
+                "Referencia": salida.referencia,
+                "CantidadProductos": len(salida.productos),
+            }
+
+        rows.append(row)
+
+    df = DataFrame(rows)
+
     df.write_excel("salidas.xlsx")
+
     sleep(5)
-    return None
 
 
 def agregar_producto(producto: ProductoIngreso):
