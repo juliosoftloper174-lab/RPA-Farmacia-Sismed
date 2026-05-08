@@ -6,6 +6,7 @@ class Ingreso:
         self,
         almacen_origen: str,
         almacen_destino: str,
+        almacen_virtual_origen: str,
         concepto: str,
         referencia: str,
         productos: list[ProductoIngreso],
@@ -13,6 +14,7 @@ class Ingreso:
     ):
         self.almacen_origen = almacen_origen
         self.almacen_destino = almacen_destino
+        self.almacen_virtual_origen = almacen_virtual_origen
         self.concepto = concepto
         self.referencia = referencia
         self.productos = productos

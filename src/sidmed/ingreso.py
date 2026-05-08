@@ -93,19 +93,22 @@ def rellenar_ups(codigo_ups: str) -> None:
 def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
 
     auto.Click(700, 230)
+    sleep(3)
     auto.SendKeys(ingreso.almacen_origen)
+    sleep(3)
     auto.SendKeys("{Enter}{Enter}")
 
     sleep(0.3)
     auto.Click(1140, 230)
     auto.SendKeys(ingreso.almacen_destino)
+    sleep(0.3)
     auto.SendKeys("{Enter}")
     # NOTE: aqui se rellena el almacen virtual, esto no lee la base de datos, se asume que siempre sera el primero, se puede mejorar este apartado, por ahora trabajemoslo asi
     sleep(0.3)
-    auto.Click(780, 250)
-    sleep(0.3)
-    auto.Click(580, 360)
-
+    auto.Click(775, 255)
+    sleep(3)
+    auto.SendKeys(ingreso.almacen_virtual_origen)
+    sleep(3)
     auto.SendKeys("{Enter}")
 
     seleccionar_combo_por_texto_con_autoenter("cmbConcepto", ingreso.concepto)
@@ -143,12 +146,13 @@ def agregar_producto(registro: WindowControl, producto: ProductoIngreso):
     sleep(0.5)
 
     registro.EditControl(Name="txtLote").SendKeys(producto.lote)
+    sleep(0.5)
     auto.SendKeys("{Enter}")
     sleep(0.5)
 
     # 🔥 combos nuevos
-    seleccionar_combo_por_texto("cbotipsum", producto.tipo_sum)
-    seleccionar_combo_por_texto("cboffin", producto.fuente_fin)
+    # seleccionar_combo_por_texto("cbotipsum", producto.tipo_sum)
+    # seleccionar_combo_por_texto("cboffin", producto.fuente_fin)
 
     registro.EditControl(Name="txtCantidad").SendKeys(str(producto.cantidad))
     auto.SendKeys("{Enter}")
@@ -283,65 +287,49 @@ def cerrar_sismed():
     if AVISO_DIALOG.Exists():
         print("Cerrando ventana aviso...")
         AVISO_DIALOG.SetFocus()
-        sleep(0.3)
+        sleep(3)
         BOTON_ACEPTAR_AVISO.Click()
-        sleep(1)
+        sleep(3)
 
         # CERRAR VENTANA DE ERROR
 
     if VENTANA_ERROR.Exists():
         print("Cerrando ventana de error...")
         VENTANA_ERROR.SetFocus()
-        sleep(0.3)
+        sleep(3)
         BOTON_IGNORAR_ERROR.Click()
         sleep(1)
 
     if REPORT_DESIGNER_WINDOW.Exists():
         print("Cerrando Report Designer...")
         REPORT_DESIGNER_WINDOW.SetFocus()
-        sleep(0.3)
+        sleep(3)
         BOTON_CLOOSE_REPORT_DESIGNER.Click()
-        sleep(1)
+        sleep(3)
 
     # CERRAR VENTANA DE ALMACEN
 
     if ALMACEN_WINDOW.Exists():
         print("Cerrando ventana de Almacén...")
         ALMACEN_WINDOW.SetFocus()
-        sleep(0.3)
+        sleep(3)
         BOTON_CLOOSE_ALMACEN.Click()
-        sleep(1)
+        sleep(3)
 
     # AHORA DEBEMMOS CERRAR LA VENTANA PRINCIPAL
 
     if ALMACENPRINCIPAL_WINDOW.Exists():
         print("Cerrando ventana principal de Almacén...")
         ALMACENPRINCIPAL_WINDOW.SetFocus()
-        sleep(0.3)
+        sleep(3)
         BOTON_CLOOSE_ALMACEN_PRINCIPAL.Click()
         sleep(3)
 
     if MAIN_WINDOW.Exists():
-        MAIN_WINDOW.GetWindowPattern().Close()
+        pattern = MAIN_WINDOW.GetWindowPattern()
 
-
-def cerrar_sismned_click_ciego():
-    auto.Click(950, 500)
-    sleep(0.5)
-    auto.Click(650, 65)
-    sleep(0.5)
-    auto.Click(1582, 15)
-    sleep(0.5)
-
-    if ALMACENPRINCIPAL_WINDOW.Exists(3):
-        print("Cerrando ventana principal de Almacén...")
-        ALMACENPRINCIPAL_WINDOW.SetFocus()
-        sleep(0.3)
-        BOTON_CLOOSE_ALMACEN_PRINCIPAL.Click()
-        sleep(1)
-
-    auto.Click(370, 564)
-    auto.SendKeys("Estoy en vs code sin hacer nada")
+        if pattern:
+            pattern.Close()
 
 
 def procesar_ingreso(ingreso: Ingreso) -> str:

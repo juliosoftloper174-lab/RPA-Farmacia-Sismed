@@ -14,10 +14,13 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
     """
     ingreso = Ingreso(
         almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN   ",  # no se puede buscar por codigo
-        almacen_destino="06732F01",  # no se puede buscar por codigo y no str
-        # almacen_virtual_origen="EN EL CODIGO LO HARCODEO A LO PRIMERO QUE HAYA.
+        # En este caso de almacen origen si nos puede facilitar el script sql para obtener el nombre
+        # apartir de su codigo, me imagino sera algo como
+        # "selecioname el nombre del almacen cuando su codigo sea 06732F01"
+        almacen_destino="06732F01",
+        almacen_virtual_origen="030S0101",
         concepto="DISTRIBUCION",
-        referencia="B.O.T",
+        referencia="B.O.T",  # no creo exista en la bd pero se puede dejar harcodeado
         ups_codigo="407",
         productos=[
             ProductoIngreso(
