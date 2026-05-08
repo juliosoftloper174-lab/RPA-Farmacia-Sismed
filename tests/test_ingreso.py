@@ -34,6 +34,7 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
     )
 
     procesar_ingresos((ingreso,))
+    return None
 
 
 """

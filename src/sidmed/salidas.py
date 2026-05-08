@@ -297,6 +297,124 @@ def agregar_producto(producto: ProductoIngreso):
     pass
 
 
+def cerrar_sismed_salidas():
+
+    # =========================================================
+    # 🔹 CERRAR AVISO
+    # =========================================================
+
+    try:
+
+        aviso = WindowControl(Name="Aviso")
+
+        if aviso.Exists():
+
+            print("Cerrando ventana aviso...")
+
+            aviso.SetFocus()
+            sleep(1)
+
+            aviso.ButtonControl(Name="Aceptar").Click()
+            sleep(1)
+
+    except Exception as e:
+
+        print(f"Error cerrando aviso: {e}")
+
+    # =========================================================
+    # 🔹 CERRAR VENTANA ERROR
+    # =========================================================
+
+    try:
+
+        ventana_error = WindowControl(Name="Program Error")
+
+        if ventana_error.Exists():
+
+            print("Cerrando ventana de error...")
+
+            ventana_error.SetFocus()
+            sleep(1)
+
+            boton_ignore = ventana_error.ButtonControl(Name="Ignore")
+
+            if boton_ignore.Exists():
+
+                boton_ignore.Click()
+                sleep(1)
+
+    except Exception as e:
+
+        print(f"Error cerrando ventana error: {e}")
+
+    # =========================================================
+    # 🔹 CERRAR REPORT
+    # =========================================================
+
+    try:
+
+        report = WindowControl(Name="Report Designer - rptalmregisting.frx - Page 1")
+
+        if report.Exists():
+
+            print("Cerrando report...")
+
+            report.SetFocus()
+            sleep(1)
+
+            report.ButtonControl(Name="Cerrar").Click()
+            sleep(1)
+
+    except Exception as e:
+
+        print(f"Error cerrando report: {e}")
+
+    # =========================================================
+    # 🔹 CERRAR ALMACEN
+    # =========================================================
+
+    try:
+
+        almacen = WindowControl(Name="ALMACEN - MINSA SISMED")
+
+        if almacen.Exists():
+
+            print("Cerrando almacén...")
+
+            almacen.SetFocus()
+            sleep(1)
+
+            almacen.ButtonControl(Name="Cerrar").Click()
+            sleep(1)
+
+    except Exception as e:
+
+        print(f"Error cerrando almacén: {e}")
+
+    # =========================================================
+    # 🔹 CERRAR MAIN WINDOW
+    # =========================================================
+
+    try:
+
+        principal = WindowControl(Name="MINSA SISMED")
+
+        if principal.Exists():
+
+            print("Cerrando ventana principal...")
+
+            pattern = principal.GetWindowPattern()
+
+            if pattern:
+
+                pattern.Close()
+                sleep(1)
+
+    except Exception as e:
+
+        print(f"Error cerrando ventana principal: {e}")
+
+
 def procesar_salida(salidas: Salidas) -> str:
 
     login(username, password)
@@ -314,7 +432,8 @@ def procesar_salida(salidas: Salidas) -> str:
 
     sleep(5)
 
-    cerrar_sismed()
+    cerrar_sismed_salidas()
     sleep(5)
+
     sleep(5)
     return correlativo
