@@ -1,6 +1,7 @@
 from os import environ
 
 from dotenv import load_dotenv
+from .logger import logger
 from loguru import logger
 
 from .sidmed.ingreso import Ingreso, procesar_ingresos
@@ -37,6 +38,7 @@ class Database:
         return []
 
 
+@logger.catch
 def main() -> None:
 
     logger.info("Iniciando...")

@@ -1,6 +1,6 @@
 from asyncio import sleep
 import uiautomation as auto
-
+from src.logger import logger
 from uiautomation import ListItemControl
 
 
@@ -47,7 +47,7 @@ def seleccionar_combo_por_texto_con_autoenter(nombre_combo: str, texto_objetivo:
     elementos: list[ListItemControl] = [child.Name.strip() for child in children]
     # TODO: List all options, because some mey be unavailable, this can be done by going up an down for a while.
     index = elementos.index(texto_objetivo)
-    print(f"Elementos encontrados en combo {nombre_combo}: {elementos}")
+    logger.info(f"Elementos encontrados en combo {nombre_combo}: {elementos}")
     for child in children:
         if child.Name.strip() == texto_objetivo:
             child.Click()
@@ -56,7 +56,7 @@ def seleccionar_combo_por_texto_con_autoenter(nombre_combo: str, texto_objetivo:
             value = combo.GetValuePattern().Value
             # TODO: Check with OCR
             combo.CaptureToImage(f"./temp/screenshot_{nombre_combo}.png")
-            print(f"Valor seleccionado: {value}")
+            logger.info(f"Valor seleccionado: {value}")
             return
 
     raise Exception(f"No se encontró el texto: {texto_objetivo}")

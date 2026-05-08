@@ -1,5 +1,5 @@
 from time import sleep
-
+from src.logger import logger
 import uiautomation as auto
 from uiautomation import TableControl
 
@@ -27,7 +27,7 @@ def agregar_producto(producto: Producto) -> None:
         else:
             raise Exception("Header no encontrado")
     except Exception as e:
-        print("Fallback click código:", e)
+        logger.info("Fallback click código:", e)
         auto.Click(360, 140)
         sleep(0.3)
 
@@ -47,7 +47,7 @@ def agregar_producto(producto: Producto) -> None:
         else:
             raise Exception("Botón no encontrado")
     except Exception as e:
-        print("Fallback botón seleccionar:", e)
+        logger.info("Fallback botón seleccionar:", e)
         auto.Click(687, 638)  # fallback real que detectaste
 
     # 🔹 Ingresar cantidad

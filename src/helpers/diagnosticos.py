@@ -1,5 +1,5 @@
 from time import sleep
-
+from src.logger import logger
 from uiautomation import SendKeys, WindowControl
 
 from src.helpers.input import escribir_input
@@ -22,7 +22,7 @@ def rellenar_diagnosticos(
         if i >= len(inputs):
             break
 
-        print(f"Escribiendo diagnóstico {i+1}: {diag}")
+        logger.info(f"Escribiendo diagnóstico {i+1}: {diag}")
 
         escribir_input(inputs[i], diag)
         sleep(0.3)
@@ -35,7 +35,7 @@ def rellenar_diagnosticos(
     # 🔥 LIMPIAR FILAS VACÍAS (justo después del último Enter)
     # =====================================================
 
-    print("[BOT] Limpiando filas vacías...")
+    logger.info("[BOT] Limpiando filas vacías...")
 
     SendKeys("{CONTROL}{DEL}")
     sleep(0.6)

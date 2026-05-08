@@ -1,5 +1,5 @@
 from time import sleep
-
+from src.logger import logger
 import uiautomation as auto
 from uiautomation import Click, SendKeys
 from ..helpers.ui_helper import normalizar, obtener_texto_edit
@@ -41,7 +41,7 @@ def seleccionar_farmacia_por_codigo(codigo_objetivo: str):
                     return
 
         except Exception as e:
-            print(f"Error occurred while processing fila: {e}")
+            logger.info(f"Error occurred while processing fila: {e}")
             continue
 
     raise Exception(f"No se encontró farmacia con código: {codigo_objetivo}")

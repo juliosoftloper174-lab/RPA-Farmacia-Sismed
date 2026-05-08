@@ -1,4 +1,5 @@
 .temp/*
+.data/*
 @AutomationLog.txt
 
 # Byte-compiled / optimized / DLL files

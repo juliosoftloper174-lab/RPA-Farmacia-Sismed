@@ -2,10 +2,10 @@ from datetime import datetime
 from os import environ
 from subprocess import Popen
 from time import sleep
-
+from ..logger import logger
 import uiautomation as auto
 from dotenv import load_dotenv
-from uiautomation import EditControl, WindowControl
+from uiautomation import DocumentControl, EditControl, WindowControl
 from uiautomation import CustomControl, DataItemControl
 from polars import DataFrame
 from src.models.producto_ingreso import ProductoIngreso
@@ -48,7 +48,7 @@ def seleccionar_combo_sismed(nombre_combo: str, texto_objetivo: str, max_intento
 
         if item.Exists(1):
             item.Click()
-            print(f"✅ Encontrado: {texto_objetivo}")
+            logger.info(f"✅ Encontrado: {texto_objetivo}")
             return
 
         auto.SendKeys("{DOWN}")
@@ -74,7 +74,7 @@ def Login() -> None:
         )
 
         login_window.ButtonControl(Name="Aceptar").Click()
-        print("✅ Login realizado")
+        logger.info("✅ Login realizado")
     else:
         raise Exception("❌ No se encontró la ventana de login")
 
@@ -85,7 +85,7 @@ def Login() -> None:
 
     if ventana_vencidos.Exists(5):
         ventana_vencidos.ButtonControl(Name="Salir").Click()
-        print("🧹 Ventana de productos vencidos cerrada")
+        logger.info("🧹 Ventana de productos vencidos cerrada")
 
 
 def Navegar_Salidas() -> WindowControl:
@@ -104,12 +104,12 @@ def Navegar_Salidas() -> WindowControl:
 
     for intento in range(3):
         if registro.Exists(5):
-            print("✅ Ventana encontrada")
+            logger.info("✅ Ventana encontrada")
             sleep(0.3)
             registro.ButtonControl(Name="CmdNew").Click()
             return registro
         else:
-            print(f"⚠️ Intento {intento+1}: No se encontró la ventana")
+            logger.info(f"⚠️ Intento {intento+1}: No se encontró la ventana")
             sleep(1)
 
     raise Exception("❌ No se encontró la ventana 'Registro de Salidas'")
@@ -126,25 +126,25 @@ def debug_tabla_almacenes():
     if not tabla.Exists(5):
         raise Exception("❌ No se encontró la tabla de almacenes")
 
-    print("🔍 ===== INICIO DEBUG TABLA =====")
+    logger.info("🔍 ===== INICIO DEBUG TABLA =====")
 
     filas = tabla.GetChildren()
 
     for i, fila in enumerate(filas):
-        print(f"\n🧾 FILA {i} → {fila.ControlTypeName}")
+        logger.info(f"\n🧾 FILA {i} → {fila.ControlTypeName}")
 
         grupos = fila.GetChildren()
 
         for j, grupo in enumerate(grupos):
-            print(f"   📦 GRUPO {j} → {grupo.ControlTypeName}")
+            logger.info(f"   📦 GRUPO {j} → {grupo.ControlTypeName}")
 
             celdas = grupo.GetChildren()
 
             for k, celda in enumerate(celdas):
                 texto = celda.Name.strip()
-                print(f"      🔹 Col {k}: '{texto}'")
+                logger.info(f"      🔹 Col {k}: '{texto}'")
 
-    print("\n🔍 ===== FIN DEBUG TABLA =====")
+    logger.info("\n🔍 ===== FIN DEBUG TABLA =====")
 
 
 def seleccionar_almacen_destino_por_codigo(codigo_objetivo: str):
@@ -245,7 +245,7 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
             }
 
         except Exception as e:
-
+            logger.exception("Error procesando una salida.")
             row = {
                 "N° Procesado": i,
                 "Fecha": "",
@@ -303,116 +303,83 @@ def cerrar_sismed_salidas():
     # 🔹 CERRAR AVISO
     # =========================================================
 
-    try:
+    aviso = WindowControl(Name="Aviso")
+    logger.info("Cerrando ventana aviso...")
 
-        aviso = WindowControl(Name="Aviso")
+    aviso.SetFocus()
+    sleep(1)
 
-        if aviso.Exists():
-
-            print("Cerrando ventana aviso...")
-
-            aviso.SetFocus()
-            sleep(1)
-
-            aviso.ButtonControl(Name="Aceptar").Click()
-            sleep(1)
-
-    except Exception as e:
-
-        print(f"Error cerrando aviso: {e}")
+    aviso.ButtonControl(Name="Aceptar").Click()
+    sleep(1)
 
     # =========================================================
     # 🔹 CERRAR VENTANA ERROR
     # =========================================================
 
-    try:
+    ventana_error = WindowControl(Name="Program Error")
+    if ventana_error.Exists():
 
-        ventana_error = WindowControl(Name="Program Error")
+        logger.info("Cerrando ventana de error...")
 
-        if ventana_error.Exists():
+        ventana_error.SetFocus()
+        sleep(1)
 
-            print("Cerrando ventana de error...")
+        boton_ignore = ventana_error.ButtonControl(Name="Ignore")
 
-            ventana_error.SetFocus()
-            sleep(1)
-
-            boton_ignore = ventana_error.ButtonControl(Name="Ignore")
-
-            if boton_ignore.Exists():
-
-                boton_ignore.Click()
-                sleep(1)
-
-    except Exception as e:
-
-        print(f"Error cerrando ventana error: {e}")
+        boton_ignore.Click()
+        sleep(1)
+    else:
+        logger.info("No se encontró ventana de error.")
 
     # =========================================================
     # 🔹 CERRAR REPORT
     # =========================================================
 
-    try:
+    report = DocumentControl(Name="Report Designer - srpt_gremision.frx - Page 1")
+    logger.info("Cerrando report...")
 
-        report = WindowControl(Name="Report Designer - rptalmregisting.frx - Page 1")
+    report.SetFocus()
+    sleep(1)
 
-        if report.Exists():
-
-            print("Cerrando report...")
-
-            report.SetFocus()
-            sleep(1)
-
-            report.ButtonControl(Name="Cerrar").Click()
-            sleep(1)
-
-    except Exception as e:
-
-        print(f"Error cerrando report: {e}")
+    report.ButtonControl(Name="Cerrar").Click()
+    sleep(8)  # TODO: Wait just the necesary time
 
     # =========================================================
     # 🔹 CERRAR ALMACEN
     # =========================================================
 
-    try:
+    almacen = WindowControl(Name="Registro de Salidas ")
+    logger.info("Cerrando almacén...")
 
-        almacen = WindowControl(Name="ALMACEN - MINSA SISMED")
+    almacen.SetFocus()
+    sleep(1)
 
-        if almacen.Exists():
-
-            print("Cerrando almacén...")
-
-            almacen.SetFocus()
-            sleep(1)
-
-            almacen.ButtonControl(Name="Cerrar").Click()
-            sleep(1)
-
-    except Exception as e:
-
-        print(f"Error cerrando almacén: {e}")
+    almacen.ButtonControl(Name="Cerrar").Click()
+    sleep(1)
 
     # =========================================================
     # 🔹 CERRAR MAIN WINDOW
     # =========================================================
 
-    try:
+    principal = WindowControl(Name="ALMACEN - MINSA SISMED")
+    logger.info("Cerrando ventana principal...")
 
-        principal = WindowControl(Name="MINSA SISMED")
+    pattern = principal.GetWindowPattern()
+    pattern.Close()
+    sleep(1)
 
-        if principal.Exists():
+    # =========================================================
+    # 🔹 CERRAR ALMACEN PRINCIPAL
+    # =========================================================
 
-            print("Cerrando ventana principal...")
+    principal = WindowControl(Name="MINSA SISMED")
+    logger.info("Cerrando ventana Minsa sismded...")
 
-            pattern = principal.GetWindowPattern()
+    principal.SetFocus()
+    sleep(1)
 
-            if pattern:
-
-                pattern.Close()
-                sleep(1)
-
-    except Exception as e:
-
-        print(f"Error cerrando ventana principal: {e}")
+    principal.ButtonControl(Name="Cerrar").Click()
+    sleep(1)
 
 
 def procesar_salida(salidas: Salidas) -> str:

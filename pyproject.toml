@@ -20,7 +20,8 @@ dependencies = [
     "pydantic==2.13.3",
     "polars==1.40.1",
     "fastexcel==0.20.2",
-    "xlsxwriter==3.2.9"
+    "xlsxwriter==3.2.9",
+    "loguru==0.7.3"
 ]
 
 [project.optional-dependencies]

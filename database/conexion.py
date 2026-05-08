@@ -1,4 +1,5 @@
 import pyodbc  # type: ignore
+from src.logger import logger
 
 
 def test_conexion():
@@ -10,13 +11,13 @@ def test_conexion():
             "Trusted_Connection=yes;"
         )
 
-        print("✅ Conexión exitosa")
+        logger.info("✅ Conexión exitosa")
 
         cursor = conexion.cursor()
         cursor.execute("SELECT * FROM MovimientosRPA")
 
         for fila in cursor.fetchall():
-            print(fila)
+            logger.info(fila)
 
     except Exception as e:
-        print("❌ Error:", e)
+        logger.info("❌ Error:", e)

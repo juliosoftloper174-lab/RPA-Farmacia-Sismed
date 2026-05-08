@@ -15,6 +15,7 @@ from src.models.producto_ingreso import ProductoIngreso
 from src.sidmed._login import login
 from ..helpers.windows import *
 from random import randint
+from src.logger import logger
 
 # =========================================================
 # 🔹 CONFIG
@@ -285,7 +286,7 @@ def cerrar_sismed():
 
     # Se cierra el aviso
     if AVISO_DIALOG.Exists():
-        print("Cerrando ventana aviso...")
+        logger.info("Cerrando ventana aviso...")
         AVISO_DIALOG.SetFocus()
         sleep(3)
         BOTON_ACEPTAR_AVISO.Click()
@@ -294,14 +295,14 @@ def cerrar_sismed():
         # CERRAR VENTANA DE ERROR
 
     if VENTANA_ERROR.Exists():
-        print("Cerrando ventana de error...")
+        logger.info("Cerrando ventana de error...")
         VENTANA_ERROR.SetFocus()
         sleep(3)
         BOTON_IGNORAR_ERROR.Click()
         sleep(1)
 
     if REPORT_DESIGNER_WINDOW.Exists():
-        print("Cerrando Report Designer...")
+        logger.info("Cerrando Report Designer...")
         REPORT_DESIGNER_WINDOW.SetFocus()
         sleep(3)
         BOTON_CLOOSE_REPORT_DESIGNER.Click()
@@ -310,7 +311,7 @@ def cerrar_sismed():
     # CERRAR VENTANA DE ALMACEN
 
     if ALMACEN_WINDOW.Exists():
-        print("Cerrando ventana de Almacén...")
+        logger.info("Cerrando ventana de Almacén...")
         ALMACEN_WINDOW.SetFocus()
         sleep(3)
         BOTON_CLOOSE_ALMACEN.Click()
@@ -319,7 +320,7 @@ def cerrar_sismed():
     # AHORA DEBEMMOS CERRAR LA VENTANA PRINCIPAL
 
     if ALMACENPRINCIPAL_WINDOW.Exists():
-        print("Cerrando ventana principal de Almacén...")
+        logger.info("Cerrando ventana principal de Almacén...")
         ALMACENPRINCIPAL_WINDOW.SetFocus()
         sleep(3)
         BOTON_CLOOSE_ALMACEN_PRINCIPAL.Click()
