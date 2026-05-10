@@ -6,7 +6,7 @@ from src.sidmed.salidas import procesar_salidas
 def test_procesar_salidas_llama_procesar_salida(monkeypatch):
     llamadas = []
 
-    """
+    """admin
 
     def fake_procesar_salida(salidas):
         llamadas.append(salidas)

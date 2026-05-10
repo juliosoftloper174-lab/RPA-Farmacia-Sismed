@@ -1,7 +1,10 @@
 from datetime import datetime
 from os import environ
+from random import randint
 from subprocess import Popen
 from time import sleep
+
+from src.reportes.excel_writer import guardar_movimientos
 from ..logger import logger
 import uiautomation as auto
 from dotenv import load_dotenv
@@ -19,6 +22,11 @@ from src.sidmed.ingreso import (
 )
 
 from ..sidmed._login import login
+from src.reportes.excel_schema import crear_row_salida
+from src.reportes.excel_writer import (
+    guardar_movimientos,
+    obtener_siguiente_numero_procesado,
+)
 
 # =========================================================
 # 🔹 CONFIG
@@ -217,57 +225,44 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
 
 
 def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
-
+    k_salud_correlativo = randint(1_000_000, 9_999_999)
     rows: list[dict] = []
 
-    for i, salida in enumerate(salidas, 1):
+    numero_procesado = obtener_siguiente_numero_procesado()
+
+    for salida in salidas:
 
         try:
             correlativo = procesar_salida(salida)
 
-            now = datetime.now()
-
-            row = {
-                "N° Procesado": i,
-                "Fecha": now.strftime("%Y-%m-%d"),
-                "Hora": now.strftime("%H:%M:%S"),
-                "Usuario": username,
-                "TipoMovimiento": "SALIDA",
-                "Estado": "OK",
-                "Error": "",
-                "CorrelativoSismed": correlativo,
-                "AlmacenOrigen": salida.almacen_origen,
-                "AlmacenDestino": salida.almacen_destino,
-                "AlmacenVirtual": salida.almacen_virtual_origen,
-                "Concepto": salida.concepto,
-                "Referencia": salida.referencia,
-                "CantidadProductos": len(salida.productos),
-            }
+            row = crear_row_salida(
+                i=numero_procesado,
+                username=username,
+                correlativo_ksalud=k_salud_correlativo,
+                correlativo_sismed=correlativo,
+                salida=salida,
+                estado="OK",
+            )
 
         except Exception as e:
             logger.exception("Error procesando una salida.")
-            row = {
-                "N° Procesado": i,
-                "Fecha": "",
-                "Hora": "",
-                "Usuario": username,
-                "TipoMovimiento": "SALIDA",
-                "Estado": "ERROR",
-                "Error": str(e),
-                "CorrelativoSismed": "",
-                "AlmacenOrigen": salida.almacen_origen,
-                "AlmacenDestino": salida.almacen_destino,
-                "AlmacenVirtual": salida.almacen_virtual_origen,
-                "Concepto": salida.concepto,
-                "Referencia": salida.referencia,
-                "CantidadProductos": len(salida.productos),
-            }
+
+            row = crear_row_salida(
+                i=numero_procesado,
+                username=username,
+                correlativo_ksalud=k_salud_correlativo,
+                correlativo_sismed="",
+                salida=salida,
+                estado="ERROR",
+                error=str(e),
+            )
 
         rows.append(row)
 
-    df = DataFrame(rows)
+        k_salud_correlativo += 1
+        numero_procesado += 1
 
-    df.write_excel("salidas.xlsx")
+    guardar_movimientos(rows)
 
     sleep(5)
 
