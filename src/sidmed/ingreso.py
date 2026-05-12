@@ -9,13 +9,17 @@ from ..helpers.selecionar import seleccionar_combo_por_texto_con_autoenter
 
 from dotenv import load_dotenv
 from uiautomation import TextControl, WindowControl
-from polars import DataFrame
 from src.models.ingreso import Ingreso
 from src.models.producto_ingreso import ProductoIngreso
 from src.sidmed._login import login
 from ..helpers.windows import *
 from random import randint
 from src.logger import logger
+from src.reportes.excel_schema import crear_row_ingreso
+from src.reportes.excel_writer import (
+    guardar_movimientos,
+    obtener_siguiente_numero_procesado,
+)
 
 # =========================================================
 # 🔹 CONFIG
@@ -76,11 +80,11 @@ def rellenar_ups(codigo_ups: str) -> None:
     # Botón aceptar
     aceptar = REGISTRO_PEDIDO_WINDOW.ButtonControl(Name="Aceptar")
 
-    if not aceptar.Exists(3):
+    if not aceptar.Exists(1.5):
         # fallback por si está en otra ventana/modal
         aceptar = ButtonControl(Name="Aceptar")
 
-    if aceptar.Exists(3):
+    if aceptar.Exists(1.5):
         aceptar.Click()
     else:
         raise Exception("No se encontró botón 'Aceptar' en UPS")
@@ -94,23 +98,24 @@ def rellenar_ups(codigo_ups: str) -> None:
 def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
 
     auto.Click(700, 230)
-    sleep(3)
+    sleep(1.8)
     auto.SendKeys(ingreso.almacen_origen)
-    sleep(3)
+    sleep(1.8)
     auto.SendKeys("{Enter}{Enter}")
 
-    sleep(0.3)
+    sleep(0.5)
     auto.Click(1140, 230)
     auto.SendKeys(ingreso.almacen_destino)
-    sleep(0.3)
+    sleep(0.5)
     auto.SendKeys("{Enter}")
     # NOTE: aqui se rellena el almacen virtual, esto no lee la base de datos, se asume que siempre sera el primero, se puede mejorar este apartado, por ahora trabajemoslo asi
-    sleep(0.3)
+    sleep(1.8)
     auto.Click(775, 255)
-    sleep(3)
+    sleep(1.8)
     auto.SendKeys(ingreso.almacen_virtual_origen)
-    sleep(3)
+    sleep(1.8)
     auto.SendKeys("{Enter}")
+    sleep(1.5)
 
     seleccionar_combo_por_texto_con_autoenter("cmbConcepto", ingreso.concepto)
 
@@ -122,7 +127,7 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
     # auto.SendKeys("{Enter}")
 
     # prueba de rellenar ups
-    sleep(0.3)
+    sleep(0.5)
     rellenar_ups(ingreso.ups_codigo)
 
     registro.EditControl(Name="txtReferencia").SendKeys(ingreso.referencia)
@@ -175,70 +180,52 @@ def agregar_productos(registro: WindowControl, ingreso: Ingreso):
 
 
 def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
+    k_salud_correlativo = randint(1_000_000, 9_999_999)
     rows: list[dict] = []
 
-    k_salud_correlativo = randint(1_000_000, 9_999_999)
+    numero_procesado = obtener_siguiente_numero_procesado()
 
-    for i, ingreso in enumerate(ingresos, 1):
+    for ingreso in ingresos:
 
         try:
             correlativo = procesar_ingreso(ingreso)
 
-            now = datetime.now()
-
-            row = {
-                "Nº de Procesado": i,
-                "Nº correlativo Ksalud": k_salud_correlativo,
-                "Nº correlativo Sismed": correlativo,
-                "Fecha": now.strftime("%Y-%m-%d"),
-                "Hora": now.strftime("%H:%M:%S"),
-                "Usuario": username,
-                "TipoMovimiento": "INGRESO",
-                "Estado": "OK",
-                "Error": "",
-                "almOrigen": ingreso.almacen_origen,
-                "almDestino": ingreso.almacen_destino,
-                "almVirtual": "",
-                "Concepto": ingreso.concepto,
-                "Referencia": ingreso.referencia,
-                "UPS": ingreso.ups_codigo,
-                "CantidadProductos": len(ingreso.productos),
-            }
+            row = crear_row_ingreso(
+                i=numero_procesado,
+                username=username,
+                correlativo_ksalud=k_salud_correlativo,
+                correlativo_sismed=correlativo,
+                ingreso=ingreso,
+                estado="OK",
+            )
 
         except Exception as e:
+            logger.exception("Error procesando un ingreso.")
 
-            row = {
-                "Nº de Procesado": i,
-                "Nº correlativo Ksalud": k_salud_correlativo,
-                "Nº correlativo Sismed": "",
-                "Fecha": "",
-                "Hora": "",
-                "Usuario": username,
-                "TipoMovimiento": "INGRESO",
-                "Estado": "ERROR",
-                "Error": str(e),
-                "almOrigen": ingreso.almacen_origen,
-                "almDestino": ingreso.almacen_destino,
-                "almVirtual": "",
-                "Concepto": ingreso.concepto,
-                "Referencia": ingreso.referencia,
-                "UPS": ingreso.ups_codigo,
-                "CantidadProductos": len(ingreso.productos),
-            }
+            row = crear_row_ingreso(
+                i=numero_procesado,
+                username=username,
+                correlativo_ksalud=k_salud_correlativo,
+                correlativo_sismed="",
+                ingreso=ingreso,
+                estado="ERROR",
+                error=str(e),
+            )
 
         rows.append(row)
 
         k_salud_correlativo += 1
+        numero_procesado += 1
 
-    df = DataFrame(rows)
+    guardar_movimientos(rows)
 
-    df.write_excel("ingresos.xlsx")
+    sleep(2)
 
 
 def guardar():
     CmdSave = auto.ButtonControl(Name="CmdSave")
     CmdSave.Click()
-    sleep(0.3)
+    sleep(0.5)
 
 
 ALMACEN_WINDOW: WindowControl = WindowControl(
@@ -288,43 +275,43 @@ def cerrar_sismed():
     if AVISO_DIALOG.Exists():
         logger.info("Cerrando ventana aviso...")
         AVISO_DIALOG.SetFocus()
-        sleep(3)
+        sleep(2)
         BOTON_ACEPTAR_AVISO.Click()
-        sleep(3)
+        sleep(2)
 
         # CERRAR VENTANA DE ERROR
 
     if VENTANA_ERROR.Exists():
         logger.info("Cerrando ventana de error...")
         VENTANA_ERROR.SetFocus()
-        sleep(3)
+        sleep(2)
         BOTON_IGNORAR_ERROR.Click()
-        sleep(1)
+        sleep(2)
 
     if REPORT_DESIGNER_WINDOW.Exists():
         logger.info("Cerrando Report Designer...")
         REPORT_DESIGNER_WINDOW.SetFocus()
-        sleep(3)
+        sleep(2)
         BOTON_CLOOSE_REPORT_DESIGNER.Click()
-        sleep(3)
+        sleep(2)
 
     # CERRAR VENTANA DE ALMACEN
 
     if ALMACEN_WINDOW.Exists():
         logger.info("Cerrando ventana de Almacén...")
         ALMACEN_WINDOW.SetFocus()
-        sleep(3)
+        sleep(2)
         BOTON_CLOOSE_ALMACEN.Click()
-        sleep(3)
+        sleep(2)
 
     # AHORA DEBEMMOS CERRAR LA VENTANA PRINCIPAL
 
     if ALMACENPRINCIPAL_WINDOW.Exists():
         logger.info("Cerrando ventana principal de Almacén...")
         ALMACENPRINCIPAL_WINDOW.SetFocus()
-        sleep(3)
+        sleep(2)
         BOTON_CLOOSE_ALMACEN_PRINCIPAL.Click()
-        sleep(3)
+        sleep(2)
 
     if MAIN_WINDOW.Exists():
         pattern = MAIN_WINDOW.GetWindowPattern()
@@ -346,14 +333,12 @@ def procesar_ingreso(ingreso: Ingreso) -> str:
     guardar()
 
     # 🔹 Esperamos un momento a que Sismed procese y salga el aviso
-    sleep(2)
+    sleep(1)
 
     # 🔹 Capturamos el correlativo
     correlativo: str = extraer_correlativo_almacen()
 
-    sleep(5)
+    sleep(1)
 
     cerrar_sismed()
-    sleep(5)
-    sleep(5)
     return correlativo

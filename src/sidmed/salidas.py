@@ -302,27 +302,27 @@ def cerrar_sismed_salidas():
     logger.info("Cerrando ventana aviso...")
 
     aviso.SetFocus()
-    sleep(1)
+    sleep(2)
 
     aviso.ButtonControl(Name="Aceptar").Click()
-    sleep(1)
+    sleep(2)
 
     # =========================================================
     # 🔹 CERRAR VENTANA ERROR
     # =========================================================
 
     ventana_error = WindowControl(Name="Program Error")
-    if ventana_error.Exists():
+    if ventana_error.Exists(2):
 
         logger.info("Cerrando ventana de error...")
 
         ventana_error.SetFocus()
-        sleep(1)
+        sleep(2)
 
         boton_ignore = ventana_error.ButtonControl(Name="Ignore")
 
         boton_ignore.Click()
-        sleep(1)
+        sleep(2)
     else:
         logger.info("No se encontró ventana de error.")
 
@@ -334,10 +334,10 @@ def cerrar_sismed_salidas():
     logger.info("Cerrando report...")
 
     report.SetFocus()
-    sleep(1)
+    sleep(2)
 
     report.ButtonControl(Name="Cerrar").Click()
-    sleep(8)  # TODO: Wait just the necesary time
+    sleep(2)  # TODO: Wait just the necesary time
 
     # =========================================================
     # 🔹 CERRAR ALMACEN
@@ -347,10 +347,10 @@ def cerrar_sismed_salidas():
     logger.info("Cerrando almacén...")
 
     almacen.SetFocus()
-    sleep(1)
+    sleep(2)
 
     almacen.ButtonControl(Name="Cerrar").Click()
-    sleep(1)
+    sleep(2)
 
     # =========================================================
     # 🔹 CERRAR MAIN WINDOW
@@ -361,7 +361,7 @@ def cerrar_sismed_salidas():
 
     pattern = principal.GetWindowPattern()
     pattern.Close()
-    sleep(1)
+    sleep(2)
 
     # =========================================================
     # 🔹 CERRAR ALMACEN PRINCIPAL
@@ -371,10 +371,10 @@ def cerrar_sismed_salidas():
     logger.info("Cerrando ventana Minsa sismded...")
 
     principal.SetFocus()
-    sleep(1)
+    sleep(2)
 
     principal.ButtonControl(Name="Cerrar").Click()
-    sleep(1)
+    sleep(2)
 
 
 def procesar_salida(salidas: Salidas) -> str:
@@ -385,17 +385,12 @@ def procesar_salida(salidas: Salidas) -> str:
     for producto in salidas.productos:
         agregar_producto(producto)
     guardar()
-
     # 🔹 Esperamos un momento a que Sismed procese y salga el aviso
-    sleep(2)
-
+    sleep(1)
     # 🔹 Capturamos el correlativo
     correlativo: str = extraer_correlativo_almacen()
-
-    sleep(5)
 
     cerrar_sismed_salidas()
     sleep(5)
 
-    sleep(5)
     return correlativo

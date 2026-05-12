@@ -1,4 +1,4 @@
-from asyncio import sleep
+from time import sleep
 import uiautomation as auto
 from src.logger import logger
 from uiautomation import ListItemControl
