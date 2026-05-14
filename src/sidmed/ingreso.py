@@ -261,16 +261,30 @@ CORRELATIVO_PATTERN: Pattern = compile(
 
 
 def extraer_correlativo_almacen() -> str:
-    if not CORRELATIVO_SAVED_TEXT.Exists():
 
-        if AVISO_DIALOG.Exists():
-            raise ValueError(AVISO_DIALOG.TextControl(searchDepth=1).Name.strip())
+    # Primero verificar si existe aviso
+    if AVISO_DIALOG.Exists(2):
 
-        raise ValueError(ERROR_TEXT.Name.strip())
-    if not (text := CORRELATIVO_SAVED_TEXT.Name.strip()):
-        raise ValueError("Correlativo cannot be empty.")
-    correlativo: str = CORRELATIVO_PATTERN.search(text).group(2)
-    return correlativo
+        mensaje = AVISO_DIALOG.TextControl(searchDepth=1).Name.strip()
+
+        # Intentar encontrar correlativo
+        match = CORRELATIVO_PATTERN.search(mensaje)
+
+        if match:
+            return match.group(2)
+
+        # Si NO coincide => el aviso era un error funcional
+        raise ValueError(f"SISMED: {mensaje}")
+
+    # Ventana MINSA SISMED
+    if MINSA_DIALOG.Exists(1):
+
+        mensaje_error = ERROR_TEXT.Name.strip()
+
+        raise ValueError(f"MINSA: {mensaje_error}")
+
+    # Nada encontrado
+    raise RuntimeError("No se encontró ni correlativo ni mensaje de error.")
 
 
 def cerrar_sismed():
