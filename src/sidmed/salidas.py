@@ -1,16 +1,27 @@
-from datetime import datetime
-from os import environ
 from random import randint
 from subprocess import Popen
 from time import sleep
 
+from src.helpers.manejo_errores import cerrar_ventana_segura
 from src.reportes.excel_writer import guardar_movimientos
 from ..logger import logger
-import uiautomation as auto
-from dotenv import load_dotenv
-from uiautomation import DocumentControl, EditControl, WindowControl
-from uiautomation import CustomControl, DataItemControl
-from polars import DataFrame
+
+
+from uiautomation import (
+    ListItemControl,
+    DocumentControl,
+    EditControl,
+    WindowControl,
+    TableControl,
+    ComboBoxControl,
+    CustomControl,
+    DataItemControl,
+    SendKeys,
+    Click,
+    ButtonControl,
+)
+
+
 from src.models.producto_ingreso import ProductoIngreso
 from src.models.Salidas import Salidas
 from src.sidmed.ingreso import (
@@ -28,20 +39,15 @@ from src.reportes.excel_writer import (
     obtener_siguiente_numero_procesado,
 )
 
-# =========================================================
-# 🔹 CONFIG
-# =========================================================
-load_dotenv()
-SISMED_EXE: str = environ["SISMED_EXE"]
-username: str = environ["SISMED_USERNAME"]
-password: str = environ["SISMED_PASSWORD"]
+from ..config import SISMED_PASSWORD, SISMED_USERNAME, SISMED_EXE
+
 # =========================================================
 # 🔹 HELPERS
 # =========================================================
 
 
 def seleccionar_combo_sismed(nombre_combo: str, texto_objetivo: str, max_intentos=20):
-    combo = auto.ComboBoxControl(Name=nombre_combo)
+    combo: ComboBoxControl = ComboBoxControl(Name=nombre_combo)
 
     if not combo.Exists():
         raise Exception(f"No se encontró combo: {nombre_combo}")
@@ -52,14 +58,14 @@ def seleccionar_combo_sismed(nombre_combo: str, texto_objetivo: str, max_intento
     # Baja hasta encontrar el texto
     for i in range(max_intentos):
         # intenta seleccionar visible
-        item = auto.ListItemControl(RegexName=texto_objetivo)
+        item: ListItemControl = ListItemControl(RegexName=texto_objetivo)
 
         if item.Exists(1):
             item.Click()
             logger.info(f"✅ Encontrado: {texto_objetivo}")
             return
 
-        auto.SendKeys("{DOWN}")
+        SendKeys("{DOWN}")
         sleep(0.2)
 
     raise Exception(f"❌ No se encontró el concepto: {texto_objetivo}")
@@ -71,15 +77,14 @@ def seleccionar_combo_sismed(nombre_combo: str, texto_objetivo: str, max_intento
 
 
 def Login() -> None:
+    """No used, may be a scheme for a future refactor."""
     Popen(SISMED_EXE)
 
     login_window = WindowControl(Name="Acceso al Sistema")
 
     if login_window.Exists(10):
-        login_window.EditControl(Name="txtUsuario").SendKeys(environ["SISMED_USERNAME"])
-        login_window.EditControl(Name="txtClave").SendKeys(
-            environ["SIDMED_PASSWORD"]  # ✅ corregido
-        )
+        login_window.EditControl(Name="txtUsuario").SendKeys(SISMED_USERNAME)
+        login_window.EditControl(Name="txtClave").SendKeys(SISMED_PASSWORD)
 
         login_window.ButtonControl(Name="Aceptar").Click()
         logger.info("✅ Login realizado")
@@ -94,19 +99,20 @@ def Login() -> None:
     if ventana_vencidos.Exists(5):
         ventana_vencidos.ButtonControl(Name="Salir").Click()
         logger.info("🧹 Ventana de productos vencidos cerrada")
+    return None
 
 
 def Navegar_Salidas() -> WindowControl:
-    auto.Click(355, 115)
+    Click(355, 115)
     sleep(0.3)
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
 
     sleep(0.3)
-    auto.Click(48, 122)
+    Click(48, 122)
 
     sleep(0.3)
-    auto.Click(455, 115)
-    auto.SendKeys("{Enter}")
+    Click(455, 115)
+    SendKeys("{Enter}")
 
     registro = WindowControl(Name="Registro de Salidas ")
 
@@ -129,7 +135,7 @@ def Navegar_Salidas() -> WindowControl:
 
 
 def debug_tabla_almacenes():
-    tabla = auto.TableControl(Name="GrdCatalogo")
+    tabla: TableControl = TableControl(Name="GrdCatalogo")
 
     if not tabla.Exists(5):
         raise Exception("❌ No se encontró la tabla de almacenes")
@@ -158,7 +164,7 @@ def debug_tabla_almacenes():
 def seleccionar_almacen_destino_por_codigo(codigo_objetivo: str):
     codigo_objetivo = str(codigo_objetivo).strip()
 
-    tabla_padre = auto.TableControl(Name="GrdCatalogo")
+    tabla_padre: TableControl = TableControl(Name="GrdCatalogo")
     tabla = tabla_padre.TableControl(Name="View 1")
 
     children = tabla.GetChildren()
@@ -172,7 +178,7 @@ def seleccionar_almacen_destino_por_codigo(codigo_objetivo: str):
         )
         xd = code_data_item.GetChildren()
         xdd = xd[0].GetChildren()
-        text_edit = code_data_item.EditControl(searchDepth=1, Name="Text1")
+        text_edit: EditControl = code_data_item.EditControl(searchDepth=1, Name="Text1")
         codigo = text_edit.GetValuePattern().Value
 
         if codigo.strip() == codigo_objetivo:
@@ -187,38 +193,38 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
 
     sleep(1)
     # 🔹 Almacén origen (código)
-    auto.Click(780, 230)
-    auto.SendKeys(salidas.almacen_origen)
-    auto.SendKeys("{Enter}")
+    Click(780, 230)
+    SendKeys(salidas.almacen_origen)
+    SendKeys("{Enter}")
 
     sleep(0.3)
 
     # 🔹 Almacén destino (nombre)
-    auto.Click(1140, 230)
+    Click(1140, 230)
     sleep(2)  # 🔥 importante que cargue la tabla
     seleccionar_almacen_destino_por_codigo(salidas.almacen_destino)
-    auto.ButtonControl(Name="Aceptar").Click()
+    ButtonControl(Name="Aceptar").Click()
     sleep(0.3)
 
     # 🔹 Almacen virtual
-    auto.Click(780, 250)
+    Click(780, 250)
     sleep(1)  # 🔥 espera que abra la ventana
 
-    auto.SendKeys(salidas.almacen_virtual_origen)
+    SendKeys(salidas.almacen_virtual_origen)
     sleep(1)
 
     # 🔥 buscar
 
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
 
     # 🔹 Concepto (combo)
     # seleccionar_combo_por_texto("cmbConcepto", salidas.concepto)
     # NOTE: Se tomo la decision de Harcodear ya que almenos se tiene entendido que siempre sera distribucion, ademas de que esta muy dificil poder selecionar la acion ya que si jugamos con las opciones algunas quitan el almacen destino y a volver a querer poner distribucion nos da error
-    auto.Click(700, 280)
+    Click(700, 280)
     sleep(0.3)
-    auto.Click(704, 340)
+    Click(704, 340)
     sleep(0.3)
-    auto.Click(507, 307)
+    Click(507, 307)
     sleep(0.3)
 
     registro.EditControl(Name="txtReferencia").SendKeys(salidas.referencia)
@@ -237,7 +243,7 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
 
             row = crear_row_salida(
                 i=numero_procesado,
-                username=username,
+                username=SISMED_USERNAME,
                 correlativo_ksalud=k_salud_correlativo,
                 correlativo_sismed=correlativo,
                 salida=salida,
@@ -249,7 +255,7 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
 
             row = crear_row_salida(
                 i=numero_procesado,
-                username=username,
+                username=SISMED_USERNAME,
                 correlativo_ksalud=k_salud_correlativo,
                 correlativo_sismed="",
                 salida=salida,
@@ -271,115 +277,102 @@ def agregar_producto(producto: ProductoIngreso):
 
     # se iba a trabajar usando inspecto pero la ventana cambia de nombre segun el almacen virtual seleccionado, alm destino, almacen origen, etc, por lo que es muy dificil asegurar el nombre de la ventana, por lo que se decidio trabajar con clicks en coordenadas especificas, ya que se tiene entendido que la ventana siempre va a tener la misma estructura y los mismos campos en las mismas posiciones
 
-    auto.SendKeys("{CONTROL}{INSERT}")  # abre ventana de agregar producto
+    SendKeys("{CONTROL}{INSERT}")  # abre ventana de agregar producto
     sleep(1)
-    auto.Click(825, 355)  # clic en el campo de codigo
+    Click(825, 355)  # clic en el campo de codigo
     sleep(0.3)
-    auto.Click(615, 315)  # clic en el txt busca
+    Click(615, 315)  # clic en el txt busca
     sleep(0.3)
-    auto.SendKeys(producto.codigo)  # busca el producto
+    SendKeys(producto.codigo)  # busca el producto
     sleep(0.3)
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
     sleep(0.3)
-    auto.SendKeys("{Enter}")  # selecciona el producto
+    SendKeys("{Enter}")  # selecciona el producto
     sleep(0.3)
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
     sleep(0.3)
-    auto.SendKeys(str(producto.cantidad))  # ingresa la cantidad
+    SendKeys(str(producto.cantidad))  # ingresa la cantidad
     sleep(0.3)
-    auto.SendKeys("{Enter}")
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
+    SendKeys("{Enter}")
     pass
 
 
 def cerrar_sismed_salidas():
 
-    # =========================================================
-    # 🔹 CERRAR AVISO
-    # =========================================================
+    # =====================================================
+    # AVISO
+    # =====================================================
 
     aviso = WindowControl(Name="Aviso")
-    logger.info("Cerrando ventana aviso...")
 
-    aviso.SetFocus()
-    sleep(2)
+    cerrar_ventana_segura(aviso, aviso.ButtonControl(Name="Aceptar"), "Ventana Aviso")
 
-    aviso.ButtonControl(Name="Aceptar").Click()
-    sleep(2)
-
-    # =========================================================
-    # 🔹 CERRAR VENTANA ERROR
-    # =========================================================
+    # =====================================================
+    # ERROR
+    # =====================================================
 
     ventana_error = WindowControl(Name="Program Error")
-    if ventana_error.Exists(2):
 
-        logger.info("Cerrando ventana de error...")
+    cerrar_ventana_segura(
+        ventana_error, ventana_error.ButtonControl(Name="Ignore"), "Program Error"
+    )
 
-        ventana_error.SetFocus()
-        sleep(2)
-
-        boton_ignore = ventana_error.ButtonControl(Name="Ignore")
-
-        boton_ignore.Click()
-        sleep(2)
-    else:
-        logger.info("No se encontró ventana de error.")
-
-    # =========================================================
-    # 🔹 CERRAR REPORT
-    # =========================================================
+    # =====================================================
+    # REPORT
+    # =====================================================
 
     report = DocumentControl(Name="Report Designer - srpt_gremision.frx - Page 1")
-    logger.info("Cerrando report...")
 
-    report.SetFocus()
-    sleep(2)
+    cerrar_ventana_segura(
+        report, report.ButtonControl(Name="Cerrar"), "Report Designer"
+    )
 
-    report.ButtonControl(Name="Cerrar").Click()
-    sleep(2)  # TODO: Wait just the necesary time
-
-    # =========================================================
-    # 🔹 CERRAR ALMACEN
-    # =========================================================
+    # =====================================================
+    # REGISTRO SALIDAS
+    # =====================================================
 
     almacen = WindowControl(Name="Registro de Salidas ")
-    logger.info("Cerrando almacén...")
 
-    almacen.SetFocus()
-    sleep(2)
+    cerrar_ventana_segura(
+        almacen, almacen.ButtonControl(Name="Cerrar"), "Registro de Salidas"
+    )
 
-    almacen.ButtonControl(Name="Cerrar").Click()
-    sleep(2)
-
-    # =========================================================
-    # 🔹 CERRAR MAIN WINDOW
-    # =========================================================
+    # =====================================================
+    # ALMACEN PRINCIPAL
+    # =====================================================
 
     principal = WindowControl(Name="ALMACEN - MINSA SISMED")
-    logger.info("Cerrando ventana principal...")
 
-    pattern = principal.GetWindowPattern()
-    pattern.Close()
-    sleep(2)
+    if principal.Exists(2):
 
-    # =========================================================
-    # 🔹 CERRAR ALMACEN PRINCIPAL
-    # =========================================================
+        try:
 
-    principal = WindowControl(Name="MINSA SISMED")
-    logger.info("Cerrando ventana Minsa sismded...")
+            logger.info("Cerrando ventana principal...")
 
-    principal.SetFocus()
-    sleep(2)
+            pattern = principal.GetWindowPattern()
 
-    principal.ButtonControl(Name="Cerrar").Click()
-    sleep(2)
+            if pattern:
+                pattern.Close()
+
+            sleep(2)
+
+        except Exception as e:
+
+            logger.warning(f"Error cerrando principal: {e}")
+
+    # =====================================================
+    # MINSA SISMED
+    # =====================================================
+
+    minsa = WindowControl(Name="MINSA SISMED")
+
+    cerrar_ventana_segura(minsa, minsa.ButtonControl(Name="Cerrar"), "MINSA SISMED")
 
 
 def procesar_salida(salidas: Salidas) -> str:
 
-    login(username, password)
+    login(SISMED_USERNAME, SISMED_PASSWORD)
     registro = Navegar_Salidas()
     rellenar_cabecera_salidas(registro, salidas)
     for producto in salidas.productos:

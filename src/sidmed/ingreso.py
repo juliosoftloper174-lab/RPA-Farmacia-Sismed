@@ -1,14 +1,15 @@
 from datetime import datetime
-from os import environ
+
 from re import Pattern, compile
 from time import sleep
-from uiautomation import ButtonControl, Click, DocumentControl, SendKeys
-import uiautomation as auto
+from uiautomation import ButtonControl, Click, DocumentControl, SendKeys, SendKeys
+
+from src.helpers.manejo_errores import cerrar_ventana_segura
 from ..helpers.selecionar import seleccionar_combo_por_texto
 from ..helpers.selecionar import seleccionar_combo_por_texto_con_autoenter
+from ..config import SISMED_PASSWORD, SISMED_USERNAME
 
-from dotenv import load_dotenv
-from uiautomation import TextControl, WindowControl
+from uiautomation import WindowControl
 from src.models.ingreso import Ingreso
 from src.models.producto_ingreso import ProductoIngreso
 from src.sidmed._login import login
@@ -22,16 +23,8 @@ from src.reportes.excel_writer import (
 )
 
 # =========================================================
-# 🔹 CONFIG
-# =========================================================
-load_dotenv()
-SISMED_EXE: str = environ["SISMED_EXE"]
-
-# =========================================================
 # 🔹 HELPERS
 # =========================================================
-username: str = environ["SISMED_USERNAME"]
-password: str = environ["SISMED_PASSWORD"]
 
 
 def generar_codigo_ngr() -> str:
@@ -44,18 +37,18 @@ def generar_codigo_ngr() -> str:
 
 
 def navegar_a_ingresos():
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
     sleep(1)
     # quiero mandarle hacia abajo para que se posicione en ingresos
-    auto.SendKeys("{DOWN}")
+    SendKeys("{DOWN}")
     sleep(1)
-    auto.SendKeys("{DOWN}")
+    SendKeys("{DOWN}")
     sleep(1)
-    auto.SendKeys("{ENTER}")
+    SendKeys("{ENTER}")
     sleep(1)
-    auto.Click(360, 100)
+    Click(360, 100)
     sleep(1)
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
 
 
 def abrir_registro() -> WindowControl:
@@ -97,24 +90,24 @@ def rellenar_ups(codigo_ups: str) -> None:
 
 def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
 
-    auto.Click(700, 230)
+    Click(700, 230)
     sleep(1.8)
-    auto.SendKeys(ingreso.almacen_origen)
+    SendKeys(ingreso.almacen_origen)
     sleep(1.8)
-    auto.SendKeys("{Enter}{Enter}")
+    SendKeys("{Enter}{Enter}")
 
     sleep(0.5)
-    auto.Click(1140, 230)
-    auto.SendKeys(ingreso.almacen_destino)
+    Click(1140, 230)
+    SendKeys(ingreso.almacen_destino)
     sleep(0.5)
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
     # NOTE: aqui se rellena el almacen virtual, esto no lee la base de datos, se asume que siempre sera el primero, se puede mejorar este apartado, por ahora trabajemoslo asi
     sleep(1.8)
-    auto.Click(775, 255)
+    Click(775, 255)
     sleep(1.8)
-    auto.SendKeys(ingreso.almacen_virtual_origen)
+    SendKeys(ingreso.almacen_virtual_origen)
     sleep(1.8)
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
     sleep(1.5)
 
     seleccionar_combo_por_texto_con_autoenter("cmbConcepto", ingreso.concepto)
@@ -124,7 +117,7 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
 
     # NOTE: aqui se rellena el UPS esto no lee la base de datos se asume que siempre sera el primero (SIN UPS), se puede mejorar este apartado, por ahora trabajemoslo asi
     # registro.ButtonControl(Name="...", foundIndex=5).Click()
-    # auto.SendKeys("{Enter}")
+    # SendKeys("{Enter}")
 
     # prueba de rellenar ups
     sleep(0.5)
@@ -139,21 +132,21 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
 
 
 def abrir_modal():
-    auto.Click(810, 410)
+    Click(810, 410)
     sleep(0.3)
-    auto.SendKeys("{CONTROL}{INSERT}")
+    SendKeys("{CONTROL}{INSERT}")
     sleep(0.5)
 
 
 def agregar_producto(registro: WindowControl, producto: ProductoIngreso):
 
     registro.EditControl(Name="txtCodigo").SendKeys(producto.codigo)
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
     sleep(0.5)
 
     registro.EditControl(Name="txtLote").SendKeys(producto.lote)
     sleep(0.5)
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
     sleep(0.5)
 
     # 🔥 combos nuevos
@@ -161,7 +154,7 @@ def agregar_producto(registro: WindowControl, producto: ProductoIngreso):
     seleccionar_combo_por_texto("cboffin", producto.fuente_fin)
 
     registro.EditControl(Name="txtCantidad").SendKeys(str(producto.cantidad))
-    auto.SendKeys("{Enter}")
+    SendKeys("{Enter}")
     sleep(0.5)
 
     registro.ButtonControl(Name="cmdAceptar").Click()
@@ -192,7 +185,7 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
 
             row = crear_row_ingreso(
                 i=numero_procesado,
-                username=username,
+                username=SISMED_USERNAME,
                 correlativo_ksalud=k_salud_correlativo,
                 correlativo_sismed=correlativo,
                 ingreso=ingreso,
@@ -204,7 +197,7 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
 
             row = crear_row_ingreso(
                 i=numero_procesado,
-                username=username,
+                username=SISMED_USERNAME,
                 correlativo_ksalud=k_salud_correlativo,
                 correlativo_sismed="",
                 ingreso=ingreso,
@@ -222,35 +215,12 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
     sleep(2)
 
 
-def guardar():
-    CmdSave = auto.ButtonControl(Name="CmdSave")
+def guardar() -> None:
+    CmdSave: ButtonControl = ButtonControl(Name="CmdSave")
     CmdSave.Click()
     sleep(0.5)
+    return None
 
-
-ALMACEN_WINDOW: WindowControl = WindowControl(
-    searchDepth=1, Name="ALMACEN - MINSA SISMED"
-)
-BOTON_CLOOSE_ALMACEN = ALMACEN_WINDOW.ButtonControl(Name="Cerrar")
-AVISO_DIALOG: WindowControl = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
-CORRELATIVO_SAVED_TEXT: TextControl = AVISO_DIALOG.TextControl(
-    NameRegex=r"Se grabó correctamente la Nota de (Ingreso|Salida) N° \d+"
-)
-BOTON_ACEPTAR_AVISO: ButtonControl = AVISO_DIALOG.ButtonControl(Name="Aceptar")
-
-MINSA_DIALOG: WindowControl = ALMACEN_WINDOW.WindowControl(
-    searchDepth=1, Name="MINSA SISMED"
-)
-ERROR_TEXT: TextControl = MINSA_DIALOG.TextControl(searchDepth=1, foundIndex=1)
-
-# DOCUMENT_CONTROL: DocumentControlTypeId
-REPORT_DESIGNER_WINDOW = DocumentControl(
-    Name="Report Designer - rptalmregisting.frx - Page 1"
-)
-BOTON_CLOOSE_REPORT_DESIGNER = REPORT_DESIGNER_WINDOW.ButtonControl(Name="Cerrar")
-
-ALMACENPRINCIPAL_WINDOW = WindowControl(Name="ALMACEN - MINSA SISMED")
-BOTON_CLOOSE_ALMACEN_PRINCIPAL = ALMACENPRINCIPAL_WINDOW.ButtonControl(Name="Cerrar")
 
 VENTANA_ERROR = WindowControl(Name="Program Error")
 BOTON_IGNORAR_ERROR = VENTANA_ERROR.ButtonControl(Name="Ignore")
@@ -262,84 +232,102 @@ CORRELATIVO_PATTERN: Pattern = compile(
 
 def extraer_correlativo_almacen() -> str:
 
-    # Primero verificar si existe aviso
-    if AVISO_DIALOG.Exists(2):
+    ALMACEN_WINDOW: WindowControl = WindowControl(
+        searchDepth=1, Name="ALMACEN - MINSA SISMED"
+    )
 
-        mensaje = AVISO_DIALOG.TextControl(searchDepth=1).Name.strip()
+    aviso = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
 
-        # Intentar encontrar correlativo
-        match = CORRELATIVO_PATTERN.search(mensaje)
+    if aviso.Exists():
 
-        if match:
-            return match.group(2)
+        mensaje = aviso.TextControl(searchDepth=1).Name.strip()
 
-        # Si NO coincide => el aviso era un error funcional
+        if correlative_match := CORRELATIVO_PATTERN.search(mensaje):
+            return correlative_match.group(2)
+
         raise ValueError(f"SISMED: {mensaje}")
 
-    # Ventana MINSA SISMED
-    if MINSA_DIALOG.Exists(1):
+    minsa = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="MINSA SISMED")
 
-        mensaje_error = ERROR_TEXT.Name.strip()
+    if minsa.Exists(1):
+
+        mensaje_error = minsa.TextControl(searchDepth=1, foundIndex=1).Name.strip()
 
         raise ValueError(f"MINSA: {mensaje_error}")
 
-    # Nada encontrado
     raise RuntimeError("No se encontró ni correlativo ni mensaje de error.")
 
 
-def cerrar_sismed():
+def cerrar_sismed() -> None:
 
-    # Se cierra el aviso
-    if AVISO_DIALOG.Exists():
-        logger.info("Cerrando ventana aviso...")
-        AVISO_DIALOG.SetFocus()
-        sleep(2)
-        BOTON_ACEPTAR_AVISO.Click()
-        sleep(2)
+    ALMACEN_WINDOW: WindowControl = WindowControl(
+        searchDepth=1, Name="ALMACEN - MINSA SISMED"
+    )
+    BOTON_CLOOSE_ALMACEN: ButtonControl = ALMACEN_WINDOW.ButtonControl(Name="Cerrar")
 
-        # CERRAR VENTANA DE ERROR
+    ALMACENPRINCIPAL_WINDOW: WindowControl = WindowControl(
+        Name="ALMACEN - MINSA SISMED"
+    )
+    BOTON_CLOOSE_ALMACEN_PRINCIPAL: ButtonControl = (
+        ALMACENPRINCIPAL_WINDOW.ButtonControl(Name="Cerrar")
+    )
 
-    if VENTANA_ERROR.Exists():
-        logger.info("Cerrando ventana de error...")
-        VENTANA_ERROR.SetFocus()
-        sleep(2)
-        BOTON_IGNORAR_ERROR.Click()
-        sleep(2)
+    REPORT_DESIGNER_WINDOW: DocumentControl = DocumentControl(
+        Name="Report Designer - rptalmregisting.frx - Page 1"
+    )
+    BOTON_CLOOSE_REPORT_DESIGNER = REPORT_DESIGNER_WINDOW.ButtonControl(Name="Cerrar")
 
-    if REPORT_DESIGNER_WINDOW.Exists():
-        logger.info("Cerrando Report Designer...")
-        REPORT_DESIGNER_WINDOW.SetFocus()
-        sleep(2)
-        BOTON_CLOOSE_REPORT_DESIGNER.Click()
-        sleep(2)
+    aviso: WindowControl = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
+    boton_aceptar: ButtonControl = aviso.ButtonControl(Name="Aceptar")
 
-    # CERRAR VENTANA DE ALMACEN
+    cerrar_ventana_segura(aviso, boton_aceptar, "Aviso SISMED")
 
-    if ALMACEN_WINDOW.Exists():
-        logger.info("Cerrando ventana de Almacén...")
-        ALMACEN_WINDOW.SetFocus()
-        sleep(2)
-        BOTON_CLOOSE_ALMACEN.Click()
-        sleep(2)
+    # ==========================================
+    # ERROR
+    # ==========================================
 
-    # AHORA DEBEMMOS CERRAR LA VENTANA PRINCIPAL
+    cerrar_ventana_segura(VENTANA_ERROR, BOTON_IGNORAR_ERROR, "Program Error")
 
-    if ALMACENPRINCIPAL_WINDOW.Exists():
-        logger.info("Cerrando ventana principal de Almacén...")
-        ALMACENPRINCIPAL_WINDOW.SetFocus()
-        sleep(2)
-        BOTON_CLOOSE_ALMACEN_PRINCIPAL.Click()
-        sleep(2)
+    # ==========================================
+    # REPORT DESIGNER
+    # ==========================================
 
-    if MAIN_WINDOW.Exists():
-        pattern = MAIN_WINDOW.GetWindowPattern()
+    cerrar_ventana_segura(
+        REPORT_DESIGNER_WINDOW, BOTON_CLOOSE_REPORT_DESIGNER, "Report Designer"
+    )
+
+    # ==========================================
+    # ALMACEN
+    # ==========================================
+
+    cerrar_ventana_segura(ALMACEN_WINDOW, BOTON_CLOOSE_ALMACEN, "Ventana Almacén")
+
+    # ==========================================
+    # ALMACEN PRINCIPAL
+    # ==========================================
+
+    cerrar_ventana_segura(
+        ALMACENPRINCIPAL_WINDOW,
+        BOTON_CLOOSE_ALMACEN_PRINCIPAL,
+        "Ventana Principal Almacén",
+    )
+
+    # ==========================================
+    # MINSA SISMED WINDOW
+    # ==========================================
+
+    if MINSA_SISMED_WINDOW.Exists():
+
+        pattern = MINSA_SISMED_WINDOW.GetWindowPattern()
 
         if pattern:
             pattern.Close()
 
+    return None
+
 
 def procesar_ingreso(ingreso: Ingreso) -> str:
-    login(username, password)
+    login(SISMED_USERNAME, SISMED_PASSWORD)
     navegar_a_ingresos()
 
     # 🔹 Solo una vez

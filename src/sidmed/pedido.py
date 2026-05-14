@@ -1,19 +1,9 @@
-from os import environ
 from random import randint
-import random
+
 from time import sleep
 
 
-from dotenv import load_dotenv
-from uiautomation import (
-    EditControl,
-    GroupControl,
-    WindowControl,
-    PaneControl,
-    ButtonControl,
-    Click,
-    SendKeys,
-)
+from uiautomation import EditControl, PaneControl, ButtonControl, Click, SendKeys
 
 from ..sidmed.ingreso import (
     seleccionar_combo_por_texto,
@@ -34,11 +24,7 @@ from ..reportes.excel_writer import (
     obtener_siguiente_numero_procesado,
 )
 from ..logger import logger
-
-load_dotenv()
-
-username = environ["SISMED_USERNAME"]
-password = environ["SISMED_PASSWORD"]
+from ..config import SISMED_PASSWORD, SISMED_USERNAME
 
 
 def navegar_a_pedidos(pedido: Pedido) -> None:
@@ -153,7 +139,7 @@ def guardar() -> None:
 
 def extraer_correlativo_farmacia() -> str:
     # has que genere un correlativo rando para poderlo meter en el excel
-    correlativo = random.randint(1, 1000)
+    correlativo = randint(1, 1000)
     return correlativo
 
 
@@ -180,7 +166,7 @@ def cerrar_sismed_pedido() -> None:
 
 def procesar_pedido(pedido: Pedido) -> str:
 
-    login(username, password)
+    login(SISMED_USERNAME, SISMED_PASSWORD)
     navegar_a_pedidos(pedido)
     rellenar_cabecera(pedido)
 
@@ -205,7 +191,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
             correlativo = procesar_pedido(pedido)
             row = crear_row_pedido(
                 i=numero_procesado,
-                username=username,
+                username=SISMED_USERNAME,
                 correlativo_ksalud=k_salud_correlativo,
                 correlativo_sismed=correlativo,
                 pedido=pedido,
@@ -215,7 +201,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
             logger.exception("Error procesando un pedido.")
             row = crear_row_pedido(
                 i=numero_procesado,
-                username=username,
+                username=SISMED_USERNAME,
                 correlativo_ksalud=k_salud_correlativo,
                 correlativo_sismed="",
                 pedido=pedido,

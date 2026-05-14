@@ -1,6 +1,3 @@
-from os import environ
-
-from dotenv import load_dotenv
 from .logger import logger
 from loguru import logger
 
@@ -14,11 +11,6 @@ from .sidmed.pedido import FormaPago, Pedido, procesar_pedidos
 from .sidmed.salidas import ProductoIngreso, Salidas, procesar_salidas
 from .sidmed.wrapper import Sismed
 from .models.enums import TipoReceta
-
-load_dotenv()
-
-sismed_username = environ["SISMED_USERNAME"]
-sismed_password = environ["SISMED_PASSWORD"]
 
 
 class Database:
@@ -117,10 +109,9 @@ def main() -> None:
 
     # TODO: por ahora hacer que se cierren las ventanas al terminar, hasta conseguir una forma de reutilizar la misma ventana.
 
-    # procesar_pedidos(pedidos)
-    # procesar_ingresos(ingresos)
+    procesar_ingresos(ingresos)
     procesar_salidas(salidas)
-
+    procesar_pedidos(pedidos)
     return logger.info("Finalizando...")
 
 

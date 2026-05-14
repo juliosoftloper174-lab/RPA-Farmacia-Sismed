@@ -7,3 +7,5 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SISMED_EXE: str = environ["SISMED_EXE"]
+SISMED_USERNAME: str = environ["SISMED_USERNAME"]
+SISMED_PASSWORD: str = environ["SISMED_PASSWORD"]
