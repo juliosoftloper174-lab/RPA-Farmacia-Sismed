@@ -78,6 +78,7 @@ def main() -> None:
     ingreso = Ingreso(
         almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN   ",
         almacen_destino="06732F01",
+        almacen_virtual_origen="030S0101",
         concepto="DISTRIBUCION",
         referencia="B.O.T",
         ups_codigo="407",
@@ -106,14 +107,7 @@ def main() -> None:
         concepto="DISTRIBUCION",
         referencia="TEST",
         productos=[
-            ProductoIngreso("01205", "L001", 1, 1, 5),
-            ProductoIngreso(
-                "00947",
-                "2080015",
-                2,
-                "SISMED-COMPRA REGIONAL (CR)",
-                "Recursos Determinados (RDE)",
-            ),
+            ProductoIngreso("00223", "L001", 1, 1, 5),
         ],
     )
 
@@ -123,8 +117,8 @@ def main() -> None:
 
     # TODO: por ahora hacer que se cierren las ventanas al terminar, hasta conseguir una forma de reutilizar la misma ventana.
 
-    procesar_pedidos(pedidos)
-    procesar_ingresos(ingresos)
+    # procesar_pedidos(pedidos)
+    # procesar_ingresos(ingresos)
     procesar_salidas(salidas)
 
     return logger.info("Finalizando...")

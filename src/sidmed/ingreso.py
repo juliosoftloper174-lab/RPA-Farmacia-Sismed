@@ -45,16 +45,16 @@ def generar_codigo_ngr() -> str:
 
 def navegar_a_ingresos():
     auto.SendKeys("{Enter}")
-    sleep(0.3)
+    sleep(1)
     # quiero mandarle hacia abajo para que se posicione en ingresos
     auto.SendKeys("{DOWN}")
-    sleep(0.3)
+    sleep(1)
     auto.SendKeys("{DOWN}")
-    sleep(0.3)
+    sleep(1)
     auto.SendKeys("{ENTER}")
-    sleep(0.3)
+    sleep(1)
     auto.Click(360, 100)
-    sleep(0.3)
+    sleep(1)
     auto.SendKeys("{Enter}")
 
 
@@ -157,8 +157,8 @@ def agregar_producto(registro: WindowControl, producto: ProductoIngreso):
     sleep(0.5)
 
     # 🔥 combos nuevos
-    # seleccionar_combo_por_texto("cbotipsum", producto.tipo_sum)
-    # seleccionar_combo_por_texto("cboffin", producto.fuente_fin)
+    seleccionar_combo_por_texto("cbotipsum", producto.tipo_sum)
+    seleccionar_combo_por_texto("cboffin", producto.fuente_fin)
 
     registro.EditControl(Name="txtCantidad").SendKeys(str(producto.cantidad))
     auto.SendKeys("{Enter}")
@@ -262,6 +262,10 @@ CORRELATIVO_PATTERN: Pattern = compile(
 
 def extraer_correlativo_almacen() -> str:
     if not CORRELATIVO_SAVED_TEXT.Exists():
+
+        if AVISO_DIALOG.Exists():
+            raise ValueError(AVISO_DIALOG.TextControl(searchDepth=1).Name.strip())
+
         raise ValueError(ERROR_TEXT.Name.strip())
     if not (text := CORRELATIVO_SAVED_TEXT.Name.strip()):
         raise ValueError("Correlativo cannot be empty.")

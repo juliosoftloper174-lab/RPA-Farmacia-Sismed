@@ -8,15 +8,12 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
 
     """
     def fake_procesar_ingreso(ingreso):
-        llamadas.append(ingreso)
+        llamadas.append(ingreso)    
 
     monkeypatch.setattr("src.sidmed.ingreso.procesar_ingreso", fake_procesar_ingreso)
     """
     ingreso = Ingreso(
-        almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN   ",  # no se puede buscar por codigo
-        # En este caso de almacen origen si nos puede facilitar el script sql para obtener el nombre
-        # apartir de su codigo, me imagino sera algo como
-        # SELECT nombre_almacen FROM almacenes WHERE codigo_almacen = '06732F01'
+        almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN   ",
         almacen_destino="06732F01",
         almacen_virtual_origen="030S0101",
         concepto="DISTRIBUCION",
@@ -27,7 +24,7 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
                 "30588",
                 "2080015",
                 1,
-                "SISMED-CENTRALIZADO (SC)",
+                "SISMED-COMPRA NACIONAL (CN)",
                 "Contribuciones a Fondos (CON)",
             ),
         ],
