@@ -1,4 +1,6 @@
 from os import environ
+from random import randint
+import random
 from time import sleep
 
 
@@ -26,6 +28,12 @@ from ..helpers.producto import agregar_productos
 from ..models.pedido import Pedido
 from ..sidmed._login import login
 from ..helpers.windows import *
+from ..reportes.excel_schema import crear_row_pedido
+from ..reportes.excel_writer import (
+    guardar_movimientos,
+    obtener_siguiente_numero_procesado,
+)
+from ..logger import logger
 
 load_dotenv()
 
@@ -139,7 +147,38 @@ def guardar() -> None:
     return None
 
 
-def procesar_pedido(pedido: Pedido) -> None:
+# def extraer_correlativo_farmacia() -> None:
+# esta funcion debe de generar un correlativo falso para poder registarlo en el excel como lo hace ingreso y salida solo que aqui en pedido no me lo da por el ambiente de prueba pero si deberia de hacerlo en un futuro
+
+
+def extraer_correlativo_farmacia() -> str:
+    # has que genere un correlativo rando para poderlo meter en el excel
+    correlativo = random.randint(1, 1000)
+    return correlativo
+
+
+def cerrar_sismed_pedido() -> None:
+
+    # Click 1
+    Click(1168, 188)
+    sleep(3)
+
+    # Click 2
+    Click(1189, 214)
+    sleep(3)
+
+    # Click 3
+    Click(1585, 15)
+    sleep(3)
+
+    # Click 4
+    Click(1585, 15)
+    sleep(3)
+
+    return None
+
+
+def procesar_pedido(pedido: Pedido) -> str:
 
     login(username, password)
     navegar_a_pedidos(pedido)
@@ -149,10 +188,46 @@ def procesar_pedido(pedido: Pedido) -> None:
     agregar_productos(tuple(pedido.productos))
     guardar()
     sleep(0.3)
-    return sleep(0.5)
+    correlativo: str = extraer_correlativo_farmacia()
+    sleep(5)
+    cerrar_sismed_pedido()
+    sleep(0.5)
+    return str(correlativo)
 
 
 def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
+    k_salud_correlativo = randint(1_000_000, 9_999_999)
+    numero_procesado = obtener_siguiente_numero_procesado()
+    rows: list[dict] = []
+
     for pedido in pedidos:
-        procesar_pedido(pedido)
+        try:
+            correlativo = procesar_pedido(pedido)
+            row = crear_row_pedido(
+                i=numero_procesado,
+                username=username,
+                correlativo_ksalud=k_salud_correlativo,
+                correlativo_sismed=correlativo,
+                pedido=pedido,
+                estado="OK",
+            )
+        except Exception as exc:
+            logger.exception("Error procesando un pedido.")
+            row = crear_row_pedido(
+                i=numero_procesado,
+                username=username,
+                correlativo_ksalud=k_salud_correlativo,
+                correlativo_sismed="",
+                pedido=pedido,
+                estado="ERROR",
+                error=str(exc),
+            )
+
+        rows.append(row)
+        k_salud_correlativo += 1
+        numero_procesado += 1
+
+    if rows:
+        guardar_movimientos(rows)
+
     return None

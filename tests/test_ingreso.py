@@ -23,7 +23,7 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
             ProductoIngreso(
                 "30588",
                 "2080015",
-                1,
+                400,
                 "SISMED-COMPRA NACIONAL (CN)",
                 "Contribuciones a Fondos (CON)",
             ),

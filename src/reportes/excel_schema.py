@@ -75,6 +75,53 @@ def crear_row_ingreso(
     return row
 
 
+def crear_row_pedido(
+    i: int,
+    username: str,
+    correlativo_ksalud: str,
+    correlativo_sismed: str,
+    pedido,
+    estado: str,
+    error: str = "",
+):
+    row = crear_row_base()
+
+    now = datetime.now()
+    diagnosticos = [
+        getattr(d, "codigo", str(d)) for d in getattr(pedido, "diagnosticos", [])
+    ]
+
+    row.update(
+        {
+            "Nº de Procesado": i,
+            "Nº correlativo Ksalud": correlativo_ksalud,
+            "Nº correlativo Sismed": correlativo_sismed,
+            "Fecha": now.strftime("%Y-%m-%d"),
+            "Hora": now.strftime("%H:%M:%S"),
+            "Usuario": username,
+            "TipoMovimiento": "PEDIDO",
+            "Estado": estado,
+            "Error": error,
+            "farmacia": getattr(pedido.farmacia, "codigo", str(pedido.farmacia)),
+            "cliente": getattr(pedido.cliente, "codigo", str(pedido.cliente)),
+            "prescriptor": getattr(
+                pedido.prescriptor, "codigo", str(pedido.prescriptor)
+            ),
+            "forma_pago": getattr(pedido.forma_pago, "value", str(pedido.forma_pago)),
+            "tipo_receta": getattr(
+                pedido.tipo_receta, "value", str(pedido.tipo_receta)
+            ),
+            "FUA": pedido.fua or "",
+            "Diag Nº1": diagnosticos[0] if len(diagnosticos) > 0 else "",
+            "Diag Nº2": diagnosticos[1] if len(diagnosticos) > 1 else "",
+            "Diag Nº3": diagnosticos[2] if len(diagnosticos) > 2 else "",
+            "CantidadProductos": len(getattr(pedido, "productos", [])),
+        }
+    )
+
+    return row
+
+
 def crear_row_salida(
     i: int,
     username: str,
