@@ -21,10 +21,31 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
         ups_codigo="407",
         productos=[
             ProductoIngreso(
-                "30588",
-                "2080015",
+                "36394",
+                "DE5FDJ6D",
                 400,
                 "SISMED-COMPRA NACIONAL (CN)",
+                "Contribuciones a Fondos (CON)",
+            ),
+            ProductoIngreso(
+                "36394",
+                "DE5FDJ6D",
+                400,
+                "SISMED-TRANSF Y PRESTAMOS UE (ST) TP",
+                "Contribuciones a Fondos (CON)",
+            ),
+            ProductoIngreso(
+                "36394",
+                "DE5FDJ6D",
+                850,
+                "SISMED-TRANSF Y PRESTAMOS UE (ST) TP",
+                "Recursos Ordinarios (ROR)",
+            ),
+            ProductoIngreso(
+                "36394",
+                "DE5FDJ6D",
+                959,
+                "SISMED-CENTRALIZADO (SC)",
                 "Contribuciones a Fondos (CON)",
             ),
         ],

@@ -14,13 +14,13 @@ def test_procesar_salidas_llama_procesar_salida(monkeypatch):
     monkeypatch.setattr("src.sidmed.salidas.procesar_salida", fake_procesar_salida)
     """
     salida = Salidas(
-        almacen_origen="06732F02",
-        almacen_destino="06732F01",
-        almacen_virtual_origen="06732F0201",
+        almacen_origen="06732F01",
+        almacen_destino="06732F02",
+        almacen_virtual_origen="06732F0101",
         concepto="DISTRIBUCION",
         referencia="TEST",
         productos=[
-            ProductoIngreso("00200", "L001", 385, 1, 5),
+            ProductoIngreso("36394", "DE5FDJ6D", 900, 1, 5),
         ],
     )
 
