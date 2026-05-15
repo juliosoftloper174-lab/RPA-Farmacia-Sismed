@@ -1,3 +1,4 @@
+from enum import auto
 from random import randint
 
 from time import sleep
@@ -6,6 +7,7 @@ from time import sleep
 from uiautomation import EditControl, PaneControl, ButtonControl, Click, SendKeys
 
 from ..sidmed.ingreso import (
+    cerrar_sismed,
     seleccionar_combo_por_texto,
     seleccionar_combo_por_texto_con_autoenter,
 )
@@ -30,11 +32,16 @@ from ..config import SISMED_PASSWORD, SISMED_USERNAME
 def navegar_a_pedidos(pedido: Pedido) -> None:
     """NOTE: SendKey and Senkeys works weird here."""
 
-    SYSTEM_INFO_PANEL.SendKeys("{RIGHT}{Enter}")
+    get_system_info_panel().SendKeys("{RIGHT}{Enter}")
 
     seleccionar_farmacia_por_codigo(pedido.farmacia.codigo)
-    sleep(0.3)
-
+    sleep(1)
+    for _ in range(2):
+        SendKeys("{DOWN}")
+    SendKeys("{TAB}")
+    SendKeys("{Enter}")
+    sleep(0.5)
+    """
     # NOTE: Go to "Procesos" Module.
     for _ in range(2):
         MODULO_CONTROL_FARMACIA_PANEL.SendKeys("{DOWN}")
@@ -47,11 +54,15 @@ def navegar_a_pedidos(pedido: Pedido) -> None:
     OPTIONS_PANEL.SendKeys("{Enter}")
     get_registro_pedido_window().Exists()
     return None
+    """
 
 
 def rellenar_fua(pedido: Pedido) -> None:
-    input_fua = get_registro_pedido_window().EditControl(searchDepth=1, Name="Txtfua")
+    input_fua: EditControl = get_registro_pedido_window().EditControl(
+        searchDepth=1, Name="Txtfua"
+    )
     escribir_input(input_fua, pedido.fua)
+    return None
 
 
 def rellenar_ups(codigo_ups: str) -> None:
@@ -128,7 +139,9 @@ def rellenar_cabecera(pedido: Pedido) -> None:
 
 
 def guardar() -> None:
-    CmdSave: ButtonControl = BARRA_GROUP.ButtonControl(searchDepth=1, Name="CmdSave")
+    CmdSave: ButtonControl = get_barrar_group().ButtonControl(
+        searchDepth=1, Name="CmdSave"
+    )
     CmdSave.Click()
     sleep(0.3)
     return None
@@ -163,6 +176,21 @@ def cerrar_sismed_pedido() -> None:
     sleep(3)
 
     return None
+
+
+from uiautomation import WindowControl
+
+
+def cerrar_registro_pedido():
+
+    pedido_window = WindowControl(searchDepth=2, Name="Registro de Pedido")
+
+    if pedido_window.Exists(2):
+
+        pattern = pedido_window.GetWindowPattern()
+
+        if pattern:
+            pattern.Close()
 
 
 def procesar_pedido(pedido: Pedido) -> str:

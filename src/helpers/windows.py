@@ -1,42 +1,39 @@
-from uiautomation import GroupControl, WindowControl
-from uiautomation import PaneControl
+"""COMs die quickly, do not store constants here."""
 
-# TODO: Do not use controls as constants, COMs die quickly.
+from uiautomation import GroupControl, WindowControl, PaneControl
 
-FARMACIA_WINDOW: WindowControl = WindowControl(
-    searchDepth=1, Name="FARMACIA - MINSA SISMED C:\sismedv2_hospitalrioja ()"
-)
 
-FARMACIA_PANEL: PaneControl = FARMACIA_WINDOW.PaneControl(
-    searchDepth=1, Name="FARMACIA - MINSA SISMED C:\sismedv2_hospitalrioja ()"
-)
+def get_farmacia_window() -> WindowControl:
+    return WindowControl(
+        searchDepth=1, Name="FARMACIA - MINSA SISMED C:\sismedv2_hospitalrioja ()"
+    )
 
-MAIN_WINDOW: WindowControl = WindowControl(searchDepth=1, Name="MINSA SISMED")
-BOTON_CLOOSE_MAIN_WINDOW = MAIN_WINDOW.ButtonControl(Name="Cerrar")
+
+def get_farmacia_panel() -> PaneControl:
+    return get_farmacia_window().PaneControl(
+        searchDepth=1, Name="FARMACIA - MINSA SISMED C:\sismedv2_hospitalrioja ()"
+    )
 
 
 def get_registro_pedido_window() -> WindowControl:
-    return FARMACIA_PANEL.WindowControl(searchDepth=1, Name="Registro de Pedido")
+    return get_farmacia_panel().WindowControl(searchDepth=1, Name="Registro de Pedido")
 
 
-MINSA_SISMED_WINDOW: WindowControl = WindowControl(searchDepth=1, Name="MINSA SISMED")
-MINSA_SISMED_PANEL: PaneControl = MINSA_SISMED_WINDOW.PaneControl(
-    searchDepth=1, Name="MINSA SISMED"
-)
-MAIN_WINDOW: WindowControl = MINSA_SISMED_PANEL.WindowControl(
-    searchDepth=1, Name="Menu Principal"
-)
-SYSTEM_INFO_PANEL: PaneControl = MAIN_WINDOW.PaneControl(
-    searchDepth=1, foundIndex=1, Name=""
-)
+def get_minsa_sismed_window() -> WindowControl:
+    return WindowControl(searchDepth=1, Name="MINSA SISMED")
 
 
-CONTROL_FARMARCIA_WINDOW: WindowControl = FARMACIA_PANEL.WindowControl(
-    searchDepth=1, Name="Control de Farmacia"
-)
-MODULO_CONTROL_FARMACIA_PANEL: PaneControl = CONTROL_FARMARCIA_WINDOW.PaneControl(
-    searchDepth=1, foundIndex=1, Name=""
-)
-BARRA_GROUP: GroupControl = get_registro_pedido_window().GroupControl(
-    searchDepth=1, Name="Barra"
-)
+def get_minsa_sismed_panel() -> PaneControl:
+    return get_minsa_sismed_window().PaneControl(searchDepth=1, Name="MINSA SISMED")
+
+
+def get_main_window() -> WindowControl:
+    return get_minsa_sismed_panel().WindowControl(searchDepth=1, Name="Menu Principal")
+
+
+def get_system_info_panel() -> PaneControl:
+    return get_main_window().PaneControl(searchDepth=1, foundIndex=1, Name="")
+
+
+def get_barrar_group() -> GroupControl:
+    return get_registro_pedido_window().GroupControl(searchDepth=1, Name="Barra")
