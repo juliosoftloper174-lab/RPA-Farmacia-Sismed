@@ -109,9 +109,10 @@ def main() -> None:
 
     # TODO: por ahora hacer que se cierren las ventanas al terminar, hasta conseguir una forma de reutilizar la misma ventana.
 
-    procesar_ingresos(ingresos)
-    procesar_salidas(salidas)
-    procesar_pedidos(pedidos)
+    for _ in range(3):
+        procesar_ingresos(ingresos)
+        procesar_salidas(salidas)
+        procesar_pedidos(pedidos)
     return logger.info("Finalizando...")
 
 

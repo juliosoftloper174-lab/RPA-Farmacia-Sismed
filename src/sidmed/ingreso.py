@@ -79,16 +79,10 @@ def rellenar_ups(codigo_ups: str) -> None:
     sleep(1)
 
     # Botón aceptar
-    aceptar = REGISTRO_PEDIDO_WINDOW.ButtonControl(Name="Aceptar")
-
-    if not aceptar.Exists(1.5):
-        # fallback por si está en otra ventana/modal
-        aceptar = ButtonControl(Name="Aceptar")
-
-    if aceptar.Exists(1.5):
-        aceptar.Click()
-    else:
-        raise Exception("No se encontró botón 'Aceptar' en UPS")
+    # registro_pedido_window: WindowControl = FARMACIA_PANEL.WindowControl(searchDepth=1, Name="Registro de Pedido")
+    # aceptar: ButtonControl = registro_pedido_window.ButtonControl(Name="Aceptar")
+    aceptar: ButtonControl = ButtonControl(Name="Aceptar")
+    aceptar.Click()
 
 
 # =========================================================

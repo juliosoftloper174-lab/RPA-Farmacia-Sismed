@@ -45,12 +45,12 @@ def navegar_a_pedidos(pedido: Pedido) -> None:
 
     OPTIONS_PANEL.SendKey("{TAB}")
     OPTIONS_PANEL.SendKeys("{Enter}")
-    REGISTRO_PEDIDO_WINDOW.Exists()
+    get_registro_pedido_window().Exists()
     return None
 
 
 def rellenar_fua(pedido: Pedido) -> None:
-    input_fua = REGISTRO_PEDIDO_WINDOW.EditControl(searchDepth=1, Name="Txtfua")
+    input_fua = get_registro_pedido_window().EditControl(searchDepth=1, Name="Txtfua")
     escribir_input(input_fua, pedido.fua)
 
 
@@ -68,15 +68,16 @@ def rellenar_ups(codigo_ups: str) -> None:
     SendKeys(codigo_ups)
     sleep(1)
 
-    # Botón aceptar
-    aceptar = REGISTRO_PEDIDO_WINDOW.ButtonControl(Name="Aceptar")
+    accept_button: ButtonControl = get_registro_pedido_window().ButtonControl(
+        Name="Aceptar"
+    )
 
-    if not aceptar.Exists(3):
+    if not accept_button.Exists(3):
         # fallback por si está en otra ventana/modal
-        aceptar = ButtonControl(Name="Aceptar")
+        accept_button = ButtonControl(Name="Aceptar")
 
-    if aceptar.Exists(3):
-        aceptar.Click()
+    if accept_button.Exists(3):
+        accept_button.Click()
     else:
         raise Exception("No se encontró botón 'Aceptar' en UPS")
 
@@ -115,13 +116,13 @@ def rellenar_cabecera(pedido: Pedido) -> None:
     seleccionar_cliente(pedido.cliente.codigo)
 
     # Prescriptor
-    presc: EditControl = REGISTRO_PEDIDO_WINDOW.EditControl(Name="TxtColPresc")
+    presc: EditControl = get_registro_pedido_window().EditControl(Name="TxtColPresc")
     escribir_input(presc, pedido.prescriptor.codigo)
     presc.SendKeys("{Enter}")
 
     # Diagnósticos
     rellenar_diagnosticos(
-        REGISTRO_PEDIDO_WINDOW, [d.codigo for d in pedido.diagnosticos]
+        get_registro_pedido_window(), [d.codigo for d in pedido.diagnosticos]
     )
     return None
 
