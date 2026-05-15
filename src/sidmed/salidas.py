@@ -221,11 +221,11 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
     # seleccionar_combo_por_texto("cmbConcepto", salidas.concepto)
     # NOTE: Se tomo la decision de Harcodear ya que almenos se tiene entendido que siempre sera distribucion, ademas de que esta muy dificil poder selecionar la acion ya que si jugamos con las opciones algunas quitan el almacen destino y a volver a querer poner distribucion nos da error
     Click(700, 280)
-    sleep(0.3)
+    sleep(1.5)
     Click(704, 340)
-    sleep(0.3)
+    sleep(1.5)
     Click(507, 307)
-    sleep(0.3)
+    sleep(1.5)
 
     registro.EditControl(Name="txtReferencia").SendKeys(salidas.referencia)
 
