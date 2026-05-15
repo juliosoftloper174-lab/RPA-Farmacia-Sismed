@@ -298,82 +298,10 @@ def agregar_producto(producto: ProductoIngreso):
     pass
 
 
-def cerrar_sismed_salidas():
-
-    # =====================================================
-    # AVISO
-    # =====================================================
-
-    aviso = WindowControl(Name="Aviso")
-
-    cerrar_ventana_segura(aviso, aviso.ButtonControl(Name="Aceptar"), "Ventana Aviso")
-
-    # =====================================================
-    # ERROR
-    # =====================================================
-
-    ventana_error = WindowControl(Name="Program Error")
-
-    cerrar_ventana_segura(
-        ventana_error, ventana_error.ButtonControl(Name="Ignore"), "Program Error"
-    )
-
-    # =====================================================
-    # REPORT
-    # =====================================================
-
-    report = DocumentControl(Name="Report Designer - srpt_gremision.frx - Page 1")
-
-    cerrar_ventana_segura(
-        report, report.ButtonControl(Name="Cerrar"), "Report Designer"
-    )
-
-    # =====================================================
-    # REGISTRO SALIDAS
-    # =====================================================
-
-    almacen = WindowControl(Name="Registro de Salidas ")
-
-    cerrar_ventana_segura(
-        almacen, almacen.ButtonControl(Name="Cerrar"), "Registro de Salidas"
-    )
-
-    # =====================================================
-    # ALMACEN PRINCIPAL
-    # =====================================================
-
-    principal = WindowControl(Name="ALMACEN - MINSA SISMED")
-
-    if principal.Exists(2):
-
-        try:
-
-            logger.info("Cerrando ventana principal...")
-
-            pattern = principal.GetWindowPattern()
-
-            if pattern:
-                pattern.Close()
-
-            sleep(2)
-
-        except Exception as e:
-
-            logger.warning(f"Error cerrando principal: {e}")
-
-    # =====================================================
-    # MINSA SISMED
-    # =====================================================
-
-    minsa = WindowControl(Name="MINSA SISMED")
-
-    cerrar_ventana_segura(minsa, minsa.ButtonControl(Name="Cerrar"), "MINSA SISMED")
-
-
 def procesar_salida(salidas: Salidas) -> str:
 
     login(SISMED_USERNAME, SISMED_PASSWORD)
-    registro = Navegar_Salidas()
+    registro: WindowControl = Navegar_Salidas()
     rellenar_cabecera_salidas(registro, salidas)
     for producto in salidas.productos:
         agregar_producto(producto)
@@ -383,7 +311,7 @@ def procesar_salida(salidas: Salidas) -> str:
     # 🔹 Capturamos el correlativo
     correlativo: str = extraer_correlativo_almacen()
 
-    cerrar_sismed_salidas()
+    cerrar_sismed()
     sleep(5)
 
     return correlativo

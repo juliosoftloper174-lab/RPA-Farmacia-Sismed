@@ -1,7 +1,7 @@
 from uiautomation import GroupControl, WindowControl
 from uiautomation import PaneControl
-from uiautomation import ButtonControl
-from uiautomation import Click
+
+# TODO: Do not use controls as constants, COMs die quickly.
 
 FARMACIA_WINDOW: WindowControl = WindowControl(
     searchDepth=1, Name="FARMACIA - MINSA SISMED C:\sismedv2_hospitalrioja ()"

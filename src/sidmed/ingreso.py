@@ -1,8 +1,16 @@
 from datetime import datetime
-
+from comtypes import COMError
 from re import Pattern, compile
 from time import sleep
-from uiautomation import ButtonControl, Click, DocumentControl, SendKeys, SendKeys
+from retry import retry
+from uiautomation import (
+    ButtonControl,
+    Click,
+    DocumentControl,
+    SendKeys,
+    SendKeys,
+    TitleBarControl,
+)
 
 from src.helpers.manejo_errores import cerrar_ventana_segura
 from ..helpers.selecionar import seleccionar_combo_por_texto
@@ -230,6 +238,38 @@ CORRELATIVO_PATTERN: Pattern = compile(
 )
 
 
+@retry(tries=3, backoff=2, delay=2, exceptions=(COMError,))
+def close_doc_windows() -> None:
+    """
+
+    # NOTE: Retry because some random errors happen related to COMS. Idk how to avoid them.
+
+    # TODO: Close just one, close_doc_button or ignore_button.
+    # Both cannot exist at the same time.
+    """
+
+    program_error_window: WindowControl = WindowControl(Name="Program Error")
+    ignore_button: ButtonControl = program_error_window.ButtonControl(
+        searchDepth=1, Name="Ignore"
+    )
+    if ignore_button.Exists():
+        ignore_button.GetInvokePattern().Invoke()
+        logger.debug("Ignored program error window.")
+
+    doc_window: DocumentControl = DocumentControl(
+        RegexName=r"^Report Designer - .*\.frx - Page 1$"
+    )
+    title_bar: TitleBarControl = doc_window.TitleBarControl(searchDepth=1)
+    close_doc_button: ButtonControl = title_bar.ButtonControl(
+        searchDepth=1, Name="Cerrar"
+    )
+    if close_doc_button.Exists():
+        close_doc_button.GetInvokePattern().Invoke()
+        logger.debug("Closed report designer window.")
+
+    return None
+
+
 def extraer_correlativo_almacen() -> str:
 
     ALMACEN_WINDOW: WindowControl = WindowControl(
@@ -240,7 +280,14 @@ def extraer_correlativo_almacen() -> str:
 
     if aviso.Exists():
 
-        mensaje = aviso.TextControl(searchDepth=1).Name.strip()
+        mensaje: str = aviso.TextControl(searchDepth=1).Name.strip()
+
+        logger.debug(f"{mensaje = }.")
+
+        accept_button: ButtonControl = aviso.ButtonControl(Name="Aceptar")
+        accept_button.GetInvokePattern().Invoke()
+
+        close_doc_windows()
 
         if correlative_match := CORRELATIVO_PATTERN.search(mensaje):
             return correlative_match.group(2)
@@ -251,7 +298,7 @@ def extraer_correlativo_almacen() -> str:
 
     if minsa.Exists(1):
 
-        mensaje_error = minsa.TextControl(searchDepth=1, foundIndex=1).Name.strip()
+        mensaje_error: str = minsa.TextControl(searchDepth=1, foundIndex=1).Name.strip()
 
         raise ValueError(f"MINSA: {mensaje_error}")
 
@@ -259,70 +306,16 @@ def extraer_correlativo_almacen() -> str:
 
 
 def cerrar_sismed() -> None:
-
-    ALMACEN_WINDOW: WindowControl = WindowControl(
+    almacen_window: WindowControl = WindowControl(
         searchDepth=1, Name="ALMACEN - MINSA SISMED"
     )
-    BOTON_CLOOSE_ALMACEN: ButtonControl = ALMACEN_WINDOW.ButtonControl(Name="Cerrar")
-
-    ALMACENPRINCIPAL_WINDOW: WindowControl = WindowControl(
-        Name="ALMACEN - MINSA SISMED"
+    almacen_window.GetWindowPattern().Close()
+    minsa_sismed_window: WindowControl = WindowControl(
+        searchDepth=1, Name="MINSA SISMED"
     )
-    BOTON_CLOOSE_ALMACEN_PRINCIPAL: ButtonControl = (
-        ALMACENPRINCIPAL_WINDOW.ButtonControl(Name="Cerrar")
-    )
-
-    REPORT_DESIGNER_WINDOW: DocumentControl = DocumentControl(
-        Name="Report Designer - rptalmregisting.frx - Page 1"
-    )
-    BOTON_CLOOSE_REPORT_DESIGNER = REPORT_DESIGNER_WINDOW.ButtonControl(Name="Cerrar")
-
-    aviso: WindowControl = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
-    boton_aceptar: ButtonControl = aviso.ButtonControl(Name="Aceptar")
-
-    cerrar_ventana_segura(aviso, boton_aceptar, "Aviso SISMED")
-
-    # ==========================================
-    # ERROR
-    # ==========================================
-
-    cerrar_ventana_segura(VENTANA_ERROR, BOTON_IGNORAR_ERROR, "Program Error")
-
-    # ==========================================
-    # REPORT DESIGNER
-    # ==========================================
-
-    cerrar_ventana_segura(
-        REPORT_DESIGNER_WINDOW, BOTON_CLOOSE_REPORT_DESIGNER, "Report Designer"
-    )
-
-    # ==========================================
-    # ALMACEN
-    # ==========================================
-
-    cerrar_ventana_segura(ALMACEN_WINDOW, BOTON_CLOOSE_ALMACEN, "Ventana Almacén")
-
-    # ==========================================
-    # ALMACEN PRINCIPAL
-    # ==========================================
-
-    cerrar_ventana_segura(
-        ALMACENPRINCIPAL_WINDOW,
-        BOTON_CLOOSE_ALMACEN_PRINCIPAL,
-        "Ventana Principal Almacén",
-    )
-
-    # ==========================================
-    # MINSA SISMED WINDOW
-    # ==========================================
-
-    if MINSA_SISMED_WINDOW.Exists():
-
-        pattern = MINSA_SISMED_WINDOW.GetWindowPattern()
-
-        if pattern:
-            pattern.Close()
-
+    if not (windows_pattern := minsa_sismed_window.GetWindowPattern()):
+        raise RuntimeError("No se encontró la ventana principal de Sismed.")
+    windows_pattern.Close()
     return None
 
 

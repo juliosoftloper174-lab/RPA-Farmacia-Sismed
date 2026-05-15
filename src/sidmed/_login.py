@@ -1,7 +1,7 @@
 from subprocess import Popen
 
 from uiautomation import SendKeys, WindowControl, ButtonControl
-
+from loguru import logger
 from src.config import SISMED_EXE
 
 MINSA_SISMED_WINDOW: WindowControl = WindowControl(searchDepth=1, Name="MINSA SISMED")
@@ -18,6 +18,11 @@ def login(username: str, password: str) -> None:
 
     if not LOGIN_WINDOW.Exists(maxSearchSeconds=0):
         Popen(SISMED_EXE)
+
+    if WindowControl(searchDepth=1, Name="Backups Automátic").Exists():
+        logger.critical("SISMED: Backuping... Wait for it to finish and retry later.")
+        exit()
+
     LOGIN_WINDOW.EditControl(Name="txtUsuario").SendKeys(username)
     LOGIN_WINDOW.EditControl(Name="txtClave").SendKeys(password)
     LOGIN_WINDOW.ButtonControl(Name="Aceptar").Click()

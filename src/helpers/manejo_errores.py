@@ -5,6 +5,7 @@ logger = logging.getLogger(__name__)
 
 
 def verificar_aviso_sismed(timeout: float = 1):
+    """not uset, may be deletable"""
 
     aviso = WindowControl(Name="Aviso")
 
