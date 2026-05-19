@@ -27,7 +27,7 @@ def test_procesar_pedidos_llama_procesar_pedido(monkeypatch):
         diagnosticos=[Diagnostico("R100"), Diagnostico("R05X"), Diagnostico("K750")],
         productos=[
             Producto("00091", 1),
-            Producto("36413", 1),
+            Producto("01532", 1),
             Producto("10145", 1),
         ],
         fua="786636652",

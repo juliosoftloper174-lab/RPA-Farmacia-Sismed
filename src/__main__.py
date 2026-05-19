@@ -60,7 +60,7 @@ def main() -> None:
         diagnosticos=[Diagnostico("R100"), Diagnostico("R05X"), Diagnostico("K750")],
         productos=[
             Producto("00091", 1),
-            Producto("36413", 1),
+            Producto("10155", 1),
             Producto("10145", 1),
         ],
         fua="786636652",
@@ -124,9 +124,9 @@ def main() -> None:
 
     # TODO: por ahora hacer que se cierren las ventanas al terminar, hasta conseguir una forma de reutilizar la misma ventana.
 
-    for _ in range(3):
-        # procesar_ingresos(ingresos)
-        # procesar_salidas(salidas)
+    for _ in range(50):
+        procesar_ingresos(ingresos)
+        procesar_salidas(salidas)
         procesar_pedidos(pedidos)
     return logger.info("Finalizando...")
 

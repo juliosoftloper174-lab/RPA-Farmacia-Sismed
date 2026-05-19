@@ -20,7 +20,7 @@ def test_procesar_salidas_llama_procesar_salida(monkeypatch):
         concepto="DISTRIBUCION",
         referencia="TEST",
         productos=[
-            ProductoIngreso("36394", "DE5FDJ6D", 900, 1, 5),
+            ProductoIngreso("36394", "DE5FDJ6D", 900, "prueba", "prueba"),
         ],
     )
 
