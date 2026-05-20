@@ -22,7 +22,7 @@ from uiautomation import (
 )
 
 
-from src.models.producto_ingreso import ProductoIngreso
+from src.models.Medicamento import Medicamento
 from src.models.Salidas import Salidas
 from src.sidmed.ingreso import (
     cerrar_sismed,
@@ -227,8 +227,6 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
     Click(507, 307)
     sleep(1.5)
 
-    registro.EditControl(Name="txtReferencia").SendKeys(salidas.referencia)
-
 
 def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
     k_salud_correlativo = randint(1_000_000, 9_999_999)
@@ -273,7 +271,7 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
     sleep(5)
 
 
-def agregar_producto(producto: ProductoIngreso):
+def agregar_producto(producto: Medicamento):
 
     # se iba a trabajar usando inspecto pero la ventana cambia de nombre segun el almacen virtual seleccionado, alm destino, almacen origen, etc, por lo que es muy dificil asegurar el nombre de la ventana, por lo que se decidio trabajar con clicks en coordenadas especificas, ya que se tiene entendido que la ventana siempre va a tener la misma estructura y los mismos campos en las mismas posiciones
 
@@ -303,7 +301,7 @@ def procesar_salida(salidas: Salidas) -> str:
     login(SISMED_USERNAME, SISMED_PASSWORD)
     registro: WindowControl = Navegar_Salidas()
     rellenar_cabecera_salidas(registro, salidas)
-    for producto in salidas.productos:
+    for producto in salidas.medicamentos:
         agregar_producto(producto)
     guardar()
     # 🔹 Esperamos un momento a que Sismed procese y salga el aviso

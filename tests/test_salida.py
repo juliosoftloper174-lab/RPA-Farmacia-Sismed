@@ -1,4 +1,4 @@
-from src.models.producto_ingreso import ProductoIngreso
+from src.models.Medicamento import ProductoIngreso
 from src.models.Salidas import Salidas
 from src.sidmed.salidas import procesar_salidas
 
@@ -19,8 +19,8 @@ def test_procesar_salidas_llama_procesar_salida(monkeypatch):
         almacen_virtual_origen="06732F0101",
         concepto="DISTRIBUCION",
         referencia="TEST",
-        productos=[
-            ProductoIngreso("36394", "DE5FDJ6D", 900, "prueba", "prueba"),
+        medicamentos=[
+            ProductoIngreso("36394", 900, "DE5FDJ6D", "prueba", "prueba"),
         ],
     )
 

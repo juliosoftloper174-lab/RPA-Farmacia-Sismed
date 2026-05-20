@@ -1,3 +1,5 @@
+from datetime import datetime
+
 EXCEL_COLUMNS = [
     "Nº de Procesado",
     "Nº correlativo Ksalud",
@@ -13,7 +15,6 @@ EXCEL_COLUMNS = [
     "almDestino",
     "almVirtual",
     "Concepto",
-    "Referencia",
     "UPS",
     # PEDIDOS
     "farmacia",
@@ -33,9 +34,6 @@ EXCEL_COLUMNS = [
 
 def crear_row_base() -> dict:
     return {column: "" for column in EXCEL_COLUMNS}
-
-
-from datetime import datetime
 
 
 def crear_row_ingreso(
@@ -62,13 +60,14 @@ def crear_row_ingreso(
             "TipoMovimiento": "INGRESO",
             "Estado": estado,
             "Error": error,
+            # INGRESOS
             "almOrigen": ingreso.almacen_origen,
             "almDestino": ingreso.almacen_destino,
             "almVirtual": ingreso.almacen_virtual_origen,
             "Concepto": ingreso.concepto,
-            "Referencia": ingreso.referencia,
             "UPS": ingreso.ups_codigo,
-            "CantidadProductos": len(ingreso.productos),
+            # GENERAL
+            "CantidadProductos": len(ingreso.medicamentos),
         }
     )
 
@@ -87,6 +86,7 @@ def crear_row_pedido(
     row = crear_row_base()
 
     now = datetime.now()
+
     diagnosticos = [
         getattr(d, "codigo", str(d)) for d in getattr(pedido, "diagnosticos", [])
     ]
@@ -102,20 +102,39 @@ def crear_row_pedido(
             "TipoMovimiento": "PEDIDO",
             "Estado": estado,
             "Error": error,
-            "farmacia": getattr(pedido.farmacia, "codigo", str(pedido.farmacia)),
-            "cliente": getattr(pedido.cliente, "codigo", str(pedido.cliente)),
-            "prescriptor": getattr(
-                pedido.prescriptor, "codigo", str(pedido.prescriptor)
+            # PEDIDOS
+            "farmacia": getattr(
+                pedido.farmacia,
+                "codigo",
+                str(pedido.farmacia),
             ),
-            "forma_pago": getattr(pedido.forma_pago, "value", str(pedido.forma_pago)),
+            "cliente": getattr(
+                pedido.cliente,
+                "codigo",
+                str(pedido.cliente),
+            ),
+            "prescriptor": getattr(
+                pedido.prescriptor,
+                "codigo",
+                str(pedido.prescriptor),
+            ),
+            "forma_pago": getattr(
+                pedido.forma_pago,
+                "value",
+                str(pedido.forma_pago),
+            ),
             "tipo_receta": getattr(
-                pedido.tipo_receta, "value", str(pedido.tipo_receta)
+                pedido.tipo_receta,
+                "value",
+                str(pedido.tipo_receta),
             ),
             "FUA": pedido.fua or "",
+            # DIAGNOSTICOS
             "Diag Nº1": diagnosticos[0] if len(diagnosticos) > 0 else "",
             "Diag Nº2": diagnosticos[1] if len(diagnosticos) > 1 else "",
             "Diag Nº3": diagnosticos[2] if len(diagnosticos) > 2 else "",
-            "CantidadProductos": len(getattr(pedido, "productos", [])),
+            # GENERAL
+            "CantidadProductos": len(getattr(pedido, "medicamentos", [])),
         }
     )
 
@@ -151,9 +170,8 @@ def crear_row_salida(
             "almDestino": salida.almacen_destino,
             "almVirtual": salida.almacen_virtual_origen,
             "Concepto": salida.concepto,
-            "Referencia": salida.referencia,
             # GENERAL
-            "CantidadProductos": len(salida.productos),
+            "CantidadProductos": len(salida.medicamentos),
         }
     )
 

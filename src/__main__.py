@@ -1,3 +1,5 @@
+from src.models.Medicamento import Medicamento
+
 from .logger import logger
 from loguru import logger
 
@@ -8,7 +10,7 @@ from .models.farmacia import Farmacia
 from .models.prescriptor import Prescriptor
 from .models.producto import Producto
 from .sidmed.pedido import FormaPago, Pedido, procesar_pedidos
-from .sidmed.salidas import ProductoIngreso, Salidas, procesar_salidas
+from .sidmed.salidas import Medicamento, Salidas, procesar_salidas
 from .sidmed.wrapper import Sismed
 from .models.enums import TipoReceta
 
@@ -58,50 +60,61 @@ def main() -> None:
         forma_pago=FormaPago.SIS,
         tipo_receta=TipoReceta.SIN_NUMERO,
         diagnosticos=[Diagnostico("R100"), Diagnostico("R05X"), Diagnostico("K750")],
-        productos=[
-            Producto("00091", 1),
-            Producto("10155", 1),
-            Producto("10145", 1),
+        Medicamentos=[
+            Medicamento("00091", 1),
+            Medicamento("10155", 1),
+            Medicamento("10145", 1),
         ],
         fua="786636652",
-        ups_codigo=None,
+        ups_codigo=None,  # SE MANTENDRA ESTATICO 19/05/2026
     )
 
     ingreso = Ingreso(
-        almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN   ",
-        almacen_destino="06732F01",
-        almacen_virtual_origen="030S0101",
-        concepto="DISTRIBUCION",
-        referencia="B.O.T",  # no creo exista en la bd pero se puede dejar harcodeado
-        ups_codigo="407",
-        productos=[
-            ProductoIngreso(
+        almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN",  # SE MANTENDRA ESTATICO 19/05/2026
+        almacen_destino="06732F01",  # ESTE DATO SE OBTIENE DE LA BD, SI ES DIFERENTE A 06732F01 NO SE PUEDE CONTINUAR, AGREGAR VALIDACION CON PYTHON EN EL MODELO.
+        almacen_virtual_origen="030S0101",  # SE ME PASARA EL TIPO, YO ME ENCARGARE DE MAPEAR CUANDO ES SIMED (S) = 030S0101 Y SI ES DONACION (D) = 030S0102
+        concepto="DISTRIBUCION",  # CONSULTAR A LEO
+        ups_codigo="407",  # SE MANTENDRA ESTATICO 19/05/2026
+        medicamentos=[
+            Medicamento(
                 "36394",
-                "DE5FDJ6D",
                 400,
+                "gsddsdgs",
                 "SISMED-COMPRA NACIONAL (CN)",
                 "Contribuciones a Fondos (CON)",
+                "SIN_REG_SAN",
+                "2029/12/20",
+                "500",
             ),
-            ProductoIngreso(
+            Medicamento(
                 "36394",
-                "DE5FDJ6D",
                 400,
+                "DE5FDJ6D",
                 "SISMED-TRANSF Y PRESTAMOS UE (ST) TP",
                 "Contribuciones a Fondos (CON)",
+                "SIN_REG_SAN",
+                "2029/12/20",
+                "500",
             ),
-            ProductoIngreso(
+            Medicamento(
                 "36394",
-                "DE5FDJ6D",
                 850,
+                "DE5FDJ6D",
                 "SISMED-TRANSF Y PRESTAMOS UE (ST) TP",
                 "Recursos Ordinarios (ROR)",
+                "SIN_REG_SAN",
+                "2029/12/20",
+                "500",
             ),
-            ProductoIngreso(
+            Medicamento(
                 "36394",
-                "DE5FDJ6D",
                 950,
+                "DE5FDJ6D",
                 "SISMED-TRANSF Y PRESTAMOS UE (ST) TP",
                 "Recursos Determinados (RDE)",
+                "SIN_REG_SAN",
+                "2029/12/20",
+                "500",
             ),
         ],
     )
@@ -111,10 +124,9 @@ def main() -> None:
         almacen_destino="06732F02",
         almacen_virtual_origen="06732F0101",
         concepto="DISTRIBUCION",
-        referencia="TEST",
-        productos=[
-            ProductoIngreso("36394", "DE5FDJ6D", 900, 1, 5),
-            ProductoIngreso("00223", "L001", 1, 1, 5),
+        medicamentos=[
+            Medicamento("36394", 900, "DE5FDJ6D", 1, 5),
+            Medicamento("00223", 1, "L001", 1, 5),
         ],
     )
 
@@ -124,10 +136,11 @@ def main() -> None:
 
     # TODO: por ahora hacer que se cierren las ventanas al terminar, hasta conseguir una forma de reutilizar la misma ventana.
 
-    for _ in range(50):
+    for _ in range(1):
+
         procesar_ingresos(ingresos)
-        procesar_salidas(salidas)
-        procesar_pedidos(pedidos)
+        # procesar_salidas(salidas)
+        # procesar_pedidos(pedidos)
     return logger.info("Finalizando...")
 
 

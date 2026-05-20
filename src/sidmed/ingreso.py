@@ -19,7 +19,7 @@ from ..config import SISMED_PASSWORD, SISMED_USERNAME
 
 from uiautomation import WindowControl
 from src.models.ingreso import Ingreso
-from src.models.producto_ingreso import ProductoIngreso
+from src.models.Medicamento import Medicamento
 from src.sidmed._login import login
 from ..helpers.windows import *
 from random import randint
@@ -124,8 +124,7 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
     # prueba de rellenar ups
     sleep(0.5)
     rellenar_ups(ingreso.ups_codigo)
-
-    registro.EditControl(Name="txtReferencia").SendKeys(ingreso.referencia)
+    sleep(1)
 
 
 # =========================================================
@@ -140,7 +139,7 @@ def abrir_modal():
     sleep(0.5)
 
 
-def agregar_producto(registro: WindowControl, producto: ProductoIngreso):
+def agregar_producto(registro: WindowControl, producto: Medicamento):
 
     registro.EditControl(Name="txtCodigo").SendKeys(producto.codigo)
     SendKeys("{Enter}")
@@ -149,22 +148,61 @@ def agregar_producto(registro: WindowControl, producto: ProductoIngreso):
     registro.EditControl(Name="txtLote").SendKeys(producto.lote)
     sleep(0.5)
     SendKeys("{Enter}")
+
+    # ===== EXTRAER FECHA =====
+    anio, mes, dia = producto.fecha_vencimiento.split("/")
+
     sleep(0.5)
 
-    # 🔥 combos nuevos
+    # ===== ESCRIBIR MES =====
+    registro.EditControl(Name="txtmes").SendKeys(mes)
+    sleep(0.5)
+
+    # ===== ESCRIBIR AÑO =====
+    registro.EditControl(Name="txtano").SendKeys(anio)
+    sleep(0.5)
+
+    # ===== REGISTRO SANITARIO =====
+    txt_fabricante = registro.EditControl(Name="txtFabricante")
+
+    # darle foco real
+    txt_fabricante.Click()
+    sleep(1)
+
+    # escribir registro sanitario
+    txt_fabricante.SendKeys(producto.registro_sanitario)
+    sleep(1)
+
+    SendKeys("{Enter}")
+
+    # esperar que cargue el siguiente campo
+    sleep(0.5)
+
+    # ===== COMBOS =====
     seleccionar_combo_por_texto("cbotipsum", producto.tipo_sum)
     seleccionar_combo_por_texto("cboffin", producto.fuente_fin)
 
+    # ===== CANTIDAD =====
     registro.EditControl(Name="txtCantidad").SendKeys(str(producto.cantidad))
     SendKeys("{Enter}")
     sleep(0.5)
 
+    # ===== Temperatu =====
+    SendKeys("0")
+    sleep(0.5)
+
+    # ===== PRECIO ====
+    registro.EditControl(Name="txtPrecio").SendKeys(str(producto.precio_compra))
+    SendKeys("{Enter}")
+    sleep(0.5)
+
+    # ===== ACEPTAR =====
     registro.ButtonControl(Name="cmdAceptar").Click()
     sleep(0.5)
 
 
 def agregar_productos(registro: WindowControl, ingreso: Ingreso):
-    for producto in ingreso.productos:
+    for producto in ingreso.medicamentos:
         abrir_modal()
         agregar_producto(registro, producto)
 

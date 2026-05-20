@@ -4,7 +4,7 @@ from src.models.farmacia import Farmacia
 from src.models.forma_pago import FormaPago
 from src.models.pedido import Pedido
 from src.models.prescriptor import Prescriptor
-from src.models.producto import Producto
+from src.models.Medicamento import Medicamento
 from src.sidmed.pedido import procesar_pedidos
 
 from src.models.enums import TipoReceta
@@ -25,10 +25,10 @@ def test_procesar_pedidos_llama_procesar_pedido(monkeypatch):
         forma_pago=FormaPago.INTERVENCION_SANITARIA,
         tipo_receta=TipoReceta.SIN_NUMERO,
         diagnosticos=[Diagnostico("R100"), Diagnostico("R05X"), Diagnostico("K750")],
-        productos=[
-            Producto("00091", 1),
-            Producto("01532", 1),
-            Producto("10145", 1),
+        Medicamentos=[
+            Medicamento("00091", 1),
+            Medicamento("01532", 1),
+            Medicamento("10145", 1),
         ],
         fua="786636652",
         ups_codigo="301",  # NOTE: regla de negocio, este numero de ups se mantendra para pedido

@@ -5,8 +5,7 @@ from src.models.forma_pago import FormaPago
 from src.models.ingreso import Ingreso
 from src.models.pedido import Pedido
 from src.models.prescriptor import Prescriptor
-from src.models.producto import Producto
-from src.models.producto_ingreso import ProductoIngreso
+from src.models.Medicamento import Medicamento, ProductoIngreso
 from src.models.Salidas import Salidas
 from src.models.enums import TipoReceta
 
@@ -33,9 +32,9 @@ def get_datos_simulados():
                 Diagnostico("R05X"),
                 Diagnostico("K750"),
             ],
-            productos=[
-                Producto("00091", 3),
-                Producto("18931", 1),
+            Medicamentos=[
+                Medicamento("00091", 3),
+                Medicamento("18931", 1),
             ],
             fua="786636652",
         ),
@@ -46,7 +45,7 @@ def get_datos_simulados():
             forma_pago=FormaPago.CONTADO,
             tipo_receta=TipoReceta.SIN_NUMERO,
             diagnosticos=[Diagnostico("R100")],
-            productos=[Producto("00145", 2)],
+            Medicamentos=[Medicamento("00145", 2)],
         ),
     ]
 
@@ -56,9 +55,9 @@ def get_datos_simulados():
             almacen_destino="FARM",
             concepto="DISTRIBUCION",
             referencia="B.O.T",
-            productos=[
-                ProductoIngreso("30588", "2080015", 27, 0, 0),
-                ProductoIngreso("30588", "2080015", 7, 4, 3),
+            medicamentos=[
+                ProductoIngreso("30588", 27, "2080015", 0, 0),
+                ProductoIngreso("30588", 7, "2080015", 4, 3),
             ],
         ),
         Ingreso(
@@ -66,7 +65,7 @@ def get_datos_simulados():
             almacen_destino="FARM",
             concepto="COMPRA",
             referencia="REF2",
-            productos=[ProductoIngreso("12345", "LOTE1", 10, 1, 2)],
+            medicamentos=[ProductoIngreso("12345", 10, "LOTE1", 1, 2)],
         ),
     ]
 
@@ -77,7 +76,7 @@ def get_datos_simulados():
             almacen_virtual_origen="06732F0201",
             concepto="DISTRIBUCION",
             referencia="TEST",
-            productos=[ProductoIngreso("00390", "L001", 1, 1, 5)],
+            medicamentos=[ProductoIngreso("00390", 1, "L001", 1, 5)],
         ),
         Salidas(
             almacen_origen="06732F01",
@@ -85,7 +84,7 @@ def get_datos_simulados():
             almacen_virtual_origen="06732F0201",
             concepto="VENTA",
             referencia="TEST2",
-            productos=[ProductoIngreso("00400", "L002", 2, 1, 5)],
+            medicamentos=[ProductoIngreso("00400", 2, "L002", 1, 5)],
         ),
     ]
 
@@ -120,8 +119,8 @@ def get_datos_from_excel(file_path: str):
             forma_pago=FormaPago(row["forma_pago"]),  # Asumir string que mapea a enum
             tipo_receta=TipoReceta.SIN_NUMERO,
             diagnosticos=[Diagnostico(d) for d in row["diagnosticos"].split(",")],
-            productos=[
-                Producto(p.split(":")[0], int(p.split(":")[1]))
+            Medicamentos=[
+                Medicamento(p.split(":")[0], int(p.split(":")[1]))
                 for p in row["productos"].split(";")
             ],
             fua=row.get("fua"),

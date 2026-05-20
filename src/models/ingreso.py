@@ -1,4 +1,4 @@
-from src.models.producto_ingreso import ProductoIngreso
+from src.models.Medicamento import Medicamento
 
 
 class Ingreso:
@@ -8,14 +8,12 @@ class Ingreso:
         almacen_destino: str,
         almacen_virtual_origen: str,
         concepto: str,
-        referencia: str,
-        productos: list[ProductoIngreso],
+        medicamentos: list[Medicamento],
         ups_codigo: str | None = None,
     ):
         self.almacen_origen = almacen_origen
         self.almacen_destino = almacen_destino
         self.almacen_virtual_origen = almacen_virtual_origen
         self.concepto = concepto
-        self.referencia = referencia
-        self.productos = productos
+        self.medicamentos = medicamentos
         self.ups_codigo = ups_codigo

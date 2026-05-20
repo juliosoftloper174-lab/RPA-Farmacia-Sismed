@@ -1,5 +1,5 @@
 from src.models.ingreso import Ingreso
-from src.models.producto_ingreso import ProductoIngreso
+from src.models.Medicamento import ProductoIngreso
 from src.sidmed.ingreso import procesar_ingresos
 
 
@@ -19,11 +19,11 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
         concepto="DISTRIBUCION",
         referencia="B.O.T",  # no creo exista en la bd pero se puede dejar harcodeado
         ups_codigo="407",
-        productos=[
+        medicamentos=[
             ProductoIngreso(
                 "36394",
-                "DE5FDJ6D",
                 400,
+                "DE5FDJ6D",
                 "SISMED-COMPRA NACIONAL (CN)",
                 "Recursos Determinados (RDE)",
             ),

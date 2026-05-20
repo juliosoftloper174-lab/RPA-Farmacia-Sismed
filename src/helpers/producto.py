@@ -5,10 +5,10 @@ from uiautomation import TableControl
 
 from src.helpers.input import escribir_input
 from src.helpers.ventana import esperar_ventana
-from src.models.producto import Producto
+from src.models.Medicamento import Medicamento
 
 
-def agregar_producto(producto: Producto) -> None:
+def agregar_producto(medicamento: Medicamento) -> None:
 
     # 🔹 Nueva fila
     auto.SendKeys("{CONTROL}{INSERT}")
@@ -31,9 +31,9 @@ def agregar_producto(producto: Producto) -> None:
         auto.Click(360, 140)
         sleep(0.3)
 
-    # 🔹 Buscar producto por código
+    # 🔹 Buscar medicamento por código
     txt_busca = ventana.EditControl(Name="TxtBusca")
-    escribir_input(txt_busca, producto.codigo)
+    escribir_input(txt_busca, medicamento.codigo)
 
     sleep(0.5)
     txt_busca.SendKeys("{Enter}")
@@ -52,7 +52,7 @@ def agregar_producto(producto: Producto) -> None:
 
     # 🔹 Ingresar cantidad
     sleep(0.5)
-    auto.SendKeys(str(producto.cantidad))
+    auto.SendKeys(str(medicamento.cantidad))
 
     sleep(0.3)
 
@@ -61,6 +61,6 @@ def agregar_producto(producto: Producto) -> None:
     auto.SendKeys("{CONTROL}{DELETE}")
 
 
-def agregar_productos(productos: tuple[Producto, ...]):
-    for p in productos:
-        agregar_producto(p)
+def agregar_productos(medicamentos: tuple[Medicamento, ...]):
+    for m in medicamentos:
+        agregar_producto(m)

@@ -181,9 +181,21 @@ def cerrar_sismed_pedido() -> None:
 from uiautomation import WindowControl
 
 
+def cerrar_Registro_Consumo():
+
+    registro_consumo_window = WindowControl(Name="Registro de Consumo")
+
+    if registro_consumo_window.Exists(2):
+
+        pattern = registro_consumo_window.GetWindowPattern()
+
+        if pattern:
+            pattern.Close()
+
+
 def cerrar_registro_pedido():
 
-    pedido_window = WindowControl(searchDepth=2, Name="Registro de Pedido")
+    pedido_window = WindowControl(Name="Registro de Pedido")
 
     if pedido_window.Exists(2):
 
@@ -193,20 +205,38 @@ def cerrar_registro_pedido():
             pattern.Close()
 
 
+def volver_a_menuprincipal():
+
+    # Click 1
+    Click(1168, 188)
+    sleep(3)
+
+    # Click 2
+    Click(1189, 214)
+    sleep(3)
+
+    # Click 3
+    Click(1585, 15)
+    sleep(3)
+
+    return None
+
+
 def procesar_pedido(pedido: Pedido) -> str:
 
     login(SISMED_USERNAME, SISMED_PASSWORD)
     navegar_a_pedidos(pedido)
     rellenar_cabecera(pedido)
 
-    # Productos
-    agregar_productos(tuple(pedido.productos))
+    # Medicamentos
+    agregar_productos(tuple(pedido.Medicamentos))
     guardar()
     sleep(0.3)
     correlativo: str = extraer_correlativo_farmacia()
-    sleep(5)
-    cerrar_sismed_pedido()
     sleep(0.5)
+    volver_a_menuprincipal()
+    sleep(0.5)
+
     return str(correlativo)
 
 

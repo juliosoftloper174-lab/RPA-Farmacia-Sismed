@@ -3,7 +3,7 @@ from .diagnostico import Diagnostico
 from .farmacia import Farmacia
 from .forma_pago import FormaPago
 from .prescriptor import Prescriptor
-from .producto import Producto
+from .Medicamento import Medicamento
 from pydantic import BaseModel, ConfigDict, model_validator
 from .enums import TipoReceta
 
@@ -20,7 +20,7 @@ class Pedido(BaseModel):
     forma_pago: FormaPago
     tipo_receta: TipoReceta
     diagnosticos: list[Diagnostico]
-    productos: list[Producto]
+    Medicamentos: list[Medicamento]
     fua: str | None = None
     ups_codigo: str | None = None
 

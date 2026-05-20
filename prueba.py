@@ -1,17 +1,18 @@
 from loguru import logger
 
 from src.sidmed.ingreso import Ingreso, procesar_ingresos
-from src.sidmed.pedido import (
+from src.models.pedido import (
     Cliente,
     Diagnostico,
     Farmacia,
     FormaPago,
     Pedido,
     Prescriptor,
-    Producto,
     procesar_pedidos,
 )
-from src.sidmed.salidas import ProductoIngreso, Salidas, procesar_salidas
+from src.models.Medicamento import Medicamento, ProductoIngreso
+from src.models.Salidas import Salidas
+from src.sidmed.salidas import procesar_salidas
 
 
 def main() -> None:
@@ -22,7 +23,7 @@ def main() -> None:
         almacen_destino="FARM - HOSP. DE RIOJA",
         concepto="DISTRIBUCION",  # ahora sí funciona (string)
         referencia="TEST",
-        productos=[ProductoIngreso("00390", "L001", 1, 1, 5)],
+        medicamentos=[ProductoIngreso("00390", 1, "L001", 1, 5)],
     )
     salidas = (salida,)
 
@@ -36,11 +37,11 @@ def main() -> None:
             Diagnostico("R05X"),
             Diagnostico("K750"),
         ],
-        productos=[
-            Producto("ACIDO ACETILSALICILICO - 500 mg - TABLET -", 3),
-            Producto("ACIDO ACETILSALICILICO - 100 mg - TABLET -", 7),
-            Producto("ACIDO TRANEXAMICO - 250 mg - TABLET -", 6),
-            Producto("ACIDO TRANEXAMICO - 1 g - INYECT - 10 mL", 4),
+        Medicamentos=[
+            Medicamento("ACIDO ACETILSALICILICO - 500 mg - TABLET -", 3),
+            Medicamento("ACIDO ACETILSALICILICO - 100 mg - TABLET -", 7),
+            Medicamento("ACIDO TRANEXAMICO - 250 mg - TABLET -", 6),
+            Medicamento("ACIDO TRANEXAMICO - 1 g - INYECT - 10 mL", 4),
         ],
         fua="786636652",
     )
@@ -51,9 +52,9 @@ def main() -> None:
         almacen_destino="FARM",
         concepto="DISTRIBUCION",
         referencia="B.O.T",
-        productos=[
-            ProductoIngreso("30588", "2080015", 27, 0, 0),
-            ProductoIngreso("30588", "2080015", 7, 4, 3),
+        medicamentos=[
+            ProductoIngreso("30588", 27, "2080015", 0, 0),
+            ProductoIngreso("30588", 7, "2080015", 4, 3),
         ],
     )
     ingresos = (ingreso,)
