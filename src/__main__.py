@@ -138,10 +138,14 @@ def main() -> None:
 
     # TODO: por ahora hacer que se cierren las ventanas al terminar, hasta conseguir una forma de reutilizar la misma ventana.
 
-    for _ in range(1):
+    for _ in range(2):
 
         # procesar_ingresos(ingresos)
         # procesar_salidas(salidas)
+
+        # funciona para que se registren 4 pedidos en una sola vez con un solo login.
+        pedidos = tuple(pedido for _ in range(4))
+
         procesar_pedidos(pedidos)
     return logger.info("Finalizando...")
 

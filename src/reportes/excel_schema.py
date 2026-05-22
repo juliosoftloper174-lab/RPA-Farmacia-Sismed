@@ -28,7 +28,7 @@ EXCEL_COLUMNS = [
     "Diag Nº2",
     "Diag Nº3",
     # GENERAL
-    "CantidadProductos",
+    "CantidadMedicamentos",
 ]
 
 
@@ -67,7 +67,7 @@ def crear_row_ingreso(
             "Concepto": ingreso.concepto,
             "UPS": ingreso.ups_codigo,
             # GENERAL
-            "CantidadProductos": len(ingreso.medicamentos),
+            "CantidadMedicamentos": len(ingreso.medicamentos),
         }
     )
 
@@ -134,7 +134,7 @@ def crear_row_pedido(
             "Diag Nº2": diagnosticos[1] if len(diagnosticos) > 1 else "",
             "Diag Nº3": diagnosticos[2] if len(diagnosticos) > 2 else "",
             # GENERAL
-            "CantidadProductos": len(getattr(pedido, "medicamentos", [])),
+            "CantidadMedicamentos": len(getattr(pedido, "Medicamentos", [])),
         }
     )
 
@@ -171,7 +171,7 @@ def crear_row_salida(
             "almVirtual": salida.almacen_virtual_origen,
             "Concepto": salida.concepto,
             # GENERAL
-            "CantidadProductos": len(salida.medicamentos),
+            "CantidadMedicamentos": len(salida.medicamentos),
         }
     )
 
