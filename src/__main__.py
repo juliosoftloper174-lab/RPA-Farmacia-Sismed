@@ -76,16 +76,18 @@ def main() -> None:
         concepto="DISTRIBUCION",  # CONSULTAR A LEO
         ups_codigo="407",  # SE MANTENDRA ESTATICO 19/05/2026
         medicamentos=[
+            # medicamento lote nuevo
             Medicamento(
                 "36394",
                 400,
-                "gsddsdgs",
+                "LteNvo1",
                 "SISMED-COMPRA NACIONAL (CN)",
                 "Contribuciones a Fondos (CON)",
                 "SIN_REG_SAN",
                 "2029/12/20",
                 "500",
             ),
+            # medicamento con lote que si existe y trae datos
             Medicamento(
                 "36394",
                 400,
@@ -98,10 +100,10 @@ def main() -> None:
             ),
             Medicamento(
                 "36394",
-                850,
-                "DE5FDJ6D",
-                "SISMED-TRANSF Y PRESTAMOS UE (ST) TP",
-                "Recursos Ordinarios (ROR)",
+                400,
+                "LteNvo2",
+                "SISMED-COMPRA NACIONAL (CN)",
+                "Contribuciones a Fondos (CON)",
                 "SIN_REG_SAN",
                 "2029/12/20",
                 "500",
@@ -138,9 +140,9 @@ def main() -> None:
 
     for _ in range(1):
 
-        procesar_ingresos(ingresos)
+        # procesar_ingresos(ingresos)
         # procesar_salidas(salidas)
-        # procesar_pedidos(pedidos)
+        procesar_pedidos(pedidos)
     return logger.info("Finalizando...")
 
 

@@ -133,72 +133,172 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
 
 
 def abrir_modal():
-    Click(810, 410)
-    sleep(0.3)
-    SendKeys("{CONTROL}{INSERT}")
+
     sleep(0.5)
+    SendKeys("{CONTROL}{INSERT}")
+    sleep(5)
+
+
+def limpiar_y_escribir(edit, valor):
+
+    # foco real
+    edit.Click()
+    sleep(0.5)
+
+    # seleccionar todo
+    SendKeys("{CONTROL}a")
+    sleep(0.3)
+
+    # borrar
+    SendKeys("{DEL}")
+    sleep(0.3)
+
+    # escribir nuevo valor
+    edit.SendKeys(str(valor))
+    sleep(0.5)
+
+
+def limpiar_registro_sanitario(edit, valor):
+
+    edit.Click()
+    sleep(0.5)
+
+    # borrar contenido actual
+    for _ in range(13):
+        SendKeys("{BS}")
+        sleep(0.05)
+
+    sleep(0.3)
+
+    # escribir nuevo valor
+    edit.SendKeys(str(valor))
+    sleep(0.5)
+
+
+def formatear_fecha_sismed(fecha: str) -> str:
+    """
+    Convierte:
+    2029/12/07
+
+    a:
+    07122029
+    """
+
+    anio, mes, dia = fecha.split("/")
+
+    return f"{dia}{mes}{anio}"
 
 
 def agregar_producto(registro: WindowControl, producto: Medicamento):
 
+    # =====================================================
+    # CODIGO
+    # =====================================================
+
     registro.EditControl(Name="txtCodigo").SendKeys(producto.codigo)
+
     SendKeys("{Enter}")
     sleep(0.5)
+
+    # =====================================================
+    # LOTE
+    # =====================================================
 
     registro.EditControl(Name="txtLote").SendKeys(producto.lote)
-    sleep(0.5)
-    SendKeys("{Enter}")
-
-    # ===== EXTRAER FECHA =====
-    anio, mes, dia = producto.fecha_vencimiento.split("/")
-
-    sleep(0.5)
-
-    # ===== ESCRIBIR MES =====
-    registro.EditControl(Name="txtmes").SendKeys(mes)
-    sleep(0.5)
-
-    # ===== ESCRIBIR AÑO =====
-    registro.EditControl(Name="txtano").SendKeys(anio)
-    sleep(0.5)
-
-    # ===== REGISTRO SANITARIO =====
-    txt_fabricante = registro.EditControl(Name="txtFabricante")
-
-    # darle foco real
-    txt_fabricante.Click()
-    sleep(1)
-
-    # escribir registro sanitario
-    txt_fabricante.SendKeys(producto.registro_sanitario)
-    sleep(1)
 
     SendKeys("{Enter}")
+    sleep(1)
 
-    # esperar que cargue el siguiente campo
+    # =====================================================
+    # FECHA
+    # =====================================================
+
+    fecha_vencimiento_formato = formatear_fecha_sismed(producto.fecha_vencimiento)
+
+    # seleccionar checkpoint del día
+    Click(810, 632)
+    # registro.CheckBoxControl(Name="txtdia").Click()
+
     sleep(0.5)
 
-    # ===== COMBOS =====
+    # escribir fecha completa:
+    # DDMMYYYY
+    SendKeys(fecha_vencimiento_formato)
+
+    sleep(0.5)
+
+    # =====================================================
+    # REGISTRO SANITARIO
+    # =====================================================
+
+    # el contenido ya queda seleccionado automáticamente
+    # pero por seguridad escribimos primero una letra
+    SendKeys("a")
+
+    sleep(0.5)
+
+    # eliminamos todo el contenido seleccionado
+    SendKeys("{BACK}")
+
+    sleep(0.3)
+
+    # escribimos el registro sanitario real
+    registro.EditControl(Name="txtFabricante").SendKeys(producto.registro_sanitario)
+
+    sleep(0.5)
+
+    SendKeys("{Enter}")
+
+    sleep(0.5)
+
+    # =====================================================
+    # TIPO DE SUMINISTRO
+    # =====================================================
+
     seleccionar_combo_por_texto("cbotipsum", producto.tipo_sum)
+
+    # =====================================================
+    # FUENTE DE FINANCIAMIENTO
+    # =====================================================
+
     seleccionar_combo_por_texto("cboffin", producto.fuente_fin)
 
-    # ===== CANTIDAD =====
+    # =====================================================
+    # CANTIDAD
+    # =====================================================
+
     registro.EditControl(Name="txtCantidad").SendKeys(str(producto.cantidad))
+
     SendKeys("{Enter}")
+
     sleep(0.5)
 
-    # ===== Temperatu =====
-    SendKeys("0")
+    # =====================================================
+    # TEMPERATURA
+    # =====================================================
+
+    # dejamos el valor por defecto
+    SendKeys("{Enter}")
+
     sleep(0.5)
 
-    # ===== PRECIO ====
+    # =====================================================
+    # PRECIO
+    # =====================================================
+
     registro.EditControl(Name="txtPrecio").SendKeys(str(producto.precio_compra))
+
     SendKeys("{Enter}")
+
     sleep(0.5)
 
-    # ===== ACEPTAR =====
+    # =====================================================
+    # ACEPTAR
+    # =====================================================
+
     registro.ButtonControl(Name="cmdAceptar").Click()
-    sleep(0.5)
+
+    sleep(1)
 
 
 def agregar_productos(registro: WindowControl, ingreso: Ingreso):
