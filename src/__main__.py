@@ -1,153 +1,287 @@
-from src.models.Medicamento import Medicamento
-
-from .logger import logger
 from loguru import logger
+from pydantic import ValidationError
 
-from .sidmed.ingreso import Ingreso, procesar_ingresos
-from .models.cliente import Cliente
-from .models.diagnostico import Diagnostico
-from .models.farmacia import Farmacia
-from .models.prescriptor import Prescriptor
-from .models.producto import Producto
-from .sidmed.pedido import FormaPago, Pedido, procesar_pedidos
-from .sidmed.salidas import Medicamento, Salidas, procesar_salidas
-from .sidmed.wrapper import Sismed
-from .models.enums import TipoReceta
+from src.datos.test_data import MOVIMIENTOS
 
+from src.models.cliente import Cliente
+from src.models.diagnostico import Diagnostico
+from src.models.farmacia import Farmacia
+from src.models.prescriptor import Prescriptor
 
-class Database:
-    def __init__(self):
-        pass
+from src.models.Medicamento import Medicamento
+from src.models.pedido import Pedido
+from src.models.ingreso import Ingreso
+from src.models.Salidas import Salidas
 
-    def login(self, db_name: str, db_user: str, db_pass: str) -> None:
-        return None
+from src.sidmed.ingreso import procesar_ingresos
+from src.sidmed.pedido import procesar_pedidos
+from src.sidmed.salidas import procesar_salidas
 
-    def obtener_pedidos(self) -> list[dict]:
-        return []
-
-    def obtener_ingresos(self) -> list[dict]:
-        return []  # TODO: Tengo sueño lo hago mañana
-
-    def obtener_salidas(self) -> list[dict]:
-        return []
+from src.reportes.excel_schema import crear_row_incidencia_validacion
+from src.reportes.excel_writer import guardar_movimientos, guardar_incidencias
 
 
 @logger.catch
-def main() -> None:
+def main():
 
-    logger.info("Iniciando...")
+    logger.info("==========================================")
+    logger.info("SISMED BOT - INICIO DE EJECUCIÓN")
+    logger.info("==========================================")
 
-    # Database flow
+    logger.info("Analizando y organizando data...")
 
-    db: Database = Database()
-    # db.login(environ["DB_NAME"], environ["DB_USER"], environ["DB_PASS"])
+    pedidos = []
+    ingresos = []
+    salidas = []
 
-    raw_pedidos: list[dict] = db.obtener_pedidos()
-    raw_ingresos: list[dict] = db.obtener_ingresos()
-    raw_salidas: list[dict] = db.obtener_salidas()
+    incidencias = []
 
-    pedidos = tuple(Pedido(**d) for d in raw_pedidos)
-    ingresos = tuple(Ingreso(**d) for d in raw_ingresos)
-    salidas = tuple(Salidas(**d) for d in raw_salidas)
+    # =========================================
+    # ANALIZAR DATA
+    # =========================================
 
-    # Simulate database flow
+    for indice, movimiento in enumerate(MOVIMIENTOS, start=1):
 
-    # Datos de prueba basados en los tests
-    pedido = Pedido(
-        farmacia=Farmacia("06732F02"),
-        cliente=Cliente("00033257"),
-        prescriptor=Prescriptor("14571"),
-        forma_pago=FormaPago.SIS,
-        tipo_receta=TipoReceta.SIN_NUMERO,
-        diagnosticos=[Diagnostico("R100"), Diagnostico("R05X"), Diagnostico("K750")],
-        Medicamentos=[
-            Medicamento("00091", 1),
-            Medicamento("10155", 1),
-            Medicamento("10145", 1),
-        ],
-        fua="786636652",
-        ups_codigo=None,  # SE MANTENDRA ESTATICO 19/05/2026
-    )
+        tipo = movimiento["tipo"]
+        data = movimiento["data"]
 
-    ingreso = Ingreso(
-        almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN",  # SE MANTENDRA ESTATICO 19/05/2026
-        almacen_destino="06732F01",  # ESTE DATO SE OBTIENE DE LA BD, SI ES DIFERENTE A 06732F01 NO SE PUEDE CONTINUAR, AGREGAR VALIDACION CON PYTHON EN EL MODELO.
-        almacen_virtual_origen="030S0101",  # SE ME PASARA EL TIPO, YO ME ENCARGARE DE MAPEAR CUANDO ES SIMED (S) = 030S0101 Y SI ES DONACION (D) = 030S0102
-        concepto="DISTRIBUCION",  # CONSULTAR A LEO
-        ups_codigo="407",  # SE MANTENDRA ESTATICO 19/05/2026
-        medicamentos=[
-            # medicamento lote nuevo
-            Medicamento(
-                "36394",
-                400,
-                "LteNvo1",
-                "SISMED-COMPRA NACIONAL (CN)",
-                "Contribuciones a Fondos (CON)",
-                "SIN_REG_SAN",
-                "2029/12/20",
-                "500",
-            ),
-            # medicamento con lote que si existe y trae datos
-            Medicamento(
-                "36394",
-                400,
-                "DE5FDJ6D",
-                "SISMED-TRANSF Y PRESTAMOS UE (ST) TP",
-                "Contribuciones a Fondos (CON)",
-                "SIN_REG_SAN",
-                "2029/12/20",
-                "500",
-            ),
-            Medicamento(
-                "36394",
-                400,
-                "LteNvo2",
-                "SISMED-COMPRA NACIONAL (CN)",
-                "Contribuciones a Fondos (CON)",
-                "SIN_REG_SAN",
-                "2029/12/20",
-                "500",
-            ),
-            Medicamento(
-                "36394",
-                950,
-                "DE5FDJ6D",
-                "SISMED-TRANSF Y PRESTAMOS UE (ST) TP",
-                "Recursos Determinados (RDE)",
-                "SIN_REG_SAN",
-                "2029/12/20",
-                "500",
-            ),
-        ],
-    )
+        try:
 
-    salida = Salidas(
-        almacen_origen="06732F01",
-        almacen_destino="06732F02",
-        almacen_virtual_origen="06732F0101",
-        concepto="DISTRIBUCION",
-        medicamentos=[
-            Medicamento("36394", 900, "DE5FDJ6D", 1, 5),
-            Medicamento("00223", 1, "L001", 1, 5),
-        ],
-    )
+            # =========================================
+            # PEDIDOS
+            # =========================================
 
-    pedidos = (pedido,)
-    ingresos = (ingreso,)
-    salidas = (salida,)
+            if tipo == "pedido":
 
-    # TODO: por ahora hacer que se cierren las ventanas al terminar, hasta conseguir una forma de reutilizar la misma ventana.
+                pedido = Pedido(
+                    farmacia=Farmacia(data["farmacia"]),
+                    cliente=Cliente(data["cliente"]),
+                    prescriptor=Prescriptor(data["prescriptor"]),
+                    forma_pago=data["forma_pago"],
+                    tipo_receta=data["tipo_receta"],
+                    diagnosticos=[Diagnostico(d) for d in data["diagnosticos"]],
+                    Medicamentos=[
+                        Medicamento(
+                            m["codigo"],
+                            m["cantidad"],
+                        )
+                        for m in data["Medicamentos"]
+                    ],
+                    fua=data.get("fua"),
+                    ups_codigo=data.get("ups_codigo"),
+                )
 
-    for _ in range(2):
+                pedidos.append(pedido)
 
-        # procesar_ingresos(ingresos)
-        # procesar_salidas(salidas)
+                logger.success(f"[PEDIDO #{indice}] Validado correctamente.")
 
-        # funciona para que se registren 4 pedidos en una sola vez con un solo login.
-        pedidos = tuple(pedido for _ in range(4))
+            # =========================================
+            # INGRESOS
+            # =========================================
 
-        procesar_pedidos(pedidos)
-    return logger.info("Finalizando...")
+            elif tipo == "ingreso":
+
+                ingreso = Ingreso(
+                    almacen_origen=data["almacen_origen"],
+                    almacen_destino=data["almacen_destino"],
+                    almacen_virtual_origen=data["almacen_virtual_origen"],
+                    concepto=data["concepto"],
+                    ups_codigo=data["ups_codigo"],
+                    medicamentos=[
+                        Medicamento(
+                            m["codigo"],
+                            m["cantidad"],
+                            m["lote"],
+                            m["tipo_ingreso"],
+                            m["documento"],
+                            m["registro_sanitario"],
+                            m["fecha_vencimiento"],
+                            m["precio"],
+                        )
+                        for m in data["medicamentos"]
+                    ],
+                )
+
+                ingresos.append(ingreso)
+
+                logger.success(f"[INGRESO #{indice}] Validado correctamente.")
+
+            # =========================================
+            # SALIDAS
+            # =========================================
+
+            elif tipo == "salida":
+
+                salida = Salidas(
+                    almacen_origen=data["almacen_origen"],
+                    almacen_destino=data["almacen_destino"],
+                    almacen_virtual_origen=data["almacen_virtual_origen"],
+                    concepto=data["concepto"],
+                    medicamentos=[
+                        Medicamento(
+                            m["codigo"],
+                            m["cantidad"],
+                            m["lote"],
+                            m["tipo"],
+                            m["subtipo"],
+                        )
+                        for m in data["medicamentos"]
+                    ],
+                )
+
+                salidas.append(salida)
+
+                logger.success(f"[SALIDA #{indice}] Validado correctamente.")
+
+            else:
+
+                mensaje = f"Tipo de movimiento desconocido: {tipo}"
+
+                incidencias.append(
+                    crear_row_incidencia_validacion(
+                        tipo=tipo,
+                        error=mensaje,
+                        data=data,
+                    )
+                )
+
+                logger.error(f"[MOVIMIENTO #{indice}] {mensaje}")
+
+        except ValidationError as e:
+
+            incidencias.append(
+                crear_row_incidencia_validacion(
+                    tipo=tipo,
+                    error=str(e),
+                    data=data,
+                )
+            )
+
+            logger.error(f"[{tipo.upper()} #{indice}] Movimiento inválido detectado.")
+
+        except Exception as e:
+
+            incidencias.append(
+                crear_row_incidencia_validacion(
+                    tipo=tipo,
+                    error=str(e),
+                    data=data,
+                )
+            )
+
+            logger.exception(f"[{tipo.upper()} #{indice}] Error inesperado.")
+
+    # =========================================
+    # RESUMEN
+    # =========================================
+
+    logger.info("==========================================")
+    logger.info("RESUMEN DE ANÁLISIS")
+    logger.info("==========================================")
+
+    logger.info(f"Ingresos válidos encontrados: {len(ingresos)}")
+
+    logger.info(f"Salidas válidas encontradas: {len(salidas)}")
+
+    logger.info(f"Pedidos válidos encontrados: {len(pedidos)}")
+
+    logger.warning(f"Incidencias encontradas: {len(incidencias)}")
+
+    # =========================================
+    # MOSTRAR INCIDENCIAS
+    # =========================================
+
+    if incidencias:
+
+        logger.warning("==========================================")
+        logger.warning("DETALLE DE INCIDENCIAS")
+        logger.warning("==========================================")
+
+        for incidencia in incidencias:
+
+            logger.error(f"[{incidencia['tipo'].upper()}] " f"{incidencia['Error']}")
+
+    # =========================================
+    # GUARDAR INCIDENCIAS EN EXCEL
+    # =========================================
+
+    if incidencias:
+
+        try:
+
+            guardar_incidencias(incidencias)
+
+            logger.success("Incidencias registradas en incidencias.xlsx.")
+
+        except Exception as e:
+
+            logger.exception(f"Error guardando incidencias en Excel: {e}")
+
+    # =========================================
+    # COMENZAR PROCESAMIENTO
+    # =========================================
+
+    logger.info("==========================================")
+    logger.info("COMENZANDO PROCESAMIENTO")
+    logger.info("==========================================")
+
+    # =========================================
+    # INGRESOS
+    # =========================================
+
+    if ingresos:
+
+        logger.info(f"Procesando {len(ingresos)} ingresos...")
+
+        try:
+
+            procesar_ingresos(tuple(ingresos))
+
+            logger.success("Ingresos procesados correctamente.")
+
+        except Exception as e:
+
+            logger.exception(f"Error procesando ingresos: {e}")
+
+    # =========================================
+    # SALIDAS
+    # =========================================
+
+    if salidas:
+
+        logger.info(f"Procesando {len(salidas)} salidas...")
+
+        try:
+
+            procesar_salidas(tuple(salidas))
+
+            logger.success("Salidas procesadas correctamente.")
+
+        except Exception as e:
+
+            logger.exception(f"Error procesando salidas: {e}")
+
+    # =========================================
+    # PEDIDOS
+    # =========================================
+
+    if pedidos:
+
+        logger.info(f"Procesando {len(pedidos)} pedidos...")
+
+        try:
+
+            procesar_pedidos(tuple(pedidos))
+
+            logger.success("Pedidos procesados correctamente.")
+
+        except Exception as e:
+
+            logger.exception(f"Error procesando pedidos: {e}")
+
+    logger.info("==========================================")
+    logger.success("PROCESO FINALIZADO")
+    logger.info("==========================================")
 
 
 if __name__ == "__main__":

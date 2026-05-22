@@ -5,6 +5,18 @@ import polars as pl
 from src.reportes.excel_schema import EXCEL_COLUMNS
 
 EXCEL_PATH = "movimientos.xlsx"
+EXCEL_INCIDENCIAS_PATH = "incidencias.xlsx"
+
+# Columnas específicas para incidencias
+EXCEL_COLUMNS_INCIDENCIAS = [
+    "Nº de Procesado",
+    "Fecha",
+    "Hora",
+    "TipoMovimiento",
+    "Estado",
+    "Error",
+    "CantidadMedicamentos",
+]
 
 
 def _normalize_header_text(value: str) -> str:
@@ -71,6 +83,51 @@ def obtener_siguiente_numero_procesado() -> int:
 
     df = pl.read_excel(EXCEL_PATH)
     df = _normalizar_df_existente(df)
+
+    if df.height == 0:
+        return 1
+
+    ultima_fila = df.tail(1)
+
+    if "Nº de Procesado" in df.columns:
+        ultimo_numero = ultima_fila["Nº de Procesado"][0]
+    else:
+        fallback_col = df.columns[0]
+        ultimo_numero = ultima_fila[fallback_col][0]
+
+    try:
+        return int(ultimo_numero) + 1
+    except Exception:
+        return df.height + 1
+
+
+def guardar_incidencias(rows: list[dict]):
+    """
+    Guarda incidencias de validación en un Excel separado (incidencias.xlsx).
+
+    Args:
+        rows: lista de dicts con incidencias creadas por crear_row_incidencia_validacion
+    """
+    if not rows:
+        return
+
+    nuevo_df = pl.DataFrame(rows)
+
+    if Path(EXCEL_INCIDENCIAS_PATH).exists():
+        df_actual = pl.read_excel(EXCEL_INCIDENCIAS_PATH)
+        df_final = pl.concat([df_actual, nuevo_df], how="diagonal_relaxed")
+    else:
+        df_final = nuevo_df
+
+    df_final.write_excel(EXCEL_INCIDENCIAS_PATH)
+
+
+def obtener_siguiente_numero_incidencia() -> int:
+    """Obtiene el siguiente número de incidencia para Excel de incidencias."""
+    if not Path(EXCEL_INCIDENCIAS_PATH).exists():
+        return 1
+
+    df = pl.read_excel(EXCEL_INCIDENCIAS_PATH)
 
     if df.height == 0:
         return 1

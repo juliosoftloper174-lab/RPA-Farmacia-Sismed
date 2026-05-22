@@ -75,7 +75,10 @@ def rellenar_ups(codigo_ups: str) -> None:
     sleep(1)
 
     # Escribir código
-    SendKeys(codigo_ups)
+    # SendKeys(codigo_ups)
+    SendKeys(
+        "000"
+    )  # NOTE: por ahora se asume que siempre se ingresa el ups 000 que significa sin ups
     sleep(1)
 
     # Botón aceptar

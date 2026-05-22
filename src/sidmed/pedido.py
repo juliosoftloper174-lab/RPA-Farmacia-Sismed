@@ -83,7 +83,9 @@ def rellenar_ups(codigo_ups: str) -> None:
 
     sleep(0.5)
 
-    SendKeys(codigo_ups)
+    SendKeys(
+        "301"
+    )  # NOTE: por ahora se asume que siempre se ingresa el ups 301 que significa consulta externa, para mas adelante si agregagan el campo de ups es ndada mas caambiar el senkeys
 
     sleep(1)
 

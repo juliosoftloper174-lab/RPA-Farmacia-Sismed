@@ -176,3 +176,50 @@ def crear_row_salida(
     )
 
     return row
+
+
+def crear_row_incidencia_validacion(
+    tipo: str,
+    error: str,
+    data: dict = None,
+    i: int = None,
+):
+    """
+    Crea un diccionario para registrar incidencias de validación en Excel.
+
+    Args:
+        tipo: tipo de movimiento ("INGRESO", "SALIDA", "PEDIDO", etc.)
+        error: mensaje de error de validación
+        data: dict con los datos que causaron el error (opcional)
+        i: número de procesado (opcional, se auto-incrementa)
+
+    Returns:
+        dict listo para Excel con estructura amigable
+    """
+    row = crear_row_base()
+    now = datetime.now()
+
+    # Contar medicamentos si están presentes en data
+    cant_meds = 0
+    if data:
+        cant_meds = len(data.get("Medicamentos", data.get("medicamentos", [])))
+
+    # Normalizar el tipo
+    tipo_normalizado = str(tipo).upper() if tipo else "DESCONOCIDO"
+
+    row.update(
+        {
+            "Nº de Procesado": i if i is not None else "",
+            "Fecha": now.strftime("%Y-%m-%d"),
+            "Hora": now.strftime("%H:%M:%S"),
+            "TipoMovimiento": tipo_normalizado,
+            "Estado": "ERROR_VALIDACION",
+            "Error": str(error),
+            "CantidadMedicamentos": cant_meds,
+        }
+    )
+
+    # Añadir 'tipo' al dict para acceso directo
+    row["tipo"] = tipo_normalizado
+
+    return row
