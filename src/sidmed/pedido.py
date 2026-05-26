@@ -40,6 +40,8 @@ from ..config import (
 
 def navegar_a_pedidos(pedido: Pedido) -> None:
 
+    logger.debug(f"[NAVEGAR] Iniciando navegación para farmacia={pedido.farmacia.codigo}")
+
     Click(355, 115)
 
     get_system_info_panel().SendKeys("{RIGHT}{Enter}")
@@ -57,6 +59,8 @@ def navegar_a_pedidos(pedido: Pedido) -> None:
 
     sleep(0.5)
 
+    logger.debug("[NAVEGAR] Navegación completada")
+
 
 def rellenar_fua(pedido: Pedido) -> None:
 
@@ -71,56 +75,24 @@ def rellenar_fua(pedido: Pedido) -> None:
     )
 
 
-def rellenar_ups(codigo_ups: str) -> None:
-
-    sleep(1)
-
-    Click(730, 388)
-
-    sleep(1)
-
-    Click(1090, 345)
-
-    sleep(0.5)
-
-    SendKeys(
-        "301"
-    )  # NOTE: por ahora se asume que siempre se ingresa el ups 301 que significa consulta externa, para mas adelante si agregagan el campo de ups es ndada mas caambiar el senkeys
-
-    sleep(1)
-
-    accept_button: ButtonControl = get_registro_pedido_window().ButtonControl(
-        Name="Aceptar"
-    )
-
-    if not accept_button.Exists(3):
-
-        accept_button = ButtonControl(Name="Aceptar")
-
-    if accept_button.Exists(3):
-
-        accept_button.Click()
-
-    else:
-
-        raise Exception("No se encontró botón 'Aceptar' en UPS")
-
-
 def manejar_forma_pago(pedido: Pedido) -> None:
 
     tipo = pedido.forma_pago
 
+    logger.debug(f"manejar_forma_pago: forma={tipo.value}")
+
     if tipo == FormaPago.SIS:
 
+        logger.debug("Rellenando FUA para pago SIS")
         rellenar_fua(pedido)
-
-    elif tipo == FormaPago.INTERVENCION_SANITARIA:
-
-        rellenar_ups(pedido.ups_codigo)
 
     elif tipo == FormaPago.CONTADO:
 
-        pass
+        logger.debug("Pago CONTADO: no requiere campos adicionales")
+
+    elif tipo == FormaPago.INTERVENCION_SANITARIA:
+
+        logger.debug("Pago INTERVENCION_SANITARIA: ups_codigo eliminado del modelo, no requiere acciones UI extra")
 
     else:
 
@@ -131,6 +103,7 @@ def rellenar_cabecera(
     pedido: Pedido,
 ) -> None:
 
+    logger.debug("[CABECERA] Seleccionando forma de pago")
     seleccionar_combo_por_texto_con_autoenter(
         "CboDato",
         pedido.forma_pago.value,
@@ -138,17 +111,20 @@ def rellenar_cabecera(
 
     manejar_forma_pago(pedido)
 
+    logger.debug(f"[CABECERA] Seleccionando tipo receta: {pedido.tipo_receta.value}")
     seleccionar_combo_por_texto(
         "cmbTipoReceta",
         pedido.tipo_receta.value,
     )
 
+    logger.debug(f"[CABECERA] Seleccionando cliente: {pedido.cliente.codigo}")
     Click(770, 410)
 
     seleccionar_cliente(pedido.cliente.codigo)
 
     presc: EditControl = get_registro_pedido_window().EditControl(Name="TxtColPresc")
 
+    logger.debug(f"[CABECERA] Escribiendo prescriptor: {pedido.prescriptor.codigo}")
     escribir_input(
         presc,
         pedido.prescriptor.codigo,
@@ -156,6 +132,7 @@ def rellenar_cabecera(
 
     presc.SendKeys("{Enter}")
 
+    logger.debug(f"[CABECERA] Rellenando diagnosticos: {[d.codigo for d in pedido.diagnosticos]}")
     rellenar_diagnosticos(
         get_registro_pedido_window(),
         [d.codigo for d in pedido.diagnosticos],
@@ -219,22 +196,30 @@ def procesar_pedido(
     pedido: Pedido,
 ) -> str:
 
+    logger.debug(f"[PROCESAR] Iniciando pedido: farmacia={pedido.farmacia.codigo}, forma_pago={pedido.forma_pago.value}, medicamentos={len(pedido.Medicamentos)}")
+
     navegar_a_pedidos(pedido)
 
+    logger.debug("[PROCESAR] Navegacion OK, rellenando cabecera")
     rellenar_cabecera(pedido)
 
+    logger.debug(f"[PROCESAR] Cabecera OK, agregando {len(pedido.Medicamentos)} productos")
     agregar_productos(tuple(pedido.Medicamentos))
 
+    logger.debug("[PROCESAR] Productos OK, guardando")
     guardar()
 
     sleep(0.5)
 
     correlativo = extraer_correlativo_farmacia()
+    logger.debug(f"[PROCESAR] Guardado OK, correlativo={correlativo}")
 
     sleep(0.5)
 
+    logger.debug("[PROCESAR] Volviendo a menu principal")
     volver_a_menuprincipal()
 
+    logger.debug(f"[PROCESAR] Pedido completado: correlativo={correlativo}")
     return correlativo
 
 
@@ -254,7 +239,9 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
 
     rows: list[dict] = []
 
-    for pedido in pedidos:
+    for idx, pedido in enumerate(pedidos, start=1):
+
+        logger.debug(f"[LOTE] Procesando pedido {idx}/{len(pedidos)}: farmacia={pedido.farmacia.codigo}")
 
         try:
 
@@ -269,9 +256,11 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 estado="OK",
             )
 
+            logger.success(f"[LOTE] Pedido {idx} OK: correlativo={correlativo}")
+
         except Exception as exc:
 
-            logger.exception("Error procesando un pedido.")
+            logger.exception(f"[LOTE] Error procesando pedido {idx}: {exc}")
 
             row = crear_row_pedido(
                 i=numero_procesado,
@@ -289,6 +278,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
 
         numero_procesado += 1
 
+    logger.debug("[LOTE] Procesamiento de lote completado, cerrando SISMED")
     cerrar_sismed_pedido()
 
     if rows:

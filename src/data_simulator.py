@@ -51,20 +51,18 @@ def get_datos_simulados():
 
     ingresos = [
         Ingreso(
-            almacen_origen="ALM. ANEXO RIOJA",
             almacen_destino="FARM",
+            almacen_virtual_origen="030S0101",
             concepto="DISTRIBUCION",
-            referencia="B.O.T",
             medicamentos=[
                 ProductoIngreso("30588", 27, "2080015", 0, 0),
                 ProductoIngreso("30588", 7, "2080015", 4, 3),
             ],
         ),
         Ingreso(
-            almacen_origen="ALM. CENTRAL",
             almacen_destino="FARM",
+            almacen_virtual_origen="030S0101",
             concepto="COMPRA",
-            referencia="REF2",
             medicamentos=[ProductoIngreso("12345", 10, "LOTE1", 1, 2)],
         ),
     ]
@@ -124,7 +122,6 @@ def get_datos_from_excel(file_path: str):
                 for p in row["productos"].split(";")
             ],
             fua=row.get("fua"),
-            ups_codigo=row.get("ups_codigo"),
         )
         pedidos.append(pedido)
 

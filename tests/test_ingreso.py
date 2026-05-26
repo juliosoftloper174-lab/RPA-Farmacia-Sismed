@@ -13,12 +13,9 @@ def test_procesar_ingresos_llama_procesar_ingreso(monkeypatch):
     monkeypatch.setattr("src.sidmed.ingreso.procesar_ingreso", fake_procesar_ingreso)
     """
     ingreso = Ingreso(
-        almacen_origen="ALM. ANEXO RIOJA - SAN MARTIN   ",
         almacen_destino="06732F01",
         almacen_virtual_origen="030S0101",
         concepto="DISTRIBUCION",
-        referencia="B.O.T",  # no creo exista en la bd pero se puede dejar harcodeado
-        ups_codigo="407",
         medicamentos=[
             ProductoIngreso(
                 "36394",

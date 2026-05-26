@@ -4,13 +4,12 @@ from .farmacia import Farmacia
 from .forma_pago import FormaPago
 from .prescriptor import Prescriptor
 from .Medicamento import Medicamento
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict
 from .enums import TipoReceta
 
 
 class Pedido(BaseModel):
     model_config = ConfigDict(
-        # Le permite a pydantic aceptar instancias de clases personalizadas y otras clases de pydantic, como Farmacia, Cliente, etc., sin intentar validarlas o convertirlas.
         arbitrary_types_allowed=True,
     )
 
@@ -22,23 +21,13 @@ class Pedido(BaseModel):
     diagnosticos: list[Diagnostico]
     Medicamentos: list[Medicamento]
     fua: str | None = None
-    ups_codigo: str | None = None
 
-    @model_validator(mode="after")
-    def validate_condicionales(self):
-        if self.forma_pago == FormaPago.INTERVENCION_SANITARIA:
-            if self.ups_codigo is None:
-                raise ValueError(
-                    "ups_codigo es obligatorio cuando forma_pago es INTERVENCION_SANITARIA"
-                )
-        else:
-            if self.ups_codigo is not None:
-                raise ValueError(
-                    "ups_codigo debe ser None cuando forma_pago no es INTERVENCION_SANITARIA"
-                )
-
-        if self.forma_pago == FormaPago.SIS:
-            if self.fua is None:
-                raise ValueError("fua es obligatorio cuando forma_pago es SIS")
-
-        return self
+    def obtener_revisiones(self) -> list[str]:
+        motivos: list[str] = []
+        if self.forma_pago == FormaPago.SIS and self.fua is None:
+            motivos.append("FUA es obligatorio cuando forma_pago es SIS")
+        if self.tipo_receta != TipoReceta.SIN_NUMERO:
+            motivos.append(
+                f"Tipo de receta no es SIN_NUMERO, se recibió: {self.tipo_receta.value}"
+            )
+        return motivos

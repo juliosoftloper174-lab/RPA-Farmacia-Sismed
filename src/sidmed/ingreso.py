@@ -121,14 +121,7 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
     codigo = generar_codigo_ngr()
     registro.EditControl(Name="txtGuiaRemision").SendKeys(codigo)
 
-    # NOTE: aqui se rellena el UPS esto no lee la base de datos se asume que siempre sera el primero (SIN UPS), se puede mejorar este apartado, por ahora trabajemoslo asi
-    # registro.ButtonControl(Name="...", foundIndex=5).Click()
-    # SendKeys("{Enter}")
-
-    # prueba de rellenar ups
-    sleep(0.5)
-    rellenar_ups(ingreso.ups_codigo)
-    sleep(1)
+    rellenar_ups("000")
 
 
 # =========================================================

@@ -1,8 +1,8 @@
 def llenar_cabecera_ingreso(registro, ingreso):
 
-    # 🔹 Almacén Origen
+    # 🔹 Almacén Origen (hardcoded - se eliminó del modelo)
     auto.Click(700, 230)
-    auto.SendKeys(ingreso.almacen_origen)
+    auto.SendKeys("ALM. ANEXO RIOJA - SAN MARTIN")
     auto.SendKeys("{Enter}{Enter}")
 
     # 🔹 Almacén Destino

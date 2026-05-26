@@ -48,10 +48,8 @@ def main() -> None:
     pedidos = (pedido,)
 
     ingreso = Ingreso(
-        almacen_origen="ALM. ANEXO RIOJA",
         almacen_destino="FARM",
         concepto="DISTRIBUCION",
-        referencia="B.O.T",
         medicamentos=[
             ProductoIngreso("30588", 27, "2080015", 0, 0),
             ProductoIngreso("30588", 7, "2080015", 4, 3),

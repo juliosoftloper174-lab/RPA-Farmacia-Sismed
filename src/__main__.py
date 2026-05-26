@@ -51,14 +51,13 @@ def main():
         tipo = movimiento["tipo"]
         data = movimiento["data"]
 
-        try:
+        # =========================================
+        # PEDIDOS
+        # =========================================
 
-            # =========================================
-            # PEDIDOS
-            # =========================================
+        if tipo == "pedido":
 
-            if tipo == "pedido":
-
+            try:
                 pedido = Pedido(
                     farmacia=Farmacia(data["farmacia"]),
                     cliente=Cliente(data["cliente"]),
@@ -67,31 +66,66 @@ def main():
                     tipo_receta=data["tipo_receta"],
                     diagnosticos=[Diagnostico(d) for d in data["diagnosticos"]],
                     Medicamentos=[
-                        Medicamento(
-                            m["codigo"],
-                            m["cantidad"],
-                        )
+                        Medicamento(m["codigo"], m["cantidad"])
                         for m in data["Medicamentos"]
                     ],
                     fua=data.get("fua"),
-                    ups_codigo=data.get("ups_codigo"),
                 )
 
+            except ValidationError as e:
+                incidencia_row = crear_row_incidencia_validacion(
+                    tipo=tipo,
+                    error=str(e),
+                    data=data,
+                    i=indice,
+                    estado="VALIDACION",
+                )
+                incidencias.append(incidencia_row)
+                filas_excel.append(incidencia_row)
+                logger.error(f"[PEDIDO #{indice}] Error de validación estructural.")
+                continue
+
+            except Exception as e:
+                incidencia_row = crear_row_incidencia_validacion(
+                    tipo=tipo,
+                    error=str(e),
+                    data=data,
+                    i=indice,
+                    estado="VALIDACION",
+                )
+                incidencias.append(incidencia_row)
+                filas_excel.append(incidencia_row)
+                logger.exception(f"[PEDIDO #{indice}] Error inesperado.")
+                continue
+
+            revisiones = pedido.obtener_revisiones()
+            if revisiones:
+                mensaje = "; ".join(revisiones)
+                incidencia_row = crear_row_incidencia_validacion(
+                    tipo=tipo,
+                    error=mensaje,
+                    data=data,
+                    i=indice,
+                    estado="REVISION",
+                )
+                incidencias.append(incidencia_row)
+                filas_excel.append(incidencia_row)
+                logger.warning(f"[PEDIDO #{indice}] En revisión: {mensaje}")
+            else:
                 pedidos.append(pedido)
                 logger.success(f"[PEDIDO #{indice}] Validado correctamente.")
 
-            # =========================================
-            # INGRESOS
-            # =========================================
+        # =========================================
+        # INGRESOS
+        # =========================================
 
-            elif tipo == "ingreso":
+        elif tipo == "ingreso":
 
+            try:
                 ingreso = Ingreso(
-                    almacen_origen=data["almacen_origen"],
                     almacen_destino=data["almacen_destino"],
                     almacen_virtual_origen=data["almacen_virtual_origen"],
                     concepto=data["concepto"],
-                    ups_codigo=data["ups_codigo"],
                     medicamentos=[
                         Medicamento(
                             m["codigo"],
@@ -110,12 +144,25 @@ def main():
                 ingresos.append(ingreso)
                 logger.success(f"[INGRESO #{indice}] Validado correctamente.")
 
-            # =========================================
-            # SALIDAS
-            # =========================================
+            except Exception as e:
+                incidencia_row = crear_row_incidencia_validacion(
+                    tipo=tipo,
+                    error=str(e),
+                    data=data,
+                    i=indice,
+                    estado="VALIDACION",
+                )
+                incidencias.append(incidencia_row)
+                filas_excel.append(incidencia_row)
+                logger.exception(f"[INGRESO #{indice}] Error inesperado.")
 
-            elif tipo == "salida":
+        # =========================================
+        # SALIDAS
+        # =========================================
 
+        elif tipo == "salida":
+
+            try:
                 salida = Salidas(
                     almacen_origen=data["almacen_origen"],
                     almacen_destino=data["almacen_destino"],
@@ -136,47 +183,31 @@ def main():
                 salidas.append(salida)
                 logger.success(f"[SALIDA #{indice}] Validado correctamente.")
 
-            else:
-
-                mensaje = f"Tipo de movimiento desconocido: {tipo}"
-
-                incidencias.append(
-                    crear_row_incidencia_validacion(
-                        tipo=tipo,
-                        error=mensaje,
-                        data=data,
-                    )
+            except Exception as e:
+                incidencia_row = crear_row_incidencia_validacion(
+                    tipo=tipo,
+                    error=str(e),
+                    data=data,
+                    i=indice,
+                    estado="VALIDACION",
                 )
+                incidencias.append(incidencia_row)
+                filas_excel.append(incidencia_row)
+                logger.exception(f"[SALIDA #{indice}] Error inesperado.")
 
-                logger.error(f"[MOVIMIENTO #{indice}] {mensaje}")
+        else:
 
-        except ValidationError as e:
+            mensaje = f"Tipo de movimiento desconocido: {tipo}"
 
-            incidencia_row = crear_row_incidencia_validacion(
-                tipo=tipo,
-                error=str(e),
-                data=data,
-                i=indice,
-                estado="VALIDACION",
+            incidencias.append(
+                crear_row_incidencia_validacion(
+                    tipo=tipo,
+                    error=mensaje,
+                    data=data,
+                )
             )
-            incidencias.append(incidencia_row)
-            filas_excel.append(incidencia_row)
 
-            logger.error(f"[{tipo.upper()} #{indice}] Movimiento inválido detectado.")
-
-        except Exception as e:
-
-            incidencia_row = crear_row_incidencia_validacion(
-                tipo=tipo,
-                error=str(e),
-                data=data,
-                i=indice,
-                estado="VALIDACION",
-            )
-            incidencias.append(incidencia_row)
-            filas_excel.append(incidencia_row)
-
-            logger.exception(f"[{tipo.upper()} #{indice}] Error inesperado.")
+            logger.error(f"[MOVIMIENTO #{indice}] {mensaje}")
 
     # =========================================
     # RESUMEN

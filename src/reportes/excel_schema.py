@@ -61,11 +61,9 @@ def crear_row_ingreso(
             "Estado": estado,
             "Error": error,
             # INGRESOS
-            "almOrigen": ingreso.almacen_origen,
             "almDestino": ingreso.almacen_destino,
             "almVirtual": ingreso.almacen_virtual_origen,
             "Concepto": ingreso.concepto,
-            "UPS": ingreso.ups_codigo,
             # GENERAL
             "CantidadMedicamentos": len(ingreso.medicamentos),
         }
