@@ -17,8 +17,13 @@ from src.sidmed.ingreso import procesar_ingresos
 from src.sidmed.pedido import procesar_pedidos
 from src.sidmed.salidas import procesar_salidas
 
-from src.reportes.excel_schema import crear_row_incidencia_validacion
-from src.reportes.excel_writer import guardar_movimientos, guardar_incidencias
+from src.reportes.excel_schema import (
+    crear_row_ingreso,
+    crear_row_pedido,
+    crear_row_salida,
+    crear_row_incidencia_validacion,
+)
+from src.reportes.excel_writer import guardar_movimientos
 
 
 @logger.catch
@@ -35,6 +40,7 @@ def main():
     salidas = []
 
     incidencias = []
+    filas_excel = []
 
     # =========================================
     # ANALIZAR DATA
@@ -72,7 +78,6 @@ def main():
                 )
 
                 pedidos.append(pedido)
-
                 logger.success(f"[PEDIDO #{indice}] Validado correctamente.")
 
             # =========================================
@@ -103,7 +108,6 @@ def main():
                 )
 
                 ingresos.append(ingreso)
-
                 logger.success(f"[INGRESO #{indice}] Validado correctamente.")
 
             # =========================================
@@ -130,7 +134,6 @@ def main():
                 )
 
                 salidas.append(salida)
-
                 logger.success(f"[SALIDA #{indice}] Validado correctamente.")
 
             else:
@@ -149,25 +152,29 @@ def main():
 
         except ValidationError as e:
 
-            incidencias.append(
-                crear_row_incidencia_validacion(
-                    tipo=tipo,
-                    error=str(e),
-                    data=data,
-                )
+            incidencia_row = crear_row_incidencia_validacion(
+                tipo=tipo,
+                error=str(e),
+                data=data,
+                i=indice,
+                estado="VALIDACION",
             )
+            incidencias.append(incidencia_row)
+            filas_excel.append(incidencia_row)
 
             logger.error(f"[{tipo.upper()} #{indice}] Movimiento inválido detectado.")
 
         except Exception as e:
 
-            incidencias.append(
-                crear_row_incidencia_validacion(
-                    tipo=tipo,
-                    error=str(e),
-                    data=data,
-                )
+            incidencia_row = crear_row_incidencia_validacion(
+                tipo=tipo,
+                error=str(e),
+                data=data,
+                i=indice,
+                estado="VALIDACION",
             )
+            incidencias.append(incidencia_row)
+            filas_excel.append(incidencia_row)
 
             logger.exception(f"[{tipo.upper()} #{indice}] Error inesperado.")
 
@@ -198,24 +205,10 @@ def main():
         logger.warning("==========================================")
 
         for incidencia in incidencias:
-
-            logger.error(f"[{incidencia['tipo'].upper()}] " f"{incidencia['Error']}")
-
-    # =========================================
-    # GUARDAR INCIDENCIAS EN EXCEL
-    # =========================================
-
-    if incidencias:
-
-        try:
-
-            guardar_incidencias(incidencias)
-
-            logger.success("Incidencias registradas en incidencias.xlsx.")
-
-        except Exception as e:
-
-            logger.exception(f"Error guardando incidencias en Excel: {e}")
+            tipo_label = incidencia.get("tipo") or incidencia.get(
+                "TipoMovimiento", "DESCONOCIDO"
+            )
+            logger.error(f"[{tipo_label.upper()}] {incidencia.get('Error', '')}")
 
     # =========================================
     # COMENZAR PROCESAMIENTO
@@ -241,11 +234,16 @@ def main():
 
         except Exception as e:
 
+            filas_excel.append(
+                crear_row_incidencia_validacion(
+                    tipo="INGRESO",
+                    error=str(e),
+                    data={"almacen_origen": "", "almacen_destino": ""},
+                    i=None,
+                    estado="PROCESAMIENTO",
+                )
+            )
             logger.exception(f"Error procesando ingresos: {e}")
-
-    # =========================================
-    # SALIDAS
-    # =========================================
 
     if salidas:
 
@@ -259,6 +257,15 @@ def main():
 
         except Exception as e:
 
+            filas_excel.append(
+                crear_row_incidencia_validacion(
+                    tipo="SALIDA",
+                    error=str(e),
+                    data={"almacen_origen": "", "almacen_destino": ""},
+                    i=None,
+                    estado="PROCESAMIENTO",
+                )
+            )
             logger.exception(f"Error procesando salidas: {e}")
 
     # =========================================
@@ -277,7 +284,32 @@ def main():
 
         except Exception as e:
 
+            filas_excel.append(
+                crear_row_incidencia_validacion(
+                    tipo="PEDIDO",
+                    error=str(e),
+                    data={"farmacia": "", "cliente": ""},
+                    i=None,
+                    estado="PROCESAMIENTO",
+                )
+            )
             logger.exception(f"Error procesando pedidos: {e}")
+
+    if filas_excel:
+
+        try:
+
+            guardar_movimientos(filas_excel)
+
+            logger.success("Reporte Excel unificado guardado correctamente.")
+
+        except Exception as e:
+
+            logger.exception(f"Error guardando reporte Excel: {e}")
+
+    else:
+
+        logger.warning("No hubo filas de incidencia para guardar en el reporte Excel.")
 
     logger.info("==========================================")
     logger.success("PROCESO FINALIZADO")

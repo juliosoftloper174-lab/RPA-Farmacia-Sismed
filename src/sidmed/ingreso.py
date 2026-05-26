@@ -97,7 +97,8 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
 
     Click(700, 230)
     sleep(1.8)
-    SendKeys(ingreso.almacen_origen)
+    # SendKeys(ingreso.almacen_origen)
+    SendKeys("ALM. ANEXO RIOJA - SAN MARTIN")
     sleep(1.8)
     SendKeys("{Enter}{Enter}")
 

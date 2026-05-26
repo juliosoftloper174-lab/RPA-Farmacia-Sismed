@@ -183,28 +183,28 @@ def crear_row_incidencia_validacion(
     error: str,
     data: dict = None,
     i: int = None,
+    estado: str = "VALIDACION",
 ):
     """
-    Crea un diccionario para registrar incidencias de validación en Excel.
+    Crea un diccionario para registrar incidencias de validación en el Excel general.
 
     Args:
         tipo: tipo de movimiento ("INGRESO", "SALIDA", "PEDIDO", etc.)
-        error: mensaje de error de validación
+        error: mensaje de error de validación o procesamiento
         data: dict con los datos que causaron el error (opcional)
-        i: número de procesado (opcional, se auto-incrementa)
+        i: número de procesado (opcional)
+        estado: estado del registro (por ejemplo, "VALIDACION" o "PROCESAMIENTO")
 
     Returns:
-        dict listo para Excel con estructura amigable
+        dict listo para Excel con estructura compatible con guardar_movimientos
     """
     row = crear_row_base()
     now = datetime.now()
 
-    # Contar medicamentos si están presentes en data
     cant_meds = 0
     if data:
         cant_meds = len(data.get("Medicamentos", data.get("medicamentos", [])))
 
-    # Normalizar el tipo
     tipo_normalizado = str(tipo).upper() if tipo else "DESCONOCIDO"
 
     row.update(
@@ -213,13 +213,69 @@ def crear_row_incidencia_validacion(
             "Fecha": now.strftime("%Y-%m-%d"),
             "Hora": now.strftime("%H:%M:%S"),
             "TipoMovimiento": tipo_normalizado,
-            "Estado": "ERROR_VALIDACION",
+            "Estado": estado.upper(),
             "Error": str(error),
             "CantidadMedicamentos": cant_meds,
+            "almOrigen": (
+                data.get("almacen_origen", "") if isinstance(data, dict) else ""
+            ),
+            "almDestino": (
+                data.get("almacen_destino", "") if isinstance(data, dict) else ""
+            ),
+            "almVirtual": (
+                data.get("almacen_virtual_origen", "") if isinstance(data, dict) else ""
+            ),
+            "Concepto": data.get("concepto", "") if isinstance(data, dict) else "",
+            "UPS": data.get("ups_codigo", "") if isinstance(data, dict) else "",
+            "farmacia": data.get("farmacia", "") if isinstance(data, dict) else "",
+            "cliente": data.get("cliente", "") if isinstance(data, dict) else "",
+            "prescriptor": (
+                data.get("prescriptor", "") if isinstance(data, dict) else ""
+            ),
+            "forma_pago": (
+                getattr(data.get("forma_pago"), "value", str(data.get("forma_pago")))
+                if isinstance(data, dict)
+                else ""
+            ),
+            "tipo_receta": (
+                getattr(data.get("tipo_receta"), "value", str(data.get("tipo_receta")))
+                if isinstance(data, dict)
+                else ""
+            ),
+            "FUA": data.get("fua", "") if isinstance(data, dict) else "",
+            "Diag Nº1": (
+                (
+                    data.get("diagnosticos", [])[0]
+                    if isinstance(data.get("diagnosticos", []), list)
+                    and len(data.get("diagnosticos", [])) > 0
+                    else ""
+                )
+                if isinstance(data, dict)
+                else ""
+            ),
+            "Diag Nº2": (
+                (
+                    data.get("diagnosticos", [])[1]
+                    if isinstance(data.get("diagnosticos", []), list)
+                    and len(data.get("diagnosticos", [])) > 1
+                    else ""
+                )
+                if isinstance(data, dict)
+                else ""
+            ),
+            "Diag Nº3": (
+                (
+                    data.get("diagnosticos", [])[2]
+                    if isinstance(data.get("diagnosticos", []), list)
+                    and len(data.get("diagnosticos", [])) > 2
+                    else ""
+                )
+                if isinstance(data, dict)
+                else ""
+            ),
         }
     )
 
-    # Añadir 'tipo' al dict para acceso directo
     row["tipo"] = tipo_normalizado
 
     return row
