@@ -40,7 +40,9 @@ from ..config import (
 
 def navegar_a_pedidos(pedido: Pedido) -> None:
 
-    logger.debug(f"[NAVEGAR] Iniciando navegación para farmacia={pedido.farmacia.codigo}")
+    logger.debug(
+        f"[NAVEGAR] Iniciando navegación para farmacia={pedido.farmacia.codigo}"
+    )
 
     Click(355, 115)
 
@@ -92,7 +94,9 @@ def manejar_forma_pago(pedido: Pedido) -> None:
 
     elif tipo == FormaPago.INTERVENCION_SANITARIA:
 
-        logger.debug("Pago INTERVENCION_SANITARIA: ups_codigo eliminado del modelo, no requiere acciones UI extra")
+        logger.debug(
+            "Pago INTERVENCION_SANITARIA: ups_codigo eliminado del modelo, no requiere acciones UI extra"
+        )
 
     else:
 
@@ -132,7 +136,9 @@ def rellenar_cabecera(
 
     presc.SendKeys("{Enter}")
 
-    logger.debug(f"[CABECERA] Rellenando diagnosticos: {[d.codigo for d in pedido.diagnosticos]}")
+    logger.debug(
+        f"[CABECERA] Rellenando diagnosticos: {[d.codigo for d in pedido.diagnosticos]}"
+    )
     rellenar_diagnosticos(
         get_registro_pedido_window(),
         [d.codigo for d in pedido.diagnosticos],
@@ -196,14 +202,18 @@ def procesar_pedido(
     pedido: Pedido,
 ) -> str:
 
-    logger.debug(f"[PROCESAR] Iniciando pedido: farmacia={pedido.farmacia.codigo}, forma_pago={pedido.forma_pago.value}, medicamentos={len(pedido.Medicamentos)}")
+    logger.debug(
+        f"[PROCESAR] Iniciando pedido: farmacia={pedido.farmacia.codigo}, forma_pago={pedido.forma_pago.value}, medicamentos={len(pedido.Medicamentos)}"
+    )
 
     navegar_a_pedidos(pedido)
 
     logger.debug("[PROCESAR] Navegacion OK, rellenando cabecera")
     rellenar_cabecera(pedido)
 
-    logger.debug(f"[PROCESAR] Cabecera OK, agregando {len(pedido.Medicamentos)} productos")
+    logger.debug(
+        f"[PROCESAR] Cabecera OK, agregando {len(pedido.Medicamentos)} productos"
+    )
     agregar_productos(tuple(pedido.Medicamentos))
 
     logger.debug("[PROCESAR] Productos OK, guardando")
@@ -241,7 +251,9 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
 
     for idx, pedido in enumerate(pedidos, start=1):
 
-        logger.debug(f"[LOTE] Procesando pedido {idx}/{len(pedidos)}: farmacia={pedido.farmacia.codigo}")
+        logger.debug(
+            f"[LOTE] Procesando pedido {idx}/{len(pedidos)}: farmacia={pedido.farmacia.codigo}"
+        )
 
         try:
 
