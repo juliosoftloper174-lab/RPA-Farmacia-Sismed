@@ -126,23 +126,31 @@ def rellenar_cabecera(
 
     seleccionar_cliente(pedido.cliente.codigo)
 
-    presc: EditControl = get_registro_pedido_window().EditControl(Name="TxtColPresc")
+    if pedido.prescriptor is not None:
+        presc: EditControl = get_registro_pedido_window().EditControl(Name="TxtColPresc")
 
-    logger.debug(f"[CABECERA] Escribiendo prescriptor: {pedido.prescriptor.codigo}")
-    escribir_input(
-        presc,
-        pedido.prescriptor.codigo,
-    )
+        logger.debug(
+            f"[CABECERA] Escribiendo prescriptor: {pedido.prescriptor.codigo}"
+        )
+        escribir_input(
+            presc,
+            pedido.prescriptor.codigo,
+        )
 
-    presc.SendKeys("{Enter}")
+        presc.SendKeys("{Enter}")
 
-    logger.debug(
-        f"[CABECERA] Rellenando diagnosticos: {[d.codigo for d in pedido.diagnosticos]}"
-    )
-    rellenar_diagnosticos(
-        get_registro_pedido_window(),
-        [d.codigo for d in pedido.diagnosticos],
-    )
+        if pedido.diagnosticos:
+            logger.debug(
+                f"[CABECERA] Rellenando diagnosticos: {[d.codigo for d in pedido.diagnosticos]}"
+            )
+            rellenar_diagnosticos(
+                get_registro_pedido_window(),
+                [d.codigo for d in pedido.diagnosticos],
+            )
+    else:
+        logger.debug(
+            "[CABECERA] Sin prescriptor — saltando prescriptor y diagnosticos"
+        )
 
 
 def guardar() -> None:

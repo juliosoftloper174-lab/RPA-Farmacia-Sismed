@@ -61,10 +61,12 @@ def main():
                 pedido = Pedido(
                     farmacia=Farmacia(data["farmacia"]),
                     cliente=Cliente(data["cliente"]),
-                    prescriptor=Prescriptor(data["prescriptor"]),
+                    prescriptor=Prescriptor(data["prescriptor"])
+                    if data.get("prescriptor")
+                    else None,
                     forma_pago=data["forma_pago"],
                     tipo_receta=data["tipo_receta"],
-                    diagnosticos=[Diagnostico(d) for d in data["diagnosticos"]],
+                    diagnosticos=[Diagnostico(d) for d in data.get("diagnosticos", [])],
                     Medicamentos=[
                         Medicamento(m["codigo"], m["cantidad"])
                         for m in data["Medicamentos"]

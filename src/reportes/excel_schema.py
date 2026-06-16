@@ -114,7 +114,7 @@ def crear_row_pedido(
             "prescriptor": getattr(
                 pedido.prescriptor,
                 "codigo",
-                str(pedido.prescriptor),
+                str(pedido.prescriptor) if pedido.prescriptor is not None else "",
             ),
             "forma_pago": getattr(
                 pedido.forma_pago,

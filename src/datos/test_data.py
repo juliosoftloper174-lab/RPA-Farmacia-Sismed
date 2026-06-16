@@ -15,7 +15,7 @@ MOVIMIENTOS = [
             ],
             "Medicamentos": [
                 {
-                    "codigo": "30588",
+                    "codigo": "00200",
                     "cantidad": 1,
                 }
             ],
@@ -35,7 +35,7 @@ MOVIMIENTOS = [
             ],
             "Medicamentos": [
                 {
-                    "codigo": "30588",
+                    "codigo": "00200",
                     "cantidad": 1,
                 }
             ],
@@ -55,11 +55,26 @@ MOVIMIENTOS = [
             ],
             "Medicamentos": [
                 {
-                    "codigo": "30588",
+                    "codigo": "00200",
                     "cantidad": 1,
                 }
             ],
             "fua": "786636652",
+        },
+    },
+    {
+        "tipo": "pedido",
+        "data": {
+            "farmacia": "06732F01",
+            "cliente": "00033257",
+            "forma_pago": FormaPago.INTERVENCION_SANITARIA,
+            "tipo_receta": TipoReceta.SIN_NUMERO,
+            "Medicamentos": [
+                {
+                    "codigo": "00200",
+                    "cantidad": 1,
+                }
+            ],
         },
     },
     {

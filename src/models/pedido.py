@@ -15,10 +15,10 @@ class Pedido(BaseModel):
 
     farmacia: Farmacia
     cliente: Cliente
-    prescriptor: Prescriptor
+    prescriptor: Prescriptor | None = None
     forma_pago: FormaPago
     tipo_receta: TipoReceta
-    diagnosticos: list[Diagnostico]
+    diagnosticos: list[Diagnostico] = []
     Medicamentos: list[Medicamento]
     fua: str | None = None
 
