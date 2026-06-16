@@ -1,6 +1,6 @@
 """COMs die quickly, do not store constants here."""
 
-from uiautomation import GroupControl, WindowControl, PaneControl
+from uiautomation import GroupControl, PaneControl, WindowControl
 
 
 def get_farmacia_window() -> WindowControl:
@@ -32,6 +32,7 @@ def get_main_window() -> WindowControl:
 
 
 def get_system_info_panel() -> PaneControl:
+
     return get_main_window().PaneControl(searchDepth=1, foundIndex=1, Name="")
 
 

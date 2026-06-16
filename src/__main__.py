@@ -1,17 +1,11 @@
+from datetime import datetime, timedelta
+
 from loguru import logger
 from pydantic import ValidationError
 
-from src.datos.test_data import MOVIMIENTOS
+from src.datos.sp_adapter import obtener_movimientos
 
-from src.models.cliente import Cliente
-from src.models.diagnostico import Diagnostico
-from src.models.farmacia import Farmacia
-from src.models.prescriptor import Prescriptor
-
-from src.models.Medicamento import Medicamento
 from src.models.pedido import Pedido
-from src.models.ingreso import Ingreso
-from src.models.Salidas import Salidas
 
 from src.sidmed.ingreso import procesar_ingresos
 from src.sidmed.pedido import procesar_pedidos
@@ -26,6 +20,10 @@ from src.reportes.excel_schema import (
 from src.reportes.excel_writer import guardar_movimientos
 
 
+def _obtener_fechas() -> tuple[str, str]:
+    return "2026-06-09", "2026-06-10"
+
+
 @logger.catch
 def main():
 
@@ -33,9 +31,14 @@ def main():
     logger.info("SISMED BOT - INICIO DE EJECUCIÓN")
     logger.info("==========================================")
 
-    logger.info("Analizando y organizando data...")
+    fecha_ini, fecha_fin = _obtener_fechas()
+    logger.info(f"Consultando movimientos desde {fecha_ini} hasta {fecha_fin}")
 
-    pedidos = []
+    logger.info("Obteniendo datos desde SP_MOVIMIENTOS_SISMED_RPA...")
+
+    pedidos_raw, ingresos_raw, salidas_raw = obtener_movimientos(fecha_ini, fecha_fin)
+
+    pedidos: list[Pedido] = []
     ingresos = []
     salidas = []
 
@@ -43,173 +46,69 @@ def main():
     filas_excel = []
 
     # =========================================
-    # ANALIZAR DATA
+    # VALIDAR PEDIDOS
     # =========================================
 
-    for indice, movimiento in enumerate(MOVIMIENTOS, start=1):
+    for indice, pedido in enumerate(pedidos_raw, start=1):
 
-        tipo = movimiento["tipo"]
-        data = movimiento["data"]
-
-        # =========================================
-        # PEDIDOS
-        # =========================================
-
-        if tipo == "pedido":
-
-            try:
-                pedido = Pedido(
-                    farmacia=Farmacia(data["farmacia"]),
-                    cliente=Cliente(data["cliente"]),
-                    prescriptor=Prescriptor(data["prescriptor"])
-                    if data.get("prescriptor")
-                    else None,
-                    forma_pago=data["forma_pago"],
-                    tipo_receta=data["tipo_receta"],
-                    diagnosticos=[Diagnostico(d) for d in data.get("diagnosticos", [])],
-                    Medicamentos=[
-                        Medicamento(m["codigo"], m["cantidad"])
-                        for m in data["Medicamentos"]
-                    ],
-                    fua=data.get("fua"),
-                )
-
-            except ValidationError as e:
-                incidencia_row = crear_row_incidencia_validacion(
-                    tipo=tipo,
-                    error=str(e),
-                    data=data,
-                    i=indice,
-                    estado="VALIDACION",
-                )
-                incidencias.append(incidencia_row)
-                filas_excel.append(incidencia_row)
-                logger.error(f"[PEDIDO #{indice}] Error de validación estructural.")
-                continue
-
-            except Exception as e:
-                incidencia_row = crear_row_incidencia_validacion(
-                    tipo=tipo,
-                    error=str(e),
-                    data=data,
-                    i=indice,
-                    estado="VALIDACION",
-                )
-                incidencias.append(incidencia_row)
-                filas_excel.append(incidencia_row)
-                logger.exception(f"[PEDIDO #{indice}] Error inesperado.")
-                continue
-
-            revisiones = pedido.obtener_revisiones()
-            if revisiones:
-                mensaje = "; ".join(revisiones)
-                incidencia_row = crear_row_incidencia_validacion(
-                    tipo=tipo,
-                    error=mensaje,
-                    data=data,
-                    i=indice,
-                    estado="REVISION",
-                )
-                incidencias.append(incidencia_row)
-                filas_excel.append(incidencia_row)
-                logger.warning(f"[PEDIDO #{indice}] En revisión: {mensaje}")
-            else:
-                pedidos.append(pedido)
-                logger.success(f"[PEDIDO #{indice}] Validado correctamente.")
-
-        # =========================================
-        # INGRESOS
-        # =========================================
-
-        elif tipo == "ingreso":
-
-            try:
-                ingreso = Ingreso(
-                    almacen_destino=data["almacen_destino"],
-                    almacen_virtual_origen=data["almacen_virtual_origen"],
-                    concepto=data["concepto"],
-                    medicamentos=[
-                        Medicamento(
-                            m["codigo"],
-                            m["cantidad"],
-                            m["lote"],
-                            m["tipo_ingreso"],
-                            m["documento"],
-                            m["registro_sanitario"],
-                            m["fecha_vencimiento"],
-                            m["precio"],
-                        )
-                        for m in data["medicamentos"]
-                    ],
-                )
-
-                ingresos.append(ingreso)
-                logger.success(f"[INGRESO #{indice}] Validado correctamente.")
-
-            except Exception as e:
-                incidencia_row = crear_row_incidencia_validacion(
-                    tipo=tipo,
-                    error=str(e),
-                    data=data,
-                    i=indice,
-                    estado="VALIDACION",
-                )
-                incidencias.append(incidencia_row)
-                filas_excel.append(incidencia_row)
-                logger.exception(f"[INGRESO #{indice}] Error inesperado.")
-
-        # =========================================
-        # SALIDAS
-        # =========================================
-
-        elif tipo == "salida":
-
-            try:
-                salida = Salidas(
-                    almacen_origen=data["almacen_origen"],
-                    almacen_destino=data["almacen_destino"],
-                    almacen_virtual_origen=data["almacen_virtual_origen"],
-                    concepto=data["concepto"],
-                    medicamentos=[
-                        Medicamento(
-                            m["codigo"],
-                            m["cantidad"],
-                            m["lote"],
-                            m["tipo"],
-                            m["subtipo"],
-                        )
-                        for m in data["medicamentos"]
-                    ],
-                )
-
-                salidas.append(salida)
-                logger.success(f"[SALIDA #{indice}] Validado correctamente.")
-
-            except Exception as e:
-                incidencia_row = crear_row_incidencia_validacion(
-                    tipo=tipo,
-                    error=str(e),
-                    data=data,
-                    i=indice,
-                    estado="VALIDACION",
-                )
-                incidencias.append(incidencia_row)
-                filas_excel.append(incidencia_row)
-                logger.exception(f"[SALIDA #{indice}] Error inesperado.")
-
-        else:
-
-            mensaje = f"Tipo de movimiento desconocido: {tipo}"
-
-            incidencias.append(
-                crear_row_incidencia_validacion(
-                    tipo=tipo,
-                    error=mensaje,
-                    data=data,
-                )
+        try:
+            Pedido.model_validate(pedido)
+        except ValidationError as e:
+            incidencia_row = crear_row_incidencia_validacion(
+                tipo="PEDIDO",
+                error=str(e),
+                data=pedido.model_dump() if hasattr(pedido, "model_dump") else {},
+                i=indice,
+                estado="VALIDACION",
             )
+            incidencias.append(incidencia_row)
+            filas_excel.append(incidencia_row)
+            logger.error(f"[PEDIDO #{indice}] Error de validación estructural.")
+            continue
+        except Exception as e:
+            incidencia_row = crear_row_incidencia_validacion(
+                tipo="PEDIDO",
+                error=str(e),
+                i=indice,
+                estado="VALIDACION",
+            )
+            incidencias.append(incidencia_row)
+            filas_excel.append(incidencia_row)
+            logger.exception(f"[PEDIDO #{indice}] Error inesperado.")
+            continue
 
-            logger.error(f"[MOVIMIENTO #{indice}] {mensaje}")
+        revisiones = pedido.obtener_revisiones()
+        if revisiones:
+            mensaje = "; ".join(revisiones)
+            incidencia_row = crear_row_incidencia_validacion(
+                tipo="PEDIDO",
+                error=mensaje,
+                data={},
+                i=indice,
+                estado="REVISION",
+            )
+            incidencias.append(incidencia_row)
+            filas_excel.append(incidencia_row)
+            logger.warning(f"[PEDIDO #{indice}] En revisión: {mensaje}")
+        else:
+            pedidos.append(pedido)
+            logger.success(f"[PEDIDO #{indice}] Validado correctamente.")
+
+    # =========================================
+    # VALIDAR INGRESOS
+    # =========================================
+
+    for indice, ingreso in enumerate(ingresos_raw, start=1):
+        ingresos.append(ingreso)
+        logger.success(f"[INGRESO #{indice}] Validado correctamente.")
+
+    # =========================================
+    # VALIDAR SALIDAS
+    # =========================================
+
+    for indice, salida in enumerate(salidas_raw, start=1):
+        salidas.append(salida)
+        logger.success(f"[SALIDA #{indice}] Validado correctamente.")
 
     # =========================================
     # RESUMEN
