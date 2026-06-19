@@ -102,10 +102,11 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
     sleep(1.8)
     SendKeys("{Enter}{Enter}")
 
-    sleep(0.5)
+    sleep(2)
     Click(1140, 230)
+    sleep(1)
     SendKeys(ingreso.almacen_destino)
-    sleep(0.5)
+    sleep(1)
     SendKeys("{Enter}")
     # NOTE: aqui se rellena el almacen virtual, esto no lee la base de datos, se asume que siempre sera el primero, se puede mejorar este apartado, por ahora trabajemoslo asi
     sleep(1.8)
@@ -212,11 +213,9 @@ def agregar_producto(registro: WindowControl, producto: Medicamento):
 
     fecha_vencimiento_formato = formatear_fecha_sismed(producto.fecha_vencimiento)
 
-    # seleccionar checkpoint del día
+    sleep(1)
     Click(810, 632)
-    # registro.CheckBoxControl(Name="txtdia").Click()
-
-    sleep(0.5)
+    sleep(1)
 
     # escribir fecha completa:
     # DDMMYYYY
@@ -450,6 +449,7 @@ def cerrar_sismed() -> None:
 
 def procesar_ingreso(ingreso: Ingreso) -> str:
     login(SISMED_USERNAME, SISMED_PASSWORD)
+    sleep(2)
     navegar_a_ingresos()
 
     # 🔹 Solo una vez

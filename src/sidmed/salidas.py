@@ -219,13 +219,20 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
 
     # 🔹 Concepto (combo)
     # seleccionar_combo_por_texto("cmbConcepto", salidas.concepto)
-    # NOTE: Se tomo la decision de Harcodear ya que almenos se tiene entendido que siempre sera distribucion, ademas de que esta muy dificil poder selecionar la acion ya que si jugamos con las opciones algunas quitan el almacen destino y a volver a querer poner distribucion nos da error
+    # NOTE: Se tomo la decision de Harcodear ya que almenos se tiene entendido que siempre sera distribucion, ademas de que esta muy dificil poder seleccionar la acion ya que si jugamos con las opciones algunas quitan el almacen destino y a volver a querer poner distribucion nos da error
+    sleep(2)
     Click(700, 280)
-    sleep(1.5)
+    sleep(4)
     Click(704, 340)
-    sleep(1.5)
+    sleep(4)
     Click(507, 307)
-    sleep(1.5)
+    sleep(4)
+    sleep(1)
+    Click(704, 340)
+    sleep(2.5)
+    sleep(1)
+    Click(507, 307)
+    sleep(2.5)
 
 
 def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:

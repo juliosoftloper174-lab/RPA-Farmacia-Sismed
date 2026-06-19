@@ -1,0 +1,278 @@
+# SISMED RPA - Contexto del Proyecto
+
+## 📌 Descripción General
+
+Proyecto **sismed_wrapper** v0.1.6 — Bot RPA que automatiza 3 flujos en el sistema desktop **SISMED**:
+
+1. **Ingresos** (entradas de medicamentos a almacén) — ✅ Funcional con datos reales
+2. **Salidas** (transferencias entre almacenes) — ✅ Funcional con datos reales
+3. **Pedidos** (recetas / dispensación a pacientes) — 🔄 En desarrollo
+
+---
+
+## 🏗️ Arquitectura
+
+### Flujo de Datos (Actual - Con BD real)
+
+```
+SP_MOVIMIENTOS_SISMED_RPA (fecha_ini, fecha_fin)
+  → database/conexion.py (pyodbc → SQL Server)
+    → src/datos/sp_adapter.py (mapea headers+detalles → modelos)
+      → src/__main__.py (valida con Pydantic, orquesta procesamiento)
+        → src/sidmed/ingreso.py, salidas.py, pedido.py (automatización UI)
+          → src/reportes/excel_writer.py (guarda resultados en movimientos.xlsx)
+```
+
+### Ubicación BD (desde .env)
+- **Server**: 192.168.170.37
+- **DB**: ksalud_qa
+- **User**: rpa / rpaKsalud
+- Driver ODBC 17 for SQL Server
+
+---
+
+## 🧩 Módulos Principales
+
+### `src/__main__.py` — Orquestador principal
+- Obtiene fechas (harcodeado: 2026-06-09 a 2026-06-10)
+- Llama a `obtener_movimientos()` del SP adapter
+- Valida pedidos con Pydantic + reglas de negocio (`obtener_revisiones()`)
+- Procesa en orden: ingresos → salidas → pedidos
+- Guarda incidencias y resultados en Excel
+
+### `database/conexion.py` — Conexión a BD
+- `ejecutar_sp_movimientos(fecha_ini, fecha_fin)` → `(headers: list[dict], detalles: list[dict])`
+- Detecta resultsets por columnas: `COLUMNAS_HEADER` vs `COLUMNAS_DETALLE`
+
+### `src/datos/sp_adapter.py` — Adaptador SP → Modelos
+- `obtener_movimientos()` → `tuple[list[Pedido], list[Ingreso], list[Salidas]]`
+- Mapeos clave:
+  - `FormaPago`: NULL/"" → CONTADO, "0" → INTERVENCION_SANITARIA, "1" → SIS
+  - `AlmacenVirtualOrigen`: "0" → "030S0101", "1" → "030S0102"
+  - `TipoSuministro`: "CN" → "SISMED-COMPRA NACIONAL (CN)", etc.
+  - `FuenteFinanciamiento`: "DYT" → "Donaciones y Transferencias (DYT)", etc.
+- **Hardcodeados**: CLIENTE = "00025759", PRESCRIPTOR = "87705"
+- Fecha vencimiento: convierte `-` a `/`, corrige día 31 → 30
+
+### `src/datos/test_data.py` — Datos de prueba (simulados, reemplazados por SP)
+- Contiene MOVIMIENTOS con pedidos, ingresos, salidas harcodeados
+
+### `src/models/pedido.py` — Modelo Pydantic con validación
+```python
+class Pedido(BaseModel):
+    farmacia: Farmacia
+    cliente: Cliente
+    prescriptor: Prescriptor | None = None
+    forma_pago: FormaPago
+    tipo_receta: TipoReceta
+    diagnosticos: list[Diagnostico] = []
+    Medicamentos: list[Medicamento]
+    fua: str | None = None
+```
+- `obtener_revisiones()`: FUA obligatorio si SIS; tipo_receta debe ser SIN_NUMERO
+
+### `src/models/ingreso.py` — Plain class
+```python
+class Ingreso:
+    almacen_destino: str
+    almacen_virtual_origen: str
+    concepto: str
+    medicamentos: list[Medicamento]
+```
+
+### `src/models/Salidas.py` — Plain class
+```python
+class Salidas:
+    almacen_origen: str
+    almacen_destino: str
+    almacen_virtual_origen: str
+    concepto: str
+    medicamentos: list[Medicamento]
+```
+
+### `src/models/Medicamento.py` — Plain class (usado por los 3 flujos)
+```python
+class Medicamento:
+    codigo, cantidad, lote, tipo_sum, fuente_fin,
+    registro_sanitario, fecha_vencimiento, precio_compra
+```
+- `ProductoIngreso = Medicamento` (alias para compatibilidad)
+
+### `src/sidmed/ingreso.py` — Automatización Ingresos ✅
+- `procesar_ingresos(tuple[Ingreso])`: Itera, llama `procesar_ingreso()`, guarda en Excel
+- `procesar_ingreso(ingreso)`: login → navegar → abrir registro → cabecera → productos → guardar → extraer correlativo → cerrar
+- Cabecera: almacén origen harcodeado "ALM. ANEXO RIOJA - SAN MARTIN", combo concepto, NGR autogenerado
+- Productos: modal Ctrl+Insert, escribe código, lote, fecha (DDMMYYYY), registro sanitario, tipo suministro, fuente fin, cantidad, temperatura, precio
+- Extrae correlativo del mensaje "Se grabó correctamente la Nota de Ingreso N° XXXX"
+
+### `src/sidmed/salidas.py` — Automatización Salidas 🔄
+- `procesar_salidas(tuple[Salidas])`: similar a ingresos
+- Selección de almacén destino por código desde tabla GrdCatalogo
+- Concepto harcodeado: click en coordenadas fijas (700,280 → 704,340 → 507,307)
+- Productos: Ctrl+Insert, clicks ciegos en coordenadas
+
+### `src/sidmed/pedido.py` — Automatización Pedidos 🔄
+- `procesar_pedidos(tuple[Pedido])`: login una vez, itera pedidos
+- Navega a farmacia por código, forma_pago, tipo_receta, cliente, prescriptor, diagnósticos, productos
+- `extraer_correlativo_farmacia()`: genera random (placeholder)
+
+### `src/sidmed/_login.py` — Login SISMED
+- `login(username, password)`: Win+D → si no existe ventana login, abre .exe → escribe credenciales → cierra ventana productos vencidos
+
+### `src/helpers/` — Helpers UI
+- `windows.py`: Accessors para ventanas SISMED (Farmacia, RegistroPedido, MenuPrincipal, etc.)
+- `selecionar.py`: `seleccionar_combo_por_texto()` y `seleccionar_combo_por_texto_con_autoenter()`
+- `cliente.py`: Busca y selecciona cliente por código
+- `farmacia.py`: Busca farmacia por código en grilla
+- `producto.py`: `agregar_producto()` y `agregar_productos()` para pedidos
+- `diagnosticos.py`: Rellena hasta 3 diagnósticos CIE
+- `input.py`: `escribir_input()` con retry COM
+- `manejo_errores.py`: Manejo de ventanas de error SISMED
+
+### `src/reportes/` — Reportes Excel
+- `excel_schema.py`: Define columnas y funciones `crear_row_ingreso/pedido/salida/incidencia_validacion`
+- `excel_writer.py`: Guarda/append a `movimientos.xlsx` con `polars`, `obtener_siguiente_numero_procesado()`
+
+---
+
+## 📁 Estructura de Archivos
+
+```
+sismed_wrapper/
+├── AGENTS.md                          ← Este archivo de contexto
+├── .env                               ← Config BD y SISMED
+├── pyproject.toml                     ← Dependencias
+├── reporte_rpa.csv                    ← Reporte del SP (datos de movimientos)
+├── movimientos.xlsx                   ← Excel de resultados (autogenerado)
+│
+├── database/
+│   └── conexion.py                    ← Conexión pyodbc + ejecutar_sp
+│
+├── src/
+│   ├── __main__.py                    ← Orquestador principal
+│   ├── config.py                      ← Variables de entorno
+│   ├── paths.py                       ← Rutas del proyecto
+│   ├── logger.py                      ← Loguru config
+│   ├── data_simulator.py              ← Simulador antiguo (reemplazado)
+│   ├── simulacion_ingreso_test.py     ← Genera ingresos *5 stock para test de salidas
+│   ├── simulacion_salida_test.py      ← Distribuye stock desde 06732F01 a otras farmacias
+│   │
+│   ├── datos/
+│   │   ├── sp_adapter.py              ← Mapeo SP → Modelos (NUEVO)
+│   │   └── test_data.py               ← Datos simulados (ANTIGUO, no usado)
+│   │
+│   ├── models/
+│   │   ├── pedido.py                  ← Pydantic (con validaciones)
+│   │   ├── ingreso.py                 ← Plain class
+│   │   ├── Salidas.py                 ← Plain class
+│   │   ├── Medicamento.py             ← Plain class ( + ProductoIngreso alias)
+│   │   ├── enums.py                   ← TipoReceta
+│   │   ├── forma_pago.py              ← FormaPago (StrEnum)
+│   │   ├── cliente.py, farmacia.py    ← Plain classes
+│   │   ├── diagnostico.py, prescriptor.py
+│   │   ├── producto.py               ← Dataclass (no usado)
+│   │   └── validation_utils.py       ← Util Pydantic errors
+│   │
+│   ├── sidmed/
+│   │   ├── _login.py                  ← Login SISMED
+│   │   ├── ingreso.py                 ← Flujo Ingreso ✅
+│   │   ├── salidas.py                 ← Flujo Salida 🔄
+│   │   ├── pedido.py                  ← Flujo Pedido 🔄
+│   │   └── wrapper.py                 ← Stub (no usado)
+│   │
+│   ├── helpers/
+│   │   ├── windows.py                 ← Accesores ventanas SISMED
+│   │   ├── selecionar.py              ← ComboBox helpers
+│   │   ├── cliente.py, farmacia.py    ← Selección UI
+│   │   ├── producto.py, diagnosticos.py
+│   │   ├── input.py, combo.py
+│   │   ├── manejo_errores.py, ventana.py
+│   │   ├── ui_helper.py
+│   │   └── Ingreso/                   ← Helpers ingreso antiguos
+│   │
+│   ├── reportes/
+│   │   ├── excel_schema.py            ← Schema filas Excel
+│   │   └── excel_writer.py            ← Escritura Excel (polars)
+│   │
+│   └── controller/                    ← Vacío
+│
+└── tests/
+    ├── test_ingreso.py                ← Test ingreso (llamada real)
+    ├── test_salida.py                 ← Test salida (llamada real)
+    ├── test_pedido.py                 ← Tests modelo, mapeo, SP adapter, schema
+    ├── test_children.py               ← Definiciones UI
+    └── __init__.py
+```
+
+---
+
+## ✅ Estado Actual (lo que ya funciona)
+
+- **Conexión BD**: `pyodbc` → SQL Server funciona correctamente
+- **SP_MOVIMIENTOS_SISMED_RPA**: Ejecuta y devuelve headers + detalles
+- **`sp_adapter.py`**: Mapea correctamente headers+detalles a objetos del dominio
+- **Ingresos**: Flujo completo funcional — obtiene datos del SP, llena en SISMED, guarda correlativo
+- **Salidas**: Flujo completo funcional — `almacen_virtual_origen` corregido (f"{cod_almacen}01")
+- **Validación Pedidos**: Pydantic + reglas de negocio funcionando
+- **Reporte Excel**: Guardado con polars, append a movimientos.xlsx
+- **`__main__.py`**: Ejecuta pipeline completo (ingresos → salidas) con datos del SP
+- **`simulacion_ingreso_test.py`**: Helper que genera ingresos *5 stock para cada producto de SALIDA (para pruebas de stock)
+- **`test_data.py` y `data_simulator.py`**: Ya no son importados por ningún módulo
+
+## 🚧 Lo que falta hacer
+
+### Pedidos con datos reales
+- El SP adapter ya construye objetos Pedido correctamente (testeado)
+- Falta probar/ajustar el flujo UI de `procesar_pedidos()` con datos reales
+- `extraer_correlativo_farmacia()` es un placeholder (randint) → implementar extracción real
+
+### Mejoras pendientes
+- `_obtener_fechas()` en `__main__.py` está harcodeado → parametrizar
+- Manejo de cliente y prescriptor real desde SP (no harcodeado)
+- `extraer_correlativo_farmacia()` real (no randint)
+- `Concepto` en salidas harcodeado por click ciego → mejorar
+- Validación de Ingresos y Salidas es un passthrough (no hay validación real)
+- Duplicación de productos (mismo código en un movimiento, sumar cantidades) — gap conocido no presente en datos actuales
+
+---
+
+## 📐 Convenciones del Proyecto
+
+### Código
+- No añadir comentarios a menos que sea necesario (el proyecto tiene muchos comentarios existentes)
+- Clases planas para Ingreso/Salida/Medicamento, Pydantic para Pedido
+- Enums con StrEnum (FormaPago, TipoReceta)
+- Logger con loguru
+- Errores: levantar Exception con mensaje descriptivo
+
+### UI Automation
+- uiautomation para interactuar con SISMED
+- Coordenadas de click (ciegas) cuando no se puede acceder por Name/ControlType
+- Sleeps generosos entre acciones (0.5s - 3s) por lentitud del sistema
+- Retry con COMError
+
+### Tests
+- pytest con monkeypatch para mockear `ejecutar_sp_movimientos`
+- Tests de: modelos, mapeo de datos, SP adapter, Excel schema
+
+---
+
+## 📝 Notas Importantes
+
+- **reporte_rpa.csv**: Contiene la salida del SP, usado para entender estructura de datos
+- **prueba.py**: Script de prueba manual (usa datos simulados)
+- **_debug_sp.py**: Script para debuggear el SP manualmente
+- **Ingresos hardcodean** almacén origen "ALM. ANEXO RIOJA - SAN MARTIN" y UPS "000"
+- **Salidas hardcodean** concepto "DISTRIBUCION" con clicks ciegos
+- **Flujo real**: Ingreso solo desde 030S01 → 06732F01. Salida desde 06732F01 → cualquier otro almacén.
+- **`simulacion_ingreso_test.py`**: Para inyectar stock antes de probar salidas, ejecutar:
+  ```python
+  python -c "from src.simulacion_ingreso_test import generar_ingresos_para_prueba; from src.sidmed.ingreso import procesar_ingresos; procesar_ingresos(generar_ingresos_para_prueba())"
+  ```
+  Crea 1 ingreso a `06732F01` (único destino alcanzable desde el almacén origen harcodeado "ALM. ANEXO RIOJA - SAN MARTIN") con cantidad ×5 de todos los productos de SALIDA agregados.
+- **`simulacion_salida_test.py`**: Distribuye stock desde `06732F01` a las farmacias que fallan por falta de stock. Ejecutar ANTES del main:
+  ```python
+  python -c "from src.simulacion_salida_test import generar_salidas_para_prueba; from src.sidmed.salidas import procesar_salidas; procesar_salidas(generar_salidas_para_prueba())"
+  ```
+  Crea 4 salidas: 06732F01 → 06732F02 (06471), → F03 (01537), → F04 (18157), → F05 (01537+04901).
+- **`__main__.py`**: Obtiene SALIDAS del SP y las procesa tal cual (8 movimientos con sus orígenes originales). Requiere que el stock esté distribuido previamente con `simulacion_salida_test.py`.

@@ -185,8 +185,7 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
         elif tipo == "SALIDA":
             almacen_origen = str(_obtener_safe(row, "ALMACEN_ORIGEN", "")).strip()
             almacen_destino = str(_obtener_safe(row, "ALMACEN_DESTINO", "")).strip()
-            avo = str(_obtener_safe(row, "ALMACEN_VIRTUAL_ORIGEN", "0")).strip()
-            almacen_virtual_origen = _mapear_almacen_virtual(avo)
+            almacen_virtual_origen = f"{almacen_origen}01" if almacen_origen else ""
 
             salida = Salidas(
                 almacen_origen=almacen_origen if almacen_origen != "NULL" else "",
