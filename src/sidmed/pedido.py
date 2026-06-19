@@ -2,40 +2,31 @@ from random import randint
 from time import sleep
 
 from uiautomation import (
-    EditControl,
     ButtonControl,
     Click,
+    EditControl,
     SendKeys,
 )
-
-from ..sidmed.ingreso import (
-    seleccionar_combo_por_texto,
-    seleccionar_combo_por_texto_con_autoenter,
-)
-
-from ..models.forma_pago import FormaPago
-from ..helpers.cliente import seleccionar_cliente
-from ..helpers.diagnosticos import rellenar_diagnosticos
-from ..helpers.farmacia import seleccionar_farmacia_por_codigo
-from ..helpers.input import escribir_input
-from ..helpers.producto import agregar_productos
-from ..models.pedido import Pedido
-from ..sidmed._login import login
-from ..helpers.windows import *
-
-from ..reportes.excel_schema import crear_row_pedido
-
-from ..reportes.excel_writer import (
-    guardar_movimientos,
-    obtener_siguiente_numero_procesado,
-)
-
-from ..logger import logger
 
 from ..config import (
     SISMED_PASSWORD,
     SISMED_USERNAME,
 )
+from ..helpers.cliente import seleccionar_cliente
+from ..helpers.diagnosticos import rellenar_diagnosticos
+from ..helpers.farmacia import seleccionar_farmacia_por_codigo
+from ..helpers.input import escribir_input
+from ..helpers.producto import agregar_productos
+from ..helpers.windows import *
+from ..logger import logger
+from ..models.forma_pago import FormaPago
+from ..models.pedido import Pedido
+from ..reportes.excel_schema import crear_row_pedido
+from ..reportes.excel_writer import (
+    guardar_movimientos,
+    obtener_siguiente_numero_procesado,
+)
+from ..sidmed._login import login
 
 
 def navegar_a_pedidos(pedido: Pedido) -> None:
@@ -116,23 +107,52 @@ def manejar_forma_pago(pedido: Pedido) -> None:
         raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago.value}")
 
 
+def selecionar_forma_pago(pedido: Pedido) -> None:
+
+    if pedido.forma_pago == FormaPago.CONTADO:
+        logger.debug("[FORMA_PAGO] CONTADO — ya preseleccionado, sin acción")
+        return
+
+    if pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
+        logger.debug("[FORMA_PAGO] INTERVENCION_SANITARIA — 2 clicks")
+        sleep(1.5)
+        Click(610, 320)
+        sleep(5)
+        Click(510, 432)
+        sleep(5)
+        return
+
+    if pedido.forma_pago == FormaPago.SIS:
+        logger.debug("[FORMA_PAGO] SIS — 3 clicks")
+        sleep(1.5)
+        Click(610, 320)
+        sleep(5)
+        Click(612, 412)
+        sleep(5)
+        Click(502, 385)
+        sleep(5)
+        return
+
+    raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago.value}")
+
+
 def rellenar_cabecera(
     pedido: Pedido,
 ) -> None:
 
     logger.debug("[CABECERA] Seleccionando forma de pago")
-    seleccionar_combo_por_texto_con_autoenter(
-        "CboDato",
-        pedido.forma_pago.value,
-    )
+    selecionar_forma_pago(pedido)
 
     manejar_forma_pago(pedido)
 
     logger.debug(f"[CABECERA] Seleccionando tipo receta: {pedido.tipo_receta.value}")
-    seleccionar_combo_por_texto(
-        "cmbTipoReceta",
-        pedido.tipo_receta.value,
-    )
+    sleep(1.5)
+    Click(610, 346)
+    sleep(1.5)
+    Click(610, 346)
+    sleep(1.5)
+    Click(525, 406)
+    sleep(1.5)
 
     logger.debug(f"[CABECERA] Seleccionando cliente: {pedido.cliente.codigo}")
     Click(770, 410)
@@ -143,11 +163,11 @@ def rellenar_cabecera(
     rellenar_ups_pedido(pedido)
 
     if pedido.prescriptor is not None:
-        presc: EditControl = get_registro_pedido_window().EditControl(Name="TxtColPresc")
-
-        logger.debug(
-            f"[CABECERA] Escribiendo prescriptor: {pedido.prescriptor.codigo}"
+        presc: EditControl = get_registro_pedido_window().EditControl(
+            Name="TxtColPresc"
         )
+
+        logger.debug(f"[CABECERA] Escribiendo prescriptor: {pedido.prescriptor.codigo}")
         escribir_input(
             presc,
             pedido.prescriptor.codigo,
@@ -164,9 +184,7 @@ def rellenar_cabecera(
                 [d.codigo for d in pedido.diagnosticos],
             )
     else:
-        logger.debug(
-            "[CABECERA] Sin prescriptor — saltando prescriptor y diagnosticos"
-        )
+        logger.debug("[CABECERA] Sin prescriptor — saltando prescriptor y diagnosticos")
 
 
 def guardar() -> None:

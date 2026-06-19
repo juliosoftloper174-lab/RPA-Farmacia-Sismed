@@ -1,7 +1,9 @@
 from time import sleep
+
 import uiautomation as auto
-from src.logger import logger
 from uiautomation import ListItemControl
+
+from src.logger import logger
 
 
 def seleccionar_combo_por_texto(nombre_combo: str, texto_objetivo: str):
@@ -41,7 +43,7 @@ def seleccionar_combo_por_texto_con_autoenter(nombre_combo: str, texto_objetivo:
     # NOTE: Genereic way to set the visible options to start with the first letter of the target, not necesarily efficient.
     combo.Click()
     combo.SendKeys(texto_objetivo.strip()[0])
-    sleep(0.5)
+    sleep(1.5)
 
     children = combo.GetChildren()
     elementos: list[ListItemControl] = [child.Name.strip() for child in children]
