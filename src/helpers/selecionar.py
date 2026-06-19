@@ -41,12 +41,10 @@ def seleccionar_combo_por_texto_con_autoenter(nombre_combo: str, texto_objetivo:
     # NOTE: Genereic way to set the visible options to start with the first letter of the target, not necesarily efficient.
     combo.Click()
     combo.SendKeys(texto_objetivo.strip()[0])
+    sleep(0.5)
 
-    combo.Click()
     children = combo.GetChildren()
     elementos: list[ListItemControl] = [child.Name.strip() for child in children]
-    # TODO: List all options, because some mey be unavailable, this can be done by going up an down for a while.
-    index = elementos.index(texto_objetivo)
     logger.info(f"Elementos encontrados en combo {nombre_combo}: {elementos}")
     for child in children:
         if child.Name.strip() == texto_objetivo:

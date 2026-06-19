@@ -127,6 +127,7 @@ def crear_row_pedido(
                 str(pedido.tipo_receta),
             ),
             "FUA": pedido.fua or "",
+            "UPS": getattr(pedido, "ups_codigo", ""),
             # DIAGNOSTICOS
             "Diag Nº1": diagnosticos[0] if len(diagnosticos) > 0 else "",
             "Diag Nº2": diagnosticos[1] if len(diagnosticos) > 1 else "",

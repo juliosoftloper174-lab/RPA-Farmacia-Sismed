@@ -23,7 +23,7 @@ def generar_salidas_para_prueba() -> tuple[Salidas, ...]:
     ORIGEN = "06732F01"
     VIRTUAL = "06732F0101"
     CONCEPTO = "DISTRIBUCION"
-    MULTIPLICADOR = 1
+    MULTIPLICADOR = 5
 
     salidas = [
         Salidas(

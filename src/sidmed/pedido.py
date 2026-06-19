@@ -77,6 +77,21 @@ def rellenar_fua(pedido: Pedido) -> None:
     )
 
 
+def rellenar_ups_pedido(pedido: Pedido) -> None:
+
+    logger.debug(f"[UPS] Rellenando UPS: {pedido.ups_codigo}")
+    sleep(1)
+    Click(735, 385)
+    sleep(1)
+    Click(1090, 345)
+    sleep(1)
+    SendKeys(pedido.ups_codigo)
+    sleep(1)
+    aceptar: ButtonControl = ButtonControl(Name="Aceptar")
+    aceptar.Click()
+    sleep(0.5)
+
+
 def manejar_forma_pago(pedido: Pedido) -> None:
 
     tipo = pedido.forma_pago
@@ -94,9 +109,7 @@ def manejar_forma_pago(pedido: Pedido) -> None:
 
     elif tipo == FormaPago.INTERVENCION_SANITARIA:
 
-        logger.debug(
-            "Pago INTERVENCION_SANITARIA: ups_codigo eliminado del modelo, no requiere acciones UI extra"
-        )
+        logger.debug("Pago INTERVENCION_SANITARIA")
 
     else:
 
@@ -125,6 +138,9 @@ def rellenar_cabecera(
     Click(770, 410)
 
     seleccionar_cliente(pedido.cliente.codigo)
+
+    logger.debug(f"[CABECERA] Rellenando UPS: {pedido.ups_codigo}")
+    rellenar_ups_pedido(pedido)
 
     if pedido.prescriptor is not None:
         presc: EditControl = get_registro_pedido_window().EditControl(Name="TxtColPresc")

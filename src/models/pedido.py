@@ -21,6 +21,7 @@ class Pedido(BaseModel):
     diagnosticos: list[Diagnostico] = []
     Medicamentos: list[Medicamento]
     fua: str | None = None
+    ups_codigo: str = "301"
 
     def obtener_revisiones(self) -> list[str]:
         motivos: list[str] = []

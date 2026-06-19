@@ -34,9 +34,11 @@ def _mapear_forma_pago(valor) -> FormaPago:
         return FormaPago.CONTADO
     v = str(valor).strip()
     if v == "0":
-        return FormaPago.INTERVENCION_SANITARIA
+        return FormaPago.CONTADO
     if v == "1":
         return FormaPago.SIS
+    if v == "2":
+        return FormaPago.INTERVENCION_SANITARIA
     return FormaPago.CONTADO
 
 

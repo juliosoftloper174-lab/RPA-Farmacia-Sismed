@@ -145,11 +145,16 @@ sismed_wrapper/
 ├── reporte_rpa.csv                    ← Reporte del SP (datos de movimientos)
 ├── movimientos.xlsx                   ← Excel de resultados (autogenerado)
 │
+├── Movimientos09062026/               ← Pipeline dia especifico 09/06/2026
+│   ├── ingresos.py                    ← Ingreso de todos los productos x5 a 06732F01
+│   ├── salidas.py                     ← 3 salidas: F01→F02, F01→F04, F01→F05
+│   └── main.py                        ← main propio: ingreso → salidas
+│
 ├── database/
 │   └── conexion.py                    ← Conexión pyodbc + ejecutar_sp
 │
 ├── src/
-│   ├── __main__.py                    ← Orquestador principal
+│   ├── __main__.py                    ← Orquestador (ahora solo salidas simuladas)
 │   ├── config.py                      ← Variables de entorno
 │   ├── paths.py                       ← Rutas del proyecto
 │   ├── logger.py                      ← Loguru config
@@ -215,7 +220,8 @@ sismed_wrapper/
 - **Salidas**: Flujo completo funcional — `almacen_virtual_origen` corregido (f"{cod_almacen}01")
 - **Validación Pedidos**: Pydantic + reglas de negocio funcionando
 - **Reporte Excel**: Guardado con polars, append a movimientos.xlsx
-- **`__main__.py`**: Ejecuta pipeline completo (ingresos → salidas) con datos del SP
+- **`src/__main__.py`**: Ejecuta SOLO salidas simuladas (sin SP, sin ingresos previos) — para pruebas rápidas de salidas
+- **`Movimientos09062026/main.py`**: Pipeline completo del día 09/06/2026 — ingreso de todos los productos a F01, luego distribución a F02/F04/F05
 - **`simulacion_ingreso_test.py`**: Helper que genera ingresos *5 stock para cada producto de SALIDA (para pruebas de stock)
 - **`test_data.py` y `data_simulator.py`**: Ya no son importados por ningún módulo
 
@@ -275,4 +281,12 @@ sismed_wrapper/
   python -c "from src.simulacion_salida_test import generar_salidas_para_prueba; from src.sidmed.salidas import procesar_salidas; procesar_salidas(generar_salidas_para_prueba())"
   ```
   Crea 4 salidas: 06732F01 → 06732F02 (06471), → F03 (01537), → F04 (18157), → F05 (01537+04901).
-- **`__main__.py`**: Obtiene SALIDAS del SP y las procesa tal cual (8 movimientos con sus orígenes originales). Requiere que el stock esté distribuido previamente con `simulacion_salida_test.py`.
+- **`src/__main__.py`**: Ejecuta SOLO salidas simuladas (sin SP, sin ingresos). Para pruebas rápidas.
+- **`Movimientos09062026/main.py`**: Pipeline completo del día 09/06/2026:
+  1. Ingresa todos los productos (×5) a 06732F01
+  2. Distribuye desde F01 a F02 (33 prods), F04 (04901), F05 (06471,18157,04922,12804,12805)
+- **Para ejecutar el pipeline del día**:
+  ```powershell
+  .\.venv\Scripts\python.exe Movimientos09062026\main.py
+  ```
+- **Datos reales del SP (09/06/2026)**: 5 ingresos → F01, 8 salidas (3 desde F01 a F02/F05, 5 entre otras farmacias). Los archivos de `Movimientos09062026/` usan estos datos adaptados al flujo "ingreso central → distribución".
