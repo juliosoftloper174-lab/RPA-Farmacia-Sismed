@@ -109,37 +109,45 @@ def manejar_forma_pago(pedido: Pedido) -> None:
 
 def selecionar_forma_pago(pedido: Pedido) -> None:
 
+    expected_value: str
+
     if pedido.forma_pago == FormaPago.CONTADO:
         logger.debug("[FORMA_PAGO] CONTADO — ya preseleccionado, sin acción")
-        return
+        expected_value = FormaPago.CONTADO
 
-    if pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
+    elif pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
         logger.debug("[FORMA_PAGO] INTERVENCION_SANITARIA — 2 clicks")
-        sleep(1.5)
+        sleep(3)
         Click(610, 320)
         sleep(5)
         Click(510, 432)
         sleep(5)
-        return
+        expected_value = FormaPago.INTERVENCION_SANITARIA
 
-    if pedido.forma_pago == FormaPago.SIS:
+    elif pedido.forma_pago == FormaPago.SIS:
         logger.debug("[FORMA_PAGO] SIS — 3 clicks")
-        sleep(1.5)
+        sleep(3)
         Click(610, 320)
         sleep(5)
         Click(612, 412)
         sleep(5)
         Click(502, 385)
         sleep(5)
-        return
+        expected_value = FormaPago.SIS
 
-    raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago.value}")
+    else:
+        raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago.value}")
+
+    print(expected_value)
+
+    return None
 
 
 def rellenar_cabecera(
     pedido: Pedido,
 ) -> None:
 
+    sleep(3)
     logger.debug("[CABECERA] Seleccionando forma de pago")
     selecionar_forma_pago(pedido)
 
@@ -316,7 +324,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
 
         except Exception as exc:
 
-            logger.exception(f"[LOTE] Error procesando pedido {idx}: {exc}")
+            logger.error(f"[LOTE] Error procesando pedido {idx}: {exc}")
 
             row = crear_row_pedido(
                 i=numero_procesado,
@@ -327,6 +335,12 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 estado="ERROR",
                 error=str(exc),
             )
+
+            rows.append(row)
+
+            if rows:
+                guardar_movimientos(rows)
+            raise
 
         rows.append(row)
 

@@ -13,8 +13,9 @@ def seleccionar_combo_por_texto(nombre_combo: str, texto_objetivo: str):
         raise Exception(f"No se encontró combo: {nombre_combo}")
 
     combo.Click()
-    for i in range(10):  # NOTE: Generic way to go up, not necesarily eficient.
-        auto.SendKeys("{UP}")
+    sleep(0.5)
+    auto.SendKeys("{Alt}{Down}")
+    sleep(1)
     children = combo.GetChildren()
     elementos = [child.Name.strip() for child in children]
 

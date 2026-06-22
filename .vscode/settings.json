@@ -3,5 +3,15 @@
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.analysis.extraPaths": ["."],
+    "python.testing.pytestEnabled": true,
+    "python.analysis.autoImportCompletions": true,
+    "editor.suggestOnTriggerCharacters": true,
+    "python.analysis.completeFunctionParens": true,
+    "editor.inlineSuggest.enabled": true,
+    "editor.quickSuggestions": {
+        "other": true,
+        "comments": false,
+        "strings": false
+    },
 }
