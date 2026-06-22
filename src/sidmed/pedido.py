@@ -149,8 +149,9 @@ def rellenar_cabecera(
     sleep(1.5)
     Click(610, 346)
     sleep(1.5)
-    Click(610, 346)
-    sleep(1.5)
+    if pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
+        Click(610, 346)
+        sleep(1.5)
     Click(525, 406)
     sleep(1.5)
 
