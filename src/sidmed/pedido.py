@@ -4,6 +4,8 @@ from time import sleep
 from uiautomation import (
     ButtonControl,
     Click,
+    ComboBoxControl,
+    ControlType,
     EditControl,
     SendKeys,
 )
@@ -37,7 +39,22 @@ def navegar_a_pedidos(pedido: Pedido) -> None:
 
     Click(355, 115)
 
-    get_system_info_panel().SendKeys("{RIGHT}{Enter}")
+    pane = get_system_info_panel()
+
+    # selecte
+    pane.SendKeys("{RIGHT}")
+
+    # enter
+    ventana: WindowControl = WindowControl(Name="Selección de Farmacias")
+    for attempt in range(3):
+        pane.SendKeys("{Enter}")
+        if ventana.Exists():
+            break
+
+    if not ventana.Exists():
+        raise RuntimeError(
+            "No se encontró la ventana de selección de farmacias después de 3 intentos"
+        )
 
     seleccionar_farmacia_por_codigo(pedido.farmacia.codigo)
 
@@ -107,6 +124,22 @@ def manejar_forma_pago(pedido: Pedido) -> None:
         raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago.value}")
 
 
+def obtener_valor_seleccionado_cbo(cbo: ComboBoxControl) -> str:
+    children = cbo.GetChildren()
+    items = tuple(
+        child for child in children if child.ControlType == ControlType.ListItemControl
+    )
+    selected = tuple(
+        item.Name.strip() for item in items if item.GetSelectionItemPattern().IsSelected
+    )
+    if len(selected) != 1:
+        raise RuntimeError(
+            f"Error obteniendo valor del CBO: {cbo.Name}. "
+            f"Se encontraron {len(selected)} items seleccionados (se esperaba 1)"
+        )
+    return selected[0]
+
+
 def selecionar_forma_pago(pedido: Pedido) -> None:
 
     expected_value: str
@@ -117,30 +150,47 @@ def selecionar_forma_pago(pedido: Pedido) -> None:
 
     elif pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
         logger.debug("[FORMA_PAGO] INTERVENCION_SANITARIA — 2 clicks")
-        sleep(3)
+        sleep(2)
         Click(610, 320)
-        sleep(5)
+        sleep(2)
         Click(510, 432)
-        sleep(5)
+        sleep(2)
         expected_value = FormaPago.INTERVENCION_SANITARIA
 
     elif pedido.forma_pago == FormaPago.SIS:
         logger.debug("[FORMA_PAGO] SIS — 3 clicks")
-        sleep(3)
+        sleep(2)
         Click(610, 320)
-        sleep(5)
+        sleep(2)
         Click(612, 412)
-        sleep(5)
+        sleep(2)
         Click(502, 385)
-        sleep(5)
+        sleep(2)
         expected_value = FormaPago.SIS
 
     else:
         raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago.value}")
 
-    print(expected_value)
+    sleep(1)
 
-    return None
+    cbo = ComboBoxControl(Name="CboDato")
+
+    # NOTE: Open to force update, then close.
+    cbo.Click()
+    sleep(1)
+    cbo.Click()
+    sleep(1)
+
+    selected = obtener_valor_seleccionado_cbo(cbo)
+    if selected != expected_value:
+        raise RuntimeError(
+            f"Forma de pago no se seleccionó correctamente: "
+            f"se esperaba '{expected_value}', se obtuvo '{selected}'"
+        )
+
+    return logger.success(
+        f"Forma de pago '{expected_value}' seleccionada correctamente"
+    )
 
 
 def rellenar_cabecera(
