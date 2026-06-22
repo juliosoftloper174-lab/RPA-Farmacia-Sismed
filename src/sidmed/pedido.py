@@ -10,6 +10,8 @@ from uiautomation import (
     SendKeys,
 )
 
+from src.models import pedido
+
 from ..config import (
     SISMED_PASSWORD,
     SISMED_USERNAME,
@@ -140,7 +142,7 @@ def obtener_valor_seleccionado_cbo(cbo: ComboBoxControl) -> str:
     return selected[0]
 
 
-def selecionar_forma_pago(pedido: Pedido) -> None:
+def selecionar_forma_pago_Cesar(pedido: Pedido) -> None:
 
     expected_value: str
 
@@ -192,6 +194,42 @@ def selecionar_forma_pago(pedido: Pedido) -> None:
     return logger.success(msg)
 
 
+def _esperar_combo(
+    name: str, intentos: int = 3, espera_seg: float = 5.0
+) -> ComboBoxControl:
+    """Espera a que el ComboBox exista.
+    Reintenta `intentos` veces, esperando hasta `espera_seg` segundos por intento."""
+    cbo = ComboBoxControl(Name=name)
+    for intento in range(1, intentos + 1):
+        if cbo.Exists(maxSearchSeconds=espera_seg, searchIntervalSeconds=0.5):
+            return cbo
+        print(f"CBO '{name}' no encontrado (intento {intento}/{intentos}).")
+    raise RuntimeError(
+        f"No se encontró el ComboBox '{name}' tras {intentos} intentos "
+        f"de {espera_seg}s cada uno."
+    )
+
+
+def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
+    cbo = _esperar_combo("CboDato")
+
+    cbo.Click()
+    sleep(2)
+
+    if pedido.forma_pago == FormaPago.CONTADO:
+        cbo.Click()
+        sleep(1)
+    elif pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
+        Click(537, 427)
+        sleep(1)
+    elif pedido.forma_pago == FormaPago.SIS:
+        Click(615, 410)
+        sleep(1)
+        Click(495, 385)
+    else:
+        raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago}")
+
+
 def rellenar_cabecera(
     pedido: Pedido,
 ) -> None:
@@ -199,7 +237,7 @@ def rellenar_cabecera(
     sleep(3)
     logger.debug("[CABECERA] Seleccionando forma de pago")
 
-    selecionar_forma_pago(pedido)
+    selecionar_forma_pago_Julio(pedido)
 
     manejar_forma_pago(pedido)
 
@@ -208,8 +246,9 @@ def rellenar_cabecera(
     Click(610, 346)
     sleep(1.5)
     if pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
+        sleep(1)
         Click(610, 346)
-        sleep(1.5)
+        sleep(1)
     Click(525, 406)
     sleep(1.5)
 
@@ -316,6 +355,11 @@ def procesar_pedido(
     logger.debug(
         f"[PROCESAR] Cabecera OK, agregando {len(pedido.Medicamentos)} productos"
     )
+    sleep(0.5)
+    SendKeys("{CONTROL}{DEL}")
+    sleep(0.5)
+    SendKeys("{CONTROL}{DEL}")
+    sleep(0.5)
     agregar_productos(tuple(pedido.Medicamentos))
 
     logger.debug("[PROCESAR] Productos OK, guardando")
