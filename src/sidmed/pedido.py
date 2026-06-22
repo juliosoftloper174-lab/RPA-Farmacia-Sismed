@@ -421,7 +421,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                     correlativo_ksalud=k_salud_correlativo,
                     correlativo_sismed=correlativo,
                     pedido=pedido,
-                    estado="OK",
+                    estado="OK_REPROCESADO" if reintentos > 0 else "OK",
                 )
 
                 guardar_movimientos(row)
@@ -456,7 +456,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                     )
 
                     guardar_movimientos(row)
-                    raise
+                    continue
 
                 logger.warning(
                     f"[LOTE] Pedido {idx}/{total} falló "
