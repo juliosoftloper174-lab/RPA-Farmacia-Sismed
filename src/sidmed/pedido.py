@@ -178,7 +178,7 @@ def selecionar_forma_pago(pedido: Pedido) -> None:
     # NOTE: Open to force update, then close.
     cbo.Click()
     sleep(1)
-    cbo.Click()
+    cbo.SendKeys("{Enter}")
     sleep(1)
 
     selected = obtener_valor_seleccionado_cbo(cbo)
@@ -188,9 +188,8 @@ def selecionar_forma_pago(pedido: Pedido) -> None:
             f"se esperaba '{expected_value}', se obtuvo '{selected}'"
         )
 
-    return logger.success(
-        f"Forma de pago '{expected_value}' seleccionada correctamente"
-    )
+    msg = f"Forma de pago '{expected_value}' seleccionada correctamente"
+    return logger.success(msg)
 
 
 def rellenar_cabecera(
@@ -199,6 +198,7 @@ def rellenar_cabecera(
 
     sleep(3)
     logger.debug("[CABECERA] Seleccionando forma de pago")
+
     selecionar_forma_pago(pedido)
 
     manejar_forma_pago(pedido)
