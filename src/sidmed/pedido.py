@@ -207,17 +207,18 @@ def extraer_correlativo_farmacia() -> str:
     return str(correlativo)
 
 
-def volver_a_menuprincipal() -> None:
+def volver_a_menuprincipal(forma_pago: FormaPago | None = None) -> None:
 
-    # Click 1
-    Click(1168, 188)
-    sleep(3)
+    if forma_pago == FormaPago.CONTADO:
+        Click(990, 395)
+        sleep(3)
+    else:
+        Click(1168, 188)
+        sleep(3)
 
-    # Click 2
     Click(1189, 214)
     sleep(3)
 
-    # Click 3
     Click(1585, 15)
     sleep(3)
 
@@ -270,7 +271,7 @@ def procesar_pedido(
     sleep(0.5)
 
     logger.debug("[PROCESAR] Volviendo a menu principal")
-    volver_a_menuprincipal()
+    volver_a_menuprincipal(pedido.forma_pago)
 
     logger.debug(f"[PROCESAR] Pedido completado: correlativo={correlativo}")
     return correlativo
