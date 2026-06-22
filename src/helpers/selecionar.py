@@ -46,9 +46,10 @@ def seleccionar_combo_por_texto_con_autoenter(nombre_combo: str, texto_objetivo:
     combo.SendKeys(texto_objetivo.strip()[0])
     sleep(1.5)
 
+    combo.Click()
     children = combo.GetChildren()
     elementos: list[ListItemControl] = [child.Name.strip() for child in children]
-    logger.info(f"Elementos encontrados en combo {nombre_combo}: {elementos}")
+    logger.debug(f"Elementos encontrados en combo {nombre_combo}: {elementos}")
     for child in children:
         if child.Name.strip() == texto_objetivo:
             child.Click()
@@ -57,7 +58,7 @@ def seleccionar_combo_por_texto_con_autoenter(nombre_combo: str, texto_objetivo:
             value = combo.GetValuePattern().Value
             # TODO: Check with OCR
             combo.CaptureToImage(f"./temp/screenshot_{nombre_combo}.png")
-            logger.info(f"Valor seleccionado: {value}")
+            logger.debug(f"Valor seleccionado: {value}")
             return
 
     raise Exception(f"No se encontró el texto: {texto_objetivo}")

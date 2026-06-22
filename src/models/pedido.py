@@ -7,6 +7,14 @@ from .Medicamento import Medicamento
 from pydantic import BaseModel, ConfigDict
 from .enums import TipoReceta
 
+_fua_counter: int = 0
+
+
+def generar_fua_ficticio() -> str:
+    global _fua_counter
+    _fua_counter += 1
+    return f"{_fua_counter:08d}"
+
 
 class Pedido(BaseModel):
     model_config = ConfigDict(

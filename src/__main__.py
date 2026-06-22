@@ -1,6 +1,10 @@
 from loguru import logger
 
 from src.datos.sp_adapter import obtener_movimientos
+from src.models.forma_pago import FormaPago
+from src.models.pedido import generar_fua_ficticio
+from src.sidmed.ingreso import procesar_ingresos
+from src.sidmed.salidas import procesar_salidas
 from src.sidmed.pedido import procesar_pedidos
 from src.reportes.excel_schema import crear_row_incidencia_validacion
 from src.reportes.excel_writer import guardar_movimientos, obtener_siguiente_numero_procesado
@@ -13,9 +17,9 @@ def _obtener_fechas() -> tuple[str, str]:
 @logger.catch
 def main():
 
-    logger.info("==========================================")
-    logger.info("SISMED BOT - PEDIDOS DESDE SP")
-    logger.info("==========================================")
+    logger.info("=" * 50)
+    logger.info("SISMED BOT - FLUJO COMPLETO (INGRESOS + SALIDAS + PEDIDOS)")
+    logger.info("=" * 50)
 
     fecha_ini, fecha_fin = _obtener_fechas()
     logger.info(f"Procesando movimientos desde {fecha_ini} hasta {fecha_fin}")
@@ -23,53 +27,88 @@ def main():
     pedidos, ingresos, salidas = obtener_movimientos(fecha_ini, fecha_fin)
     logger.info(f"SP devolvio: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas")
 
+    # --- INYECTAR FUA FICTICIO PARA PEDIDOS SIS SIN FUA ---
+    for pedido in pedidos:
+        if pedido.forma_pago == FormaPago.SIS and not pedido.fua:
+            fua_generado = generar_fua_ficticio()
+            logger.info(
+                f"Pedido (farmacia={pedido.farmacia.codigo}, "
+                f"cliente={pedido.cliente.codigo}): forma_pago=SIS sin FUA, "
+                f"se genera FUA ficticio={fua_generado}"
+            )
+            pedido.fua = fua_generado
+
+    # --- INGRESOS ---
+    if ingresos:
+        logger.info(f"Iniciando procesamiento de {len(ingresos)} ingresos...")
+        try:
+            procesar_ingresos(tuple(ingresos))
+            logger.success("Ingresos procesados correctamente.")
+        except Exception as e:
+            logger.exception(f"Error procesando ingresos: {e}")
+    else:
+        logger.info("No hay ingresos para procesar.")
+
+    # --- SALIDAS ---
+    if salidas:
+        logger.info(f"Iniciando procesamiento de {len(salidas)} salidas...")
+        try:
+            procesar_salidas(tuple(salidas))
+            logger.success("Salidas procesadas correctamente.")
+        except Exception as e:
+            logger.exception(f"Error procesando salidas: {e}")
+    else:
+        logger.info("No hay salidas para procesar.")
+
+    # --- PEDIDOS ---
     if not pedidos:
         logger.warning("No se encontraron pedidos en el rango de fechas.")
-        return
+    else:
+        pedidos_validos = []
+        filas_excel = []
+        numero_procesado = obtener_siguiente_numero_procesado()
 
-    pedidos_validos = []
-    filas_excel = []
-    numero_procesado = obtener_siguiente_numero_procesado()
-
-    for i, pedido in enumerate(pedidos, start=1):
-        motivos = pedido.obtener_revisiones()
-        if motivos:
-            logger.warning(f"Pedido #{i} no pasa validacion: {motivos}")
-            filas_excel.append(
-                crear_row_incidencia_validacion(
-                    tipo="PEDIDO",
-                    error="; ".join(motivos),
-                    data={"farmacia": pedido.farmacia.codigo, "cliente": pedido.cliente.codigo, "Medicamentos": pedido.Medicamentos},
-                    i=numero_procesado,
-                    estado="VALIDACION",
+        for i, pedido in enumerate(pedidos, start=1):
+            motivos = pedido.obtener_revisiones()
+            if motivos:
+                logger.warning(f"Pedido #{i} no pasa validacion: {motivos}")
+                filas_excel.append(
+                    crear_row_incidencia_validacion(
+                        tipo="PEDIDO",
+                        error="; ".join(motivos),
+                        data={"farmacia": pedido.farmacia.codigo, "cliente": pedido.cliente.codigo, "Medicamentos": pedido.Medicamentos},
+                        i=numero_procesado,
+                        estado="VALIDACION",
+                    )
                 )
-            )
-            numero_procesado += 1
+                numero_procesado += 1
+            else:
+                pedidos_validos.append(pedido)
+
+        if filas_excel:
+            try:
+                guardar_movimientos(filas_excel)
+                logger.success(f"Incidencias de validacion guardadas: {len(filas_excel)}")
+            except Exception as e:
+                logger.exception(f"Error guardando incidencias de validacion: {e}")
+
+        if not pedidos_validos:
+            logger.warning("Ningun pedido paso la validacion. No hay nada que procesar.")
         else:
-            pedidos_validos.append(pedido)
+            logger.info(f"Pedidos validos: {len(pedidos_validos)}")
+            for i, p in enumerate(pedidos_validos, start=1):
+                logger.info(f"  #{i}: farmacia={p.farmacia.codigo}, forma_pago={p.forma_pago.value}, {len(p.Medicamentos)} medicamentos")
 
-    if filas_excel:
-        try:
-            guardar_movimientos(filas_excel)
-            logger.success(f"Incidencias de validacion guardadas: {len(filas_excel)}")
-        except Exception as e:
-            logger.exception(f"Error guardando incidencias de validacion: {e}")
+            logger.info("Iniciando procesamiento de pedidos en SISMED...")
+            try:
+                procesar_pedidos(tuple(pedidos_validos))
+                logger.success("Todos los pedidos fueron procesados correctamente.")
+            except Exception as e:
+                logger.exception(f"Error procesando pedidos: {e}")
 
-    if not pedidos_validos:
-        logger.warning("Ningun pedido paso la validacion. No hay nada que procesar.")
-        return
-
-    logger.info(f"Pedidos validos: {len(pedidos_validos)}")
-    for i, p in enumerate(pedidos_validos, start=1):
-        logger.info(f"  #{i}: farmacia={p.farmacia.codigo}, forma_pago={p.forma_pago.value}, {len(p.Medicamentos)} medicamentos")
-
-    logger.info("Iniciando procesamiento de pedidos en SISMED...")
-    procesar_pedidos(tuple(pedidos_validos))
-    logger.success("Todos los pedidos fueron procesados correctamente.")
-
-    logger.info("==========================================")
-    logger.success("PROCESO FINALIZADO")
-    logger.info("==========================================")
+    logger.info("=" * 50)
+    logger.success("PROCESO COMPLETO FINALIZADO")
+    logger.info("=" * 50)
 
 
 if __name__ == "__main__":

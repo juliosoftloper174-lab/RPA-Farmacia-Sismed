@@ -379,6 +379,17 @@ def procesar_pedido(
     return correlativo
 
 
+MAX_REINTENTOS_PEDIDO = 3
+
+
+def cerrar_ventanas_sismed() -> None:
+    sleep(2)
+    Click(1585, 15)
+    sleep(3)
+    Click(1585, 15)
+    sleep(3)
+
+
 def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
 
     login(
@@ -392,59 +403,83 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
     )
 
     numero_procesado = obtener_siguiente_numero_procesado()
-
-    rows: list[dict] = []
+    total = len(pedidos)
 
     for idx, pedido in enumerate(pedidos, start=1):
 
-        logger.debug(
-            f"[LOTE] Procesando pedido {idx}/{len(pedidos)}: farmacia={pedido.farmacia.codigo}"
-        )
+        reintentos = 0
 
-        try:
+        while reintentos < MAX_REINTENTOS_PEDIDO:
 
-            correlativo = procesar_pedido(pedido)
+            try:
 
-            row = crear_row_pedido(
-                i=numero_procesado,
-                username=SISMED_USERNAME,
-                correlativo_ksalud=k_salud_correlativo,
-                correlativo_sismed=correlativo,
-                pedido=pedido,
-                estado="OK",
-            )
+                correlativo = procesar_pedido(pedido)
 
-            logger.success(f"[LOTE] Pedido {idx} OK: correlativo={correlativo}")
+                row = crear_row_pedido(
+                    i=numero_procesado,
+                    username=SISMED_USERNAME,
+                    correlativo_ksalud=k_salud_correlativo,
+                    correlativo_sismed=correlativo,
+                    pedido=pedido,
+                    estado="OK",
+                )
 
-        except Exception as exc:
+                guardar_movimientos(row)
 
-            logger.error(f"[LOTE] Error procesando pedido {idx}: {exc}")
+                msg = f"[LOTE] Pedido {idx}/{total} OK: correlativo={correlativo}"
+                if reintentos > 0:
+                    msg += f" (tras {reintentos} reintento(s))"
+                logger.success(msg)
 
-            row = crear_row_pedido(
-                i=numero_procesado,
-                username=SISMED_USERNAME,
-                correlativo_ksalud=k_salud_correlativo,
-                correlativo_sismed="",
-                pedido=pedido,
-                estado="ERROR",
-                error=str(exc),
-            )
+                break
 
-            rows.append(row)
+            except Exception as exc:
 
-            if rows:
-                guardar_movimientos(rows)
-            raise
+                reintentos += 1
+                motivo = str(exc).split("\n")[0][:120]
 
-        rows.append(row)
+                if reintentos >= MAX_REINTENTOS_PEDIDO:
+
+                    logger.error(
+                        f"[LOTE] Pedido {idx}/{total} falló definitivamente "
+                        f"tras {reintentos} reintentos: {motivo}"
+                    )
+
+                    row = crear_row_pedido(
+                        i=numero_procesado,
+                        username=SISMED_USERNAME,
+                        correlativo_ksalud=k_salud_correlativo,
+                        correlativo_sismed="",
+                        pedido=pedido,
+                        estado="ERROR",
+                        error=f"Se agotaron {MAX_REINTENTOS_PEDIDO} reintentos: {motivo}",
+                    )
+
+                    guardar_movimientos(row)
+                    raise
+
+                logger.warning(
+                    f"[LOTE] Pedido {idx}/{total} falló "
+                    f"(intento {reintentos}/{MAX_REINTENTOS_PEDIDO}), reintentando..."
+                )
+
+                row_retry = crear_row_pedido(
+                    i=numero_procesado,
+                    username=SISMED_USERNAME,
+                    correlativo_ksalud=k_salud_correlativo,
+                    correlativo_sismed="",
+                    pedido=pedido,
+                    estado="RETRY",
+                    error=f"Fallo intento {reintentos}/{MAX_REINTENTOS_PEDIDO}: {motivo}",
+                )
+
+                guardar_movimientos(row_retry)
+
+                cerrar_ventanas_sismed()
+                login(SISMED_USERNAME, SISMED_PASSWORD)
 
         k_salud_correlativo += 1
-
         numero_procesado += 1
 
     logger.debug("[LOTE] Procesamiento de lote completado, cerrando SISMED")
     cerrar_sismed_pedido()
-
-    if rows:
-
-        guardar_movimientos(rows)

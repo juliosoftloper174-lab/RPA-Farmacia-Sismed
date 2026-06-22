@@ -6,7 +6,7 @@ Proyecto **sismed_wrapper** v0.1.6 — Bot RPA que automatiza 3 flujos en el sis
 
 1. **Ingresos** (entradas de medicamentos a almacén) — ✅ Funcional con datos reales
 2. **Salidas** (transferencias entre almacenes) — ✅ Funcional con datos reales
-3. **Pedidos** (recetas / dispensación a pacientes) — 🔄 En desarrollo
+3. **Pedidos** (recetas / dispensación a pacientes) — ✅ Funcional con reintentos automáticos
 
 ---
 
@@ -20,7 +20,7 @@ SP_MOVIMIENTOS_SISMED_RPA (fecha_ini, fecha_fin)
     → src/datos/sp_adapter.py (mapea headers+detalles → modelos)
       → src/__main__.py (valida con Pydantic, orquesta procesamiento)
         → src/sidmed/ingreso.py, salidas.py, pedido.py (automatización UI)
-          → src/reportes/excel_writer.py (guarda resultados en movimientos.xlsx)
+          → src/reportes/excel_writer.py (guarda cada movimiento individualmente en movimientos.xlsx)
 ```
 
 ### Ubicación BD (desde .env)
@@ -38,7 +38,8 @@ SP_MOVIMIENTOS_SISMED_RPA (fecha_ini, fecha_fin)
 - Llama a `obtener_movimientos()` del SP adapter
 - Valida pedidos con Pydantic + reglas de negocio (`obtener_revisiones()`)
 - Procesa en orden: ingresos → salidas → pedidos
-- Guarda incidencias y resultados en Excel
+- Guarda incidencias de validación y resultados en Excel
+- Cada flujo se ejecuta con try/except independiente para no bloquear los demás
 
 ### `database/conexion.py` — Conexión a BD
 - `ejecutar_sp_movimientos(fecha_ini, fecha_fin)` → `(headers: list[dict], detalles: list[dict])`
@@ -53,9 +54,11 @@ SP_MOVIMIENTOS_SISMED_RPA (fecha_ini, fecha_fin)
   - `FuenteFinanciamiento`: "DYT" → "Donaciones y Transferencias (DYT)", etc.
 - **Hardcodeados**: CLIENTE = "00025759", PRESCRIPTOR = "87705"
 - Fecha vencimiento: convierte `-` a `/`, corrige día 31 → 30
+- Log de "Columnas del detalle" en DEBUG (no INFO)
 
 ### `src/datos/test_data.py` — Datos de prueba (simulados, reemplazados por SP)
 - Contiene MOVIMIENTOS con pedidos, ingresos, salidas harcodeados
+- Ya no es importado por ningún módulo
 
 ### `src/models/pedido.py` — Modelo Pydantic con validación
 ```python
@@ -98,30 +101,44 @@ class Medicamento:
 ```
 - `ProductoIngreso = Medicamento` (alias para compatibilidad)
 
+### `src/sidmed/_comun_almacen.py` — Funciones compartidas ALMACEN ✅
+- `guardar()`: Click en botón CmdSave
+- `extraer_correlativo_almacen()`: Extrae correlativo del mensaje "Se grabó correctamente la Nota de Ingreso/Salida N° XXXX" — con retry COM, cierra ventanas de error y Report Designer
+- `cerrar_sismed()`: Cierra ventanas ALMACEN y MINSA SISMED por WindowPattern
+- `close_doc_windows()`: Cierra ventanas de error y Report Designer con @retry
+
 ### `src/sidmed/ingreso.py` — Automatización Ingresos ✅
-- `procesar_ingresos(tuple[Ingreso])`: Itera, llama `procesar_ingreso()`, guarda en Excel
+- `procesar_ingresos(tuple[Ingreso])`: Itera, llama `procesar_ingreso()`, guarda cada movimiento a Excel individualmente
 - `procesar_ingreso(ingreso)`: login → navegar → abrir registro → cabecera → productos → guardar → extraer correlativo → cerrar
 - Cabecera: almacén origen harcodeado "ALM. ANEXO RIOJA - SAN MARTIN", combo concepto, NGR autogenerado
 - Productos: modal Ctrl+Insert, escribe código, lote, fecha (DDMMYYYY), registro sanitario, tipo suministro, fuente fin, cantidad, temperatura, precio
-- Extrae correlativo del mensaje "Se grabó correctamente la Nota de Ingreso N° XXXX"
+- Logging con formato `[INGRESO N/M]`
+- No importa `from ..helpers.windows import *` (usa `_comun_almacen`)
 
-### `src/sidmed/salidas.py` — Automatización Salidas 🔄
-- `procesar_salidas(tuple[Salidas])`: similar a ingresos
+### `src/sidmed/salidas.py` — Automatización Salidas ✅
+- `procesar_salidas(tuple[Salidas])`: Itera, llama `procesar_salida()`, guarda cada movimiento a Excel individualmente
+- `procesar_salida(salida)`: login → Navegar_Salidas → cabecera → productos → guardar → extraer correlativo → cerrar
 - Selección de almacén destino por código desde tabla GrdCatalogo
 - Concepto harcodeado: click en coordenadas fijas (700,280 → 704,340 → 507,307)
 - Productos: Ctrl+Insert, clicks ciegos en coordenadas
+- Logging con formato `[SALIDA N/M]`
+- Importa desde `_comun_almacen` (no desde `ingreso.py`)
 
-### `src/sidmed/pedido.py` — Automatización Pedidos 🔄
-- `procesar_pedidos(tuple[Pedido])`: login una vez, itera pedidos
+### `src/sidmed/pedido.py` — Automatización Pedidos ✅ (con reintentos)
+- `procesar_pedidos(tuple[Pedido])`: login una vez, itera pedidos con reintentos
+- `procesar_pedido(pedido)`: navegar → cabecera → productos → guardar → extraer correlativo (placeholder randint) → volver a menú
 - Navega a farmacia por código, forma_pago, tipo_receta, cliente, prescriptor, diagnósticos, productos
-- `extraer_correlativo_farmacia()`: genera random (placeholder)
+- **Reintentos automáticos**: `MAX_REINTENTOS_PEDIDO = 3`. En cada fallo: cierra ventanas huérfanas (`cerrar_ventanas_sismed()` click 1585,15 ×2), reloguea, reintenta
+- **Registro en Excel**: intentos fallidos → `estado="RETRY"`, éxito → `estado="OK"` (con mensaje "tras N reintento(s)"), fallo definitivo → `estado="ERROR"` + raise
+- Mismo `Nº de Procesado` en todos los intentos del mismo pedido
+- Logging con formato `[LOTE] Pedido N/M`
 
 ### `src/sidmed/_login.py` — Login SISMED
-- `login(username, password)`: Win+D → si no existe ventana login, abre .exe → escribe credenciales → cierra ventana productos vencidos
+- `login(username, password)`: Win+D → si no existe ventana login, abre .exe con Popen → escribe credenciales → cierra ventana productos vencidos
 
 ### `src/helpers/` — Helpers UI
 - `windows.py`: Accessors para ventanas SISMED (Farmacia, RegistroPedido, MenuPrincipal, etc.)
-- `selecionar.py`: `seleccionar_combo_por_texto()` y `seleccionar_combo_por_texto_con_autoenter()`
+- `selecionar.py`: `seleccionar_combo_por_texto()` y `seleccionar_combo_por_texto_con_autoenter()` — logging en DEBUG
 - `cliente.py`: Busca y selecciona cliente por código
 - `farmacia.py`: Busca farmacia por código en grilla
 - `producto.py`: `agregar_producto()` y `agregar_productos()` para pedidos
@@ -131,7 +148,7 @@ class Medicamento:
 
 ### `src/reportes/` — Reportes Excel
 - `excel_schema.py`: Define columnas y funciones `crear_row_ingreso/pedido/salida/incidencia_validacion`
-- `excel_writer.py`: Guarda/append a `movimientos.xlsx` con `polars`, `obtener_siguiente_numero_procesado()`
+- `excel_writer.py`: Guarda/append a `movimientos.xlsx` con `polars`. `guardar_movimientos()` acepta dict o list[dict], convierte todos los valores a string, usa `schema_overrides` para evitar dtype warnings. `obtener_siguiente_numero_procesado()` lee el último Nº de Procesado y suma 1. `guardar_incidencias()` separado para `incidencias.xlsx`
 
 ---
 
@@ -180,6 +197,7 @@ sismed_wrapper/
 │   │
 │   ├── sidmed/
 │   │   ├── _login.py                  ← Login SISMED
+│   │   ├── _comun_almacen.py          ← Funciones compartidas ALMACEN ✅
 │   │   ├── ingreso.py                 ← Flujo Ingreso ✅
 │   │   ├── salidas.py                 ← Flujo Salida 🔄
 │   │   ├── pedido.py                  ← Flujo Pedido 🔄

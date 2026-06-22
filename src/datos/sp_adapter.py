@@ -124,7 +124,7 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
     logger.info(f"Headers filtrados por tipo válido: {len(headers_raw)}")
 
     columns_detail = list(detalles_raw[0].keys()) if detalles_raw else []
-    logger.info(f"Columnas del detalle: {columns_detail}")
+    logger.debug(f"Columnas del detalle: {columns_detail}")
 
     detalles_por_ks: dict[str, list[dict]] = {}
     for det in detalles_raw:

@@ -24,12 +24,10 @@ from uiautomation import (
 
 from src.models.Medicamento import Medicamento
 from src.models.Salidas import Salidas
-from src.sidmed.ingreso import (
+from src.sidmed._comun_almacen import (
     cerrar_sismed,
-    guardar,
-    seleccionar_combo_por_texto,
-    seleccionar_combo_por_texto_con_autoenter,
     extraer_correlativo_almacen,
+    guardar,
 )
 
 from ..sidmed._login import login
@@ -237,14 +235,15 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
 
 def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
     k_salud_correlativo = randint(1_000_000, 9_999_999)
-    rows: list[dict] = []
-
     numero_procesado = obtener_siguiente_numero_procesado()
+    total = len(salidas)
 
-    for salida in salidas:
+    for idx, salida in enumerate(salidas, start=1):
+
+        logger.info(f"[SALIDA {idx}/{total}] Procesando salida {salida.almacen_origen} -> {salida.almacen_destino} ({len(salida.medicamentos)} medicamentos)")
 
         try:
-            correlativo = procesar_salida(salida)
+            correlativo = procesar_salida(salida, idx, total)
 
             row = crear_row_salida(
                 i=numero_procesado,
@@ -255,8 +254,10 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
                 estado="OK",
             )
 
+            logger.success(f"[SALIDA {idx}/{total}] OK -> correlativo={correlativo}")
+
         except Exception as e:
-            logger.exception("Error procesando una salida.")
+            logger.exception(f"[SALIDA {idx}/{total}] Error: {e}")
 
             row = crear_row_salida(
                 i=numero_procesado,
@@ -268,12 +269,10 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
                 error=str(e),
             )
 
-        rows.append(row)
+        guardar_movimientos(row)
 
         k_salud_correlativo += 1
         numero_procesado += 1
-
-    guardar_movimientos(rows)
 
     sleep(5)
 
@@ -303,18 +302,22 @@ def agregar_producto(producto: Medicamento):
     pass
 
 
-def procesar_salida(salidas: Salidas) -> str:
+def procesar_salida(salidas: Salidas, idx: int = 1, total: int = 1) -> str:
 
+    logger.debug(f"[SALIDA {idx}/{total}] Login...")
     login(SISMED_USERNAME, SISMED_PASSWORD)
+    logger.debug(f"[SALIDA {idx}/{total}] Navegando a registro de salidas...")
     registro: WindowControl = Navegar_Salidas()
+    logger.debug(f"[SALIDA {idx}/{total}] Rellenando cabecera...")
     rellenar_cabecera_salidas(registro, salidas)
+    logger.debug(f"[SALIDA {idx}/{total}] Agregando {len(salidas.medicamentos)} productos...")
     for producto in salidas.medicamentos:
         agregar_producto(producto)
+    logger.debug(f"[SALIDA {idx}/{total}] Guardando...")
     guardar()
-    # 🔹 Esperamos un momento a que Sismed procese y salga el aviso
     sleep(1)
-    # 🔹 Capturamos el correlativo
     correlativo: str = extraer_correlativo_almacen()
+    logger.debug(f"[SALIDA {idx}/{total}] Correlativo obtenido: {correlativo}")
 
     cerrar_sismed()
     sleep(5)

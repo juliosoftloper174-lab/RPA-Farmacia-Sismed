@@ -64,11 +64,19 @@ def _normalizar_df_existente(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def guardar_movimientos(rows: list[dict]):
+def guardar_movimientos(rows: list[dict] | dict):
+    if isinstance(rows, dict):
+        rows = [rows]
+
+    for row in rows:
+        for key, value in row.items():
+            row[key] = str(value) if value is not None else ""
+
     nuevo_df = pl.DataFrame(rows)
 
     if Path(EXCEL_PATH).exists():
-        df_actual = pl.read_excel(EXCEL_PATH)
+        schema_overrides = {col: pl.Utf8 for col in EXCEL_COLUMNS}
+        df_actual = pl.read_excel(EXCEL_PATH, schema_overrides=schema_overrides)
         df_actual = _normalizar_df_existente(df_actual)
         df_final = pl.concat([df_actual, nuevo_df], how="diagonal_relaxed")
     else:
@@ -81,7 +89,8 @@ def obtener_siguiente_numero_procesado() -> int:
     if not Path(EXCEL_PATH).exists():
         return 1
 
-    df = pl.read_excel(EXCEL_PATH)
+    schema_overrides = {col: pl.Utf8 for col in EXCEL_COLUMNS}
+    df = pl.read_excel(EXCEL_PATH, schema_overrides=schema_overrides)
     df = _normalizar_df_existente(df)
 
     if df.height == 0:
