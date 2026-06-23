@@ -18,7 +18,7 @@ def _obtener_fechas() -> tuple[str, str]:
 def main():
 
     logger.info("=" * 50)
-    logger.info("SISMED BOT - SOLO PEDIDOS (MODO TEST)")
+    logger.info("SISMED BOT - FLUJO COMPLETO (INGRESOS + SALIDAS + PEDIDOS)")
     logger.info("=" * 50)
 
     fecha_ini, fecha_fin = _obtener_fechas()
@@ -37,6 +37,28 @@ def main():
                 f"se genera FUA ficticio={fua_generado}"
             )
             pedido.fua = fua_generado
+
+    # --- INGRESOS ---
+    if ingresos:
+        logger.info(f"Iniciando procesamiento de {len(ingresos)} ingresos...")
+        try:
+            procesar_ingresos(tuple(ingresos))
+            logger.success("Ingresos procesados correctamente.")
+        except Exception as e:
+            logger.exception(f"Error procesando ingresos: {e}")
+    else:
+        logger.info("No hay ingresos para procesar.")
+
+    # --- SALIDAS ---
+    if salidas:
+        logger.info(f"Iniciando procesamiento de {len(salidas)} salidas...")
+        try:
+            procesar_salidas(tuple(salidas))
+            logger.success("Salidas procesadas correctamente.")
+        except Exception as e:
+            logger.exception(f"Error procesando salidas: {e}")
+    else:
+        logger.info("No hay salidas para procesar.")
 
     # --- PEDIDOS ---
     if not pedidos:
