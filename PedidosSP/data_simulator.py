@@ -9,17 +9,19 @@ from src.models.enums import TipoReceta
 
 def generar_pedidos_simulados() -> tuple[list[Pedido], list, list]:
     """Retorna (pedidos, [], []) simulados para pruebas.
-    3 pedidos con las 3 formas de pago, misma farmacia, mismo cliente, mismo producto.
+    3 pedidos: 1ro con cliente inexistente (test de fallo), 2do y 3ro normales.
     """
     farmacia = Farmacia("06732F02")
-    cliente = Cliente("00024201")
+    cliente_normal = Cliente("43414397")
+    cliente_inexistente = Cliente("42659892")
 
     medicamento = Medicamento(codigo="00200", cantidad=1)
 
     pedidos = [
+        # 1er pedido: cliente que NO existe en SISMED (solo en ksalud)
         Pedido(
             farmacia=farmacia,
-            cliente=cliente,
+            cliente=cliente_inexistente,
             forma_pago=FormaPago.CONTADO,
             tipo_receta=TipoReceta.SIN_NUMERO,
             Medicamentos=[medicamento],
@@ -27,7 +29,7 @@ def generar_pedidos_simulados() -> tuple[list[Pedido], list, list]:
         ),
         Pedido(
             farmacia=farmacia,
-            cliente=cliente,
+            cliente=cliente_normal,
             forma_pago=FormaPago.SIS,
             tipo_receta=TipoReceta.SIN_NUMERO,
             Medicamentos=[medicamento],
@@ -36,7 +38,7 @@ def generar_pedidos_simulados() -> tuple[list[Pedido], list, list]:
         ),
         Pedido(
             farmacia=farmacia,
-            cliente=cliente,
+            cliente=cliente_normal,
             forma_pago=FormaPago.INTERVENCION_SANITARIA,
             tipo_receta=TipoReceta.SIN_NUMERO,
             Medicamentos=[medicamento],

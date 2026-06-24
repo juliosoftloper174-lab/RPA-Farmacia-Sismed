@@ -126,6 +126,19 @@ def manejar_forma_pago(pedido: Pedido) -> None:
         raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago.value}")
 
 
+def selecionar_receta(pedido: Pedido) -> None:
+    logger.debug(f"[RECETA] Seleccionando tipo receta: {pedido.tipo_receta.value}")
+    sleep(0.5)
+    Click(610, 346)
+    sleep(0.5)
+    if pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
+        sleep(0.5)
+        Click(610, 346)
+        sleep(0.5)
+    Click(525, 406)
+    sleep(0.5)
+
+
 def obtener_valor_seleccionado_cbo(cbo: ComboBoxControl) -> str:
     children = cbo.GetChildren()
     items = tuple(
@@ -241,20 +254,9 @@ def rellenar_cabecera(
 
     manejar_forma_pago(pedido)
 
-    logger.debug(f"[CABECERA] Seleccionando tipo receta: {pedido.tipo_receta.value}")
-    sleep(1.5)
-    Click(610, 346)
-    sleep(1.5)
-    if pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
-        sleep(1)
-        Click(610, 346)
-        sleep(1)
-    Click(525, 406)
-    sleep(1.5)
+    selecionar_receta(pedido)
 
     logger.debug(f"[CABECERA] Seleccionando cliente: {pedido.cliente.codigo}")
-    Click(770, 410)
-
     seleccionar_cliente(pedido.cliente.codigo)
 
     logger.debug(f"[CABECERA] Rellenando UPS: {pedido.ups_codigo}")
@@ -295,6 +297,29 @@ def guardar() -> None:
     cmd_save.Click()
 
     sleep(0.3)
+
+
+def selecionar_receta_verificacion() -> None:
+    logger.debug("[RECETA_VERIF] Seleccionando tipo receta (2 clicks)")
+    sleep(0.5)
+    Click(610, 345)
+    sleep(0.5)
+    Click(525, 408)
+    sleep(0.5)
+
+
+def verificar_receta() -> bool:
+    sleep(1.5)
+    for name in ("Aviso", "Microsoft Visual FoxPro"):
+        w = WindowControl(Name=name)
+        if w.Exists(maxSearchSeconds=1):
+            logger.warning(f"Error de receta detectado: '{name}'. Corrigiendo...")
+            w.ButtonControl(Name="Aceptar").Click()
+            sleep(1)
+            selecionar_receta_verificacion()
+            guardar()
+            return True
+    return False
 
 
 def extraer_correlativo_farmacia() -> str:
@@ -364,6 +389,7 @@ def procesar_pedido(
 
     logger.debug("[PROCESAR] Productos OK, guardando")
     guardar()
+    verificar_receta()
 
     sleep(0.5)
 

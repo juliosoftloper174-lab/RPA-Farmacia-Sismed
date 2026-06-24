@@ -19,6 +19,8 @@ COLUMNAS_HEADER = [
     "FECHA_MOVIMIENTO", "ALMACEN_ORIGEN", "ALMACEN_VIRTUAL_ORIGEN",
     "ALMACEN_DESTINO", "ALMACEN_VIRTUAL_DESTINO", "FARMACIA",
     "PRESCRIPTOR", "FORMA_PAGO", "DIAGNOSTICO", "FUA",
+    "TIPO_DOC_CLIENTE", "NRO_DOC_CLIENTE",
+    "TIPO_DOC_PRESCRIPTOR", "NRO_DOC_PRESCRIPTOR",
     "KS_ORIGEN_CAS", "KS_CENTRO_CAS", "KS_TIPO_ALMACEN", "KS_ALMACEN",
     "KS_ALMACEN_DES", "KS_DOCUMENTO", "KS_DOCUMENTO_DES",
     "KS_NUMERO_MOVIMIENTO", "KS_TIPO_TRANSACCION", "KS_TIPO_TRANSACCION_DES",
@@ -160,9 +162,11 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
             if not farmacia_cod or str(farmacia_cod).strip() in ("NULL", ""):
                 farmacia_cod = _obtener_safe(row, "ALMACEN_DESTINO", "")
 
+            nro_doc = str(_obtener_safe(row, "NRO_DOC_CLIENTE", "")).strip()
+
             pedido = Pedido(
                 farmacia=Farmacia(str(farmacia_cod).strip()),
-                cliente=Cliente(CLIENTE_HARDCODEADO),
+                cliente=Cliente(nro_doc if nro_doc else CLIENTE_HARDCODEADO),
                 prescriptor=prescriptor,
                 forma_pago=forma_pago,
                 tipo_receta=TipoReceta.SIN_NUMERO,

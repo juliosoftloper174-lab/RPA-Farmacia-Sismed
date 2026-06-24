@@ -5,9 +5,14 @@ from src.models.forma_pago import FormaPago
 from src.models.pedido import generar_fua_ficticio
 from src.sidmed.ingreso import procesar_ingresos
 from src.sidmed.salidas import procesar_salidas
-from src.sidmed.pedido import procesar_pedidos
+from PedidosSP.pedido_SP import procesar_pedidos
 from src.reportes.excel_schema import crear_row_incidencia_validacion
 from src.reportes.excel_writer import guardar_movimientos, obtener_siguiente_numero_procesado
+
+# --- FLAGS: controlar qué flujos ejecutar ---
+PROCESAR_INGRESOS = False
+PROCESAR_SALIDAS = False
+PROCESAR_PEDIDOS = True
 
 
 def _obtener_fechas() -> tuple[str, str]:
@@ -39,29 +44,35 @@ def main():
             pedido.fua = fua_generado
 
     # --- INGRESOS ---
-    if ingresos:
+    if PROCESAR_INGRESOS and ingresos:
         logger.info(f"Iniciando procesamiento de {len(ingresos)} ingresos...")
         try:
             procesar_ingresos(tuple(ingresos))
             logger.success("Ingresos procesados correctamente.")
         except Exception as e:
             logger.exception(f"Error procesando ingresos: {e}")
+    elif not PROCESAR_INGRESOS:
+        logger.info("INGRESOS: desactivado por configuracion.")
     else:
         logger.info("No hay ingresos para procesar.")
 
     # --- SALIDAS ---
-    if salidas:
+    if PROCESAR_SALIDAS and salidas:
         logger.info(f"Iniciando procesamiento de {len(salidas)} salidas...")
         try:
             procesar_salidas(tuple(salidas))
             logger.success("Salidas procesadas correctamente.")
         except Exception as e:
             logger.exception(f"Error procesando salidas: {e}")
+    elif not PROCESAR_SALIDAS:
+        logger.info("SALIDAS: desactivado por configuracion.")
     else:
         logger.info("No hay salidas para procesar.")
 
     # --- PEDIDOS ---
-    if not pedidos:
+    if not PROCESAR_PEDIDOS:
+        logger.info("PEDIDOS: desactivado por configuracion.")
+    elif not pedidos:
         logger.warning("No se encontraron pedidos en el rango de fechas.")
     else:
         pedidos_validos = []

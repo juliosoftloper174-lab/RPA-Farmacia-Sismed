@@ -1,31 +1,15 @@
 from time import sleep
 
-from uiautomation import ButtonControl, Click, EditControl, SendKeys, WindowControl
+from uiautomation import EditControl, SendKeys
+from src.helpers.windows import get_registro_pedido_window
 
 
-def seleccionar_cliente(codigo_cliente: str) -> None:
-    Click(770, 410)
-    sleep(0.5)
-
-    ventana_cliente: WindowControl = WindowControl(
-        searchDepth=4, Name="Seleccionar Clientes"
-    )
-    ventana_cliente.Exists(5)
-
-    # 🔹 Cambiar a búsqueda por código
-    Click(760, 340)
-    sleep(0.3)
-
-    txt_busca: EditControl = ventana_cliente.EditControl(Name="TxtBusca")
-    txt_busca.SetFocus()
+def seleccionar_cliente(dni: str) -> None:
+    ventana = get_registro_pedido_window()
+    txt_dni: EditControl = ventana.EditControl(Name="TxtDNICli")
     sleep(0.2)
-
-    # 🔹 Ahora sí: enviamos código
-    txt_busca.SendKeys(codigo_cliente)
+    txt_dni.SetFocus()
+    sleep(0.2)
+    txt_dni.SendKeys(dni)
     sleep(0.5)
-
     SendKeys("{Enter}")
-    sleep(0.5)
-
-    boton_seleccionar: ButtonControl = ventana_cliente.ButtonControl(Name="Seleccionar")
-    boton_seleccionar.Click()

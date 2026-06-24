@@ -22,6 +22,12 @@ MODO DE EJECUCIÓN:
   6. Los resultados se guardan en movimientos.xlsx.
 
   Para detener la ejecucion: Ctrl + C
+
+CONFIGURACION DESDE __main__.py:
+  from PedidosSP.pedido_SP import procesar_pedidos
+  procesar_pedidos(tuple(pedidos))
+
+  main(pedidos_override=tuple(pedidos))  # para usar el entry point con datos externos
 """
 
 import re
@@ -37,7 +43,6 @@ from uiautomation import (
     WindowControl,
 )
 
-from src.models import pedido
 from src.helpers.cliente import seleccionar_cliente
 from src.helpers.diagnosticos import rellenar_diagnosticos
 from src.helpers.farmacia import seleccionar_farmacia_por_codigo
@@ -45,6 +50,7 @@ from src.helpers.input import escribir_input
 from src.helpers.producto import agregar_productos
 from src.helpers.windows import *
 from src.logger import logger
+from src.models import pedido
 from src.models.forma_pago import FormaPago
 from src.models.pedido import Pedido
 from src.reportes.excel_schema import EXCEL_COLUMNS, crear_row_pedido
@@ -86,7 +92,7 @@ def navegar_a_pedidos(pedido: Pedido) -> None:
 
     seleccionar_farmacia_por_codigo(pedido.farmacia.codigo)
 
-    sleep(1)
+    sleep(0.5)
 
     for _ in range(2):
         SendKeys("{DOWN}")
@@ -116,13 +122,13 @@ def rellenar_fua(pedido: Pedido) -> None:
 def rellenar_ups_pedido(pedido: Pedido) -> None:
 
     logger.debug(f"[UPS] Rellenando UPS: {pedido.ups_codigo}")
-    sleep(1)
+    sleep(0.5)
     Click(735, 385)
-    sleep(1)
+    sleep(0.5)
     Click(1090, 345)
-    sleep(1)
+    sleep(0.5)
     SendKeys(pedido.ups_codigo)
-    sleep(1)
+    sleep(0.5)
     aceptar: ButtonControl = ButtonControl(Name="Aceptar")
     aceptar.Click()
     sleep(0.5)
@@ -150,6 +156,19 @@ def manejar_forma_pago(pedido: Pedido) -> None:
     else:
 
         raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago.value}")
+
+
+def selecionar_receta(pedido: Pedido) -> None:
+    logger.debug(f"[RECETA] Seleccionando tipo receta: {pedido.tipo_receta.value}")
+    sleep(0.5)
+    Click(610, 346)
+    sleep(0.5)
+    if pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
+        sleep(0.5)
+        Click(610, 346)
+        sleep(0.5)
+    Click(525, 406)
+    sleep(0.5)
 
 
 def obtener_valor_seleccionado_cbo(cbo: ComboBoxControl) -> str:
@@ -240,7 +259,7 @@ def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
     cbo = _esperar_combo("CboDato")
 
     cbo.Click()
-    sleep(2)
+    sleep(1)
 
     if pedido.forma_pago == FormaPago.CONTADO:
         cbo.Click()
@@ -260,27 +279,16 @@ def rellenar_cabecera(
     pedido: Pedido,
 ) -> None:
 
-    sleep(3)
+    sleep(1.5)
     logger.debug("[CABECERA] Seleccionando forma de pago")
 
     selecionar_forma_pago_Julio(pedido)
 
     manejar_forma_pago(pedido)
 
-    logger.debug(f"[CABECERA] Seleccionando tipo receta: {pedido.tipo_receta.value}")
-    sleep(1.5)
-    Click(610, 346)
-    sleep(1.5)
-    if pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
-        sleep(1)
-        Click(610, 346)
-        sleep(1)
-    Click(525, 406)
-    sleep(1.5)
+    selecionar_receta(pedido)
 
     logger.debug(f"[CABECERA] Seleccionando cliente: {pedido.cliente.codigo}")
-    Click(770, 410)
-
     seleccionar_cliente(pedido.cliente.codigo)
 
     logger.debug(f"[CABECERA] Rellenando UPS: {pedido.ups_codigo}")
@@ -323,6 +331,29 @@ def guardar() -> None:
     sleep(0.3)
 
 
+def selecionar_receta_verificacion() -> None:
+    logger.debug("[RECETA_VERIF] Seleccionando tipo receta (2 clicks)")
+    sleep(0.5)
+    Click(610, 345)
+    sleep(0.5)
+    Click(525, 408)
+    sleep(0.5)
+
+
+def verificar_receta() -> bool:
+    sleep(1.5)
+    for name in ("Aviso", "Microsoft Visual FoxPro"):
+        w = WindowControl(Name=name)
+        if w.Exists(maxSearchSeconds=1):
+            logger.warning(f"Error de receta detectado: '{name}'. Corrigiendo...")
+            w.ButtonControl(Name="Aceptar").Click()
+            sleep(1)
+            selecionar_receta_verificacion()
+            guardar()
+            return True
+    return False
+
+
 def extraer_correlativo_farmacia(forma_pago: FormaPago) -> str:
     """
     Extrae el número de la ventana que aparece después de guardar.
@@ -332,7 +363,9 @@ def extraer_correlativo_farmacia(forma_pago: FormaPago) -> str:
     if forma_pago == FormaPago.CONTADO:
         ventana = WindowControl(RegexName=r"^BOLETA DE VENTA #")
         if not ventana.Exists(maxSearchSeconds=15):
-            raise RuntimeError("No se encontró la ventana BOLETA DE VENTA después de guardar")
+            raise RuntimeError(
+                "No se encontró la ventana BOLETA DE VENTA después de guardar"
+            )
     else:
         ventana = WindowControl(RegexName=r"^TICKET #")
         if not ventana.Exists(maxSearchSeconds=10):
@@ -371,9 +404,9 @@ def procesar_boleta_venta(forma_pago: FormaPago) -> None:
         # Ingresar valor en TxtImpPag
         txt_imp_pag = ventana.EditControl(Name="TxtImpPag")
         txt_imp_pag.Click()
-        sleep(1)
+        sleep(0.5)
         txt_imp_pag.SendKeys(valor)
-        sleep(1)
+        sleep(0.5)
     else:
         ventana = WindowControl(RegexName=r"^TICKET #")
         logger.debug("[TICKET] Procesando SIS / INTERVENCION_SANITARIA")
@@ -393,11 +426,11 @@ def volver_a_menuprincipal() -> None:
     """
     # Cerrar ventana de registro de pedido
     Click(1189, 214)
-    sleep(3)
+    sleep(1.5)
 
     # Cerrar ventana de farmacia Minsa sismed
     Click(1585, 15)
-    sleep(3)
+    sleep(1.5)
 
 
 def cerrar_sismed_pedido() -> None:
@@ -435,15 +468,16 @@ def procesar_pedido(
     logger.debug(
         f"[PROCESAR] Cabecera OK, agregando {len(pedido.Medicamentos)} productos"
     )
-    sleep(0.5)
+    sleep(0.2)
     SendKeys("{CONTROL}{DEL}")
-    sleep(0.5)
+    sleep(0.2)
     SendKeys("{CONTROL}{DEL}")
-    sleep(0.5)
+    sleep(0.2)
     agregar_productos(tuple(pedido.Medicamentos))
 
     logger.debug("[PROCESAR] Productos OK, guardando")
     guardar()
+    verificar_receta()
 
     # Extraer correlativo real de la ventana (Boleta o Ticket según forma de pago)
     correlativo = extraer_correlativo_farmacia(pedido.forma_pago)
@@ -562,13 +596,20 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
     cerrar_sismed_pedido()
 
 
-def main():
-    from PedidosSP.data_simulator import generar_pedidos_simulados
+def main(pedidos_override: tuple = None):
+    if pedidos_override is not None:
+        pedidos = pedidos_override
+    else:
+        from src.datos.sp_adapter import obtener_movimientos
 
-    pedidos, _, _ = generar_pedidos_simulados()
-    logger.info(f"SIMULADOR: {len(pedidos)} pedidos generados")
+        fecha_ini, fecha_fin = "2026-06-09", "2026-06-10"
+        logger.info(f"Obteniendo pedidos desde SP ({fecha_ini} a {fecha_fin})...")
+        pedidos, _, _ = obtener_movimientos(fecha_ini, fecha_fin)
+    logger.info(f"SP devolvio: {len(pedidos)} pedidos")
     for i, p in enumerate(pedidos, start=1):
-        logger.info(f"  #{i}: farmacia={p.farmacia.codigo}, forma_pago={p.forma_pago.value}")
+        logger.info(
+            f"  #{i}: farmacia={p.farmacia.codigo}, forma_pago={p.forma_pago.value}"
+        )
     procesar_pedidos(tuple(pedidos))
 
 
