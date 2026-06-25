@@ -30,6 +30,7 @@ from src.sidmed._comun_almacen import (
     guardar,
 )
 
+from database.conexion import ejecutar_sp_update_estado
 from ..sidmed._login import login
 from src.reportes.excel_schema import crear_row_salida
 from src.reportes.excel_writer import (
@@ -318,6 +319,10 @@ def procesar_salida(salidas: Salidas, idx: int = 1, total: int = 1) -> str:
     sleep(1)
     correlativo: str = extraer_correlativo_almacen()
     logger.debug(f"[SALIDA {idx}/{total}] Correlativo obtenido: {correlativo}")
+
+    if salidas.update_key:
+        logger.debug(f"[SALIDA {idx}/{total}] Actualizando estado en BD...")
+        ejecutar_sp_update_estado(salidas.update_key)
 
     cerrar_sismed()
     sleep(5)

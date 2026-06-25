@@ -16,6 +16,7 @@ from ..config import SISMED_PASSWORD, SISMED_USERNAME
 from src.models.ingreso import Ingreso
 from src.models.Medicamento import Medicamento
 from src.sidmed._login import login
+from database.conexion import ejecutar_sp_update_estado
 from src.sidmed._comun_almacen import (
     cerrar_sismed,
     extraer_correlativo_almacen,
@@ -374,6 +375,10 @@ def procesar_ingreso(ingreso: Ingreso, idx: int = 1, total: int = 1) -> str:
 
     correlativo: str = extraer_correlativo_almacen()
     logger.debug(f"[INGRESO {idx}/{total}] Correlativo obtenido: {correlativo}")
+
+    if ingreso.update_key:
+        logger.debug(f"[INGRESO {idx}/{total}] Actualizando estado en BD...")
+        ejecutar_sp_update_estado(ingreso.update_key)
 
     sleep(1)
 

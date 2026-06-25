@@ -1,3 +1,5 @@
+from collections import Counter
+
 from loguru import logger
 
 # from src.sidmed.pedido import procesar_pedidos
@@ -39,15 +41,18 @@ def main():
     )
 
     # --- INYECTAR FUA FICTICIO PARA PEDIDOS SIS SIN FUA ---
+    total_sis = sum(1 for p in pedidos if p.forma_pago == FormaPago.SIS)
+    sis_sin_fua = 0
     for pedido in pedidos:
         if pedido.forma_pago == FormaPago.SIS and not pedido.fua:
-            fua_generado = generar_fua_ficticio()
-            logger.info(
-                f"Pedido (farmacia={pedido.farmacia.codigo}, "
-                f"cliente={pedido.cliente.codigo}): forma_pago=SIS sin FUA, "
-                f"se genera FUA ficticio={fua_generado}"
-            )
-            pedido.fua = fua_generado
+            pedido.fua = generar_fua_ficticio()
+            sis_sin_fua += 1
+
+    logger.info(
+        f"Pedidos: {len(pedidos)} total, {total_sis} SIS "
+        f"({sis_sin_fua} sin FUA → ficticios generados), "
+        f"{len(pedidos) - total_sis} otras formas de pago"
+    )
 
     # --- INGRESOS ---
     if PROCESAR_INGRESOS and ingresos:
@@ -120,11 +125,12 @@ def main():
                 "Ningun pedido paso la validacion. No hay nada que procesar."
             )
         else:
+            agrupado = Counter(
+                (p.farmacia.codigo, p.forma_pago.value) for p in pedidos_validos
+            )
             logger.info(f"Pedidos validos: {len(pedidos_validos)}")
-            for i, p in enumerate(pedidos_validos, start=1):
-                logger.info(
-                    f"  #{i}: farmacia={p.farmacia.codigo}, forma_pago={p.forma_pago.value}, {len(p.Medicamentos)} medicamentos"
-                )
+            for (farmacia, forma), count in sorted(agrupado.items()):
+                logger.info(f"  {farmacia} - {forma}: {count}")
 
             logger.info("Iniciando procesamiento de pedidos en SISMED...")
             try:

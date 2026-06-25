@@ -64,3 +64,24 @@ def ejecutar_sp_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[dict],
 
     logger.info(f"Total headers: {len(headers)}, total detalles: {len(detalles)}")
     return headers, detalles
+
+
+def ejecutar_sp_update_estado(update_key: tuple[str, ...]) -> None:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        DECLARE @RptaCod varchar(3), @RtaMensjError varchar(900)
+        SET @RptaCod = NULL; SET @RtaMensjError = NULL
+        EXEC SP_UPDESTADOMOV_RPA ?, ?, ?, ?, ?, ?, ?, ?, @RptaCod OUTPUT, @RtaMensjError OUTPUT
+        SELECT @RptaCod, @RtaMensjError
+        """,
+        update_key,
+    )
+    conn.commit()
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if row:
+        rpta, msg = str(row[0] or ""), str(row[1] or "")
+        logger.info(f"SP_UPDESTADOMOV_RPA -> cod={rpta}, msg={msg}")

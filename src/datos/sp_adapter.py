@@ -28,6 +28,8 @@ COLUMNAS_HEADER = [
     "KS_CONCEPTO", "KS_CONCEPTO_DES", "KS_PEDIDO_NUMERO",
     "KS_PEDIDO_FECHA", "KS_PEDIDO_SEGURO", "KS_PEDIDO_SEGURO_DES",
     "KS_PEDIDO_FORMA_PAGO",
+    "KS_COD_TIPO_ALMACEN_VIRTUAL",
+    "ESTADO",
 ]
 
 
@@ -137,7 +139,21 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
     ingresos: list[Ingreso] = []
     salidas: list[Salidas] = []
 
+    def _build_update_key(row: dict) -> tuple[str, ...] | None:
+        partes = []
+        for col in ("KS_ORIGEN_CAS", "KS_CENTRO_CAS", "KS_TIPO_ALMACEN", "KS_ALMACEN",
+                     "KS_DOCUMENTO", "KS_NUMERO_MOVIMIENTO", "KS_TIPO_TRANSACCION",
+                     "KS_COD_TIPO_ALMACEN_VIRTUAL"):
+            val = str(row.get(col, "")).strip()
+            if not val or val in ("NULL", "None"):
+                return None
+            partes.append(val)
+        return tuple(partes)
+
     for row in headers_raw:
+        estado = str(row.get("ESTADO", "")).strip()
+        if estado == "1":
+            continue
         tipo = str(row.get("TIPO_MOVIMIENTO_DES", "")).strip().upper()
         ks = str(row.get("CORRELATIVO_KSALUD", "")).strip()
         detalles = detalles_por_ks.get(ks, [])
@@ -173,6 +189,7 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
                 diagnosticos=diagnosticos,
                 Medicamentos=medicamentos,
                 fua=fua,
+                update_key=_build_update_key(row),
             )
             pedidos.append(pedido)
 
@@ -185,6 +202,7 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
                 almacen_virtual_origen=_mapear_almacen_virtual(avo),
                 concepto="DISTRIBUCION",
                 medicamentos=medicamentos,
+                update_key=_build_update_key(row),
             )
             ingresos.append(ingreso)
 
@@ -199,6 +217,7 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
                 almacen_virtual_origen=almacen_virtual_origen,
                 concepto="DISTRIBUCION",
                 medicamentos=medicamentos,
+                update_key=_build_update_key(row),
             )
             salidas.append(salida)
 

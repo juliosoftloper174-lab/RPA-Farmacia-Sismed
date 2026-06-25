@@ -58,6 +58,7 @@ from src.reportes.excel_writer import (
     guardar_movimientos,
     obtener_siguiente_numero_procesado,
 )
+from database.conexion import ejecutar_sp_update_estado
 from src.sidmed._login import login
 
 # --- USAR EN PRODUCCIÓN ---
@@ -526,6 +527,10 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
             try:
 
                 correlativo = procesar_pedido(pedido)
+
+                if pedido.update_key:
+                    logger.debug(f"[LOTE] Pedido {idx}/{total} OK, actualizando estado en BD...")
+                    ejecutar_sp_update_estado(pedido.update_key)
 
                 row = crear_row_pedido(
                     i=numero_procesado,
