@@ -362,13 +362,13 @@ def extraer_correlativo_farmacia(forma_pago: FormaPago) -> str:
     """
     if forma_pago == FormaPago.CONTADO:
         ventana = WindowControl(RegexName=r"^BOLETA DE VENTA #")
-        if not ventana.Exists(maxSearchSeconds=15):
+        if not ventana.Exists(maxSearchSeconds=5):
             raise RuntimeError(
                 "No se encontró la ventana BOLETA DE VENTA después de guardar"
             )
     else:
         ventana = WindowControl(RegexName=r"^TICKET #")
-        if not ventana.Exists(maxSearchSeconds=10):
+        if not ventana.Exists(maxSearchSeconds=5):
             raise RuntimeError("No se encontró la ventana TICKET después de guardar")
 
     match = re.search(r"#(.+)", ventana.Name)
@@ -387,6 +387,7 @@ def procesar_boleta_venta(forma_pago: FormaPago) -> None:
     - CONTADO: ventana 'BOLETA DE VENTA #...', extrae TxtValVta → TxtImpPag → Aceptar
     - SIS / INTERVENCION_SANITARIA: ventana 'TICKET #...', solo Aceptar
     """
+    sleep(15)
     if forma_pago == FormaPago.CONTADO:
         ventana = WindowControl(RegexName=r"^BOLETA DE VENTA #")
         logger.debug("[BOLETA] Procesando pago CONTADO")

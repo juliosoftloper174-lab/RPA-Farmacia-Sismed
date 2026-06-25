@@ -1,13 +1,17 @@
 from loguru import logger
 
+# from src.sidmed.pedido import procesar_pedidos
+from PedidosSP.pedido_SP import procesar_pedidos
 from src.datos.sp_adapter import obtener_movimientos
 from src.models.forma_pago import FormaPago
 from src.models.pedido import generar_fua_ficticio
+from src.reportes.excel_schema import crear_row_incidencia_validacion
+from src.reportes.excel_writer import (
+    guardar_movimientos,
+    obtener_siguiente_numero_procesado,
+)
 from src.sidmed.ingreso import procesar_ingresos
 from src.sidmed.salidas import procesar_salidas
-from PedidosSP.pedido_SP import procesar_pedidos
-from src.reportes.excel_schema import crear_row_incidencia_validacion
-from src.reportes.excel_writer import guardar_movimientos, obtener_siguiente_numero_procesado
 
 # --- FLAGS: controlar qué flujos ejecutar ---
 PROCESAR_INGRESOS = False
@@ -30,7 +34,9 @@ def main():
     logger.info(f"Procesando movimientos desde {fecha_ini} hasta {fecha_fin}")
 
     pedidos, ingresos, salidas = obtener_movimientos(fecha_ini, fecha_fin)
-    logger.info(f"SP devolvio: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas")
+    logger.info(
+        f"SP devolvio: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas"
+    )
 
     # --- INYECTAR FUA FICTICIO PARA PEDIDOS SIS SIN FUA ---
     for pedido in pedidos:
@@ -87,7 +93,11 @@ def main():
                     crear_row_incidencia_validacion(
                         tipo="PEDIDO",
                         error="; ".join(motivos),
-                        data={"farmacia": pedido.farmacia.codigo, "cliente": pedido.cliente.codigo, "Medicamentos": pedido.Medicamentos},
+                        data={
+                            "farmacia": pedido.farmacia.codigo,
+                            "cliente": pedido.cliente.codigo,
+                            "Medicamentos": pedido.Medicamentos,
+                        },
                         i=numero_procesado,
                         estado="VALIDACION",
                     )
@@ -99,16 +109,22 @@ def main():
         if filas_excel:
             try:
                 guardar_movimientos(filas_excel)
-                logger.success(f"Incidencias de validacion guardadas: {len(filas_excel)}")
+                logger.success(
+                    f"Incidencias de validacion guardadas: {len(filas_excel)}"
+                )
             except Exception as e:
                 logger.exception(f"Error guardando incidencias de validacion: {e}")
 
         if not pedidos_validos:
-            logger.warning("Ningun pedido paso la validacion. No hay nada que procesar.")
+            logger.warning(
+                "Ningun pedido paso la validacion. No hay nada que procesar."
+            )
         else:
             logger.info(f"Pedidos validos: {len(pedidos_validos)}")
             for i, p in enumerate(pedidos_validos, start=1):
-                logger.info(f"  #{i}: farmacia={p.farmacia.codigo}, forma_pago={p.forma_pago.value}, {len(p.Medicamentos)} medicamentos")
+                logger.info(
+                    f"  #{i}: farmacia={p.farmacia.codigo}, forma_pago={p.forma_pago.value}, {len(p.Medicamentos)} medicamentos"
+                )
 
             logger.info("Iniciando procesamiento de pedidos en SISMED...")
             try:
