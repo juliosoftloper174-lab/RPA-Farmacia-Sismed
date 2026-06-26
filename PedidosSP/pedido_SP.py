@@ -43,6 +43,7 @@ from uiautomation import (
     WindowControl,
 )
 
+from database.conexion import ejecutar_sp_update_estado
 from src.helpers.cliente import seleccionar_cliente
 from src.helpers.diagnosticos import rellenar_diagnosticos
 from src.helpers.farmacia import seleccionar_farmacia_por_codigo
@@ -58,12 +59,15 @@ from src.reportes.excel_writer import (
     guardar_movimientos,
     obtener_siguiente_numero_procesado,
 )
-from database.conexion import ejecutar_sp_update_estado
 from src.sidmed._login import login
 
 # --- USAR EN PRODUCCIÓN ---
 SISMED_USERNAME = "RPA"
 SISMED_PASSWORD = "RPA"
+
+
+class ClienteNoEncontradoError(Exception):
+    pass
 
 
 def navegar_a_pedidos(pedido: Pedido) -> None:
@@ -290,7 +294,11 @@ def rellenar_cabecera(
     selecionar_receta(pedido)
 
     logger.debug(f"[CABECERA] Seleccionando cliente: {pedido.cliente.codigo}")
-    seleccionar_cliente(pedido.cliente.codigo)
+    if not seleccionar_cliente(pedido.cliente.codigo):
+        volver_a_menuprincipal()
+        raise ClienteNoEncontradoError(
+            f"Cliente {pedido.cliente.codigo} no encontrado en SISMED"
+        )
 
     logger.debug(f"[CABECERA] Rellenando UPS: {pedido.ups_codigo}")
     rellenar_ups_pedido(pedido)
@@ -388,7 +396,7 @@ def procesar_boleta_venta(forma_pago: FormaPago) -> None:
     - CONTADO: ventana 'BOLETA DE VENTA #...', extrae TxtValVta → TxtImpPag → Aceptar
     - SIS / INTERVENCION_SANITARIA: ventana 'TICKET #...', solo Aceptar
     """
-    sleep(15)
+    sleep(3)
     if forma_pago == FormaPago.CONTADO:
         ventana = WindowControl(RegexName=r"^BOLETA DE VENTA #")
         logger.debug("[BOLETA] Procesando pago CONTADO")
@@ -529,8 +537,16 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 correlativo = procesar_pedido(pedido)
 
                 if pedido.update_key:
-                    logger.debug(f"[LOTE] Pedido {idx}/{total} OK, actualizando estado en BD...")
-                    ejecutar_sp_update_estado(pedido.update_key)
+                    logger.debug(
+                        f"[LOTE] Pedido {idx}/{total} OK, actualizando estado en BD..."
+                    )
+                    try:
+                        ejecutar_sp_update_estado(pedido.update_key)
+                    except Exception as e:
+                        logger.warning(
+                            f"[LOTE] No se pudo actualizar estado en BD "
+                            f"para pedido {idx}/{total}: {str(e)[:120]}"
+                        )
 
                 row = crear_row_pedido(
                     i=numero_procesado,
@@ -548,6 +564,23 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                     msg += f" (tras {reintentos} reintento(s))"
                 logger.success(msg)
 
+                break
+
+            except ClienteNoEncontradoError as exc:
+                motivo = str(exc).split("\n")[0][:120]
+                logger.error(
+                    f"[LOTE] Pedido {idx}/{total} cliente no encontrado: {motivo}"
+                )
+                row = crear_row_pedido(
+                    i=numero_procesado,
+                    username=SISMED_USERNAME,
+                    correlativo_ksalud=k_salud_correlativo,
+                    correlativo_sismed="",
+                    pedido=pedido,
+                    estado="CLIENTE_NO_ENCONTRADO",
+                    error=motivo,
+                )
+                guardar_movimientos(row)
                 break
 
             except Exception as exc:

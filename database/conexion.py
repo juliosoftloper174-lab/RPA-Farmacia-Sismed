@@ -74,14 +74,10 @@ def ejecutar_sp_update_estado(update_key: tuple[str, ...]) -> None:
         DECLARE @RptaCod varchar(3), @RtaMensjError varchar(900)
         SET @RptaCod = NULL; SET @RtaMensjError = NULL
         EXEC SP_UPDESTADOMOV_RPA ?, ?, ?, ?, ?, ?, ?, ?, @RptaCod OUTPUT, @RtaMensjError OUTPUT
-        SELECT @RptaCod, @RtaMensjError
         """,
         update_key,
     )
     conn.commit()
-    row = cursor.fetchone()
     cursor.close()
     conn.close()
-    if row:
-        rpta, msg = str(row[0] or ""), str(row[1] or "")
-        logger.info(f"SP_UPDESTADOMOV_RPA -> cod={rpta}, msg={msg}")
+    logger.info("SP_UPDESTADOMOV_RPA ejecutado correctamente")

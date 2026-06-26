@@ -33,6 +33,10 @@ from ..reportes.excel_writer import (
 from ..sidmed._login import login
 
 
+class ClienteNoEncontradoError(Exception):
+    pass
+
+
 def navegar_a_pedidos(pedido: Pedido) -> None:
 
     logger.debug(
@@ -257,7 +261,11 @@ def rellenar_cabecera(
     selecionar_receta(pedido)
 
     logger.debug(f"[CABECERA] Seleccionando cliente: {pedido.cliente.codigo}")
-    seleccionar_cliente(pedido.cliente.codigo)
+    if not seleccionar_cliente(pedido.cliente.codigo):
+        volver_a_menuprincipal(pedido.forma_pago)
+        raise ClienteNoEncontradoError(
+            f"Cliente {pedido.cliente.codigo} no encontrado en SISMED"
+        )
 
     logger.debug(f"[CABECERA] Rellenando UPS: {pedido.ups_codigo}")
     rellenar_ups_pedido(pedido)
@@ -457,6 +465,23 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                     msg += f" (tras {reintentos} reintento(s))"
                 logger.success(msg)
 
+                break
+
+            except ClienteNoEncontradoError as exc:
+                motivo = str(exc).split("\n")[0][:120]
+                logger.error(
+                    f"[LOTE] Pedido {idx}/{total} cliente no encontrado: {motivo}"
+                )
+                row = crear_row_pedido(
+                    i=numero_procesado,
+                    username=SISMED_USERNAME,
+                    correlativo_ksalud=k_salud_correlativo,
+                    correlativo_sismed="",
+                    pedido=pedido,
+                    estado="CLIENTE_NO_ENCONTRADO",
+                    error=motivo,
+                )
+                guardar_movimientos(row)
                 break
 
             except Exception as exc:
