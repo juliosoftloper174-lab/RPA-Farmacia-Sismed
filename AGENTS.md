@@ -2,11 +2,11 @@
 
 ## 📌 Descripción General
 
-Proyecto **sismed_wrapper** v0.1.6 — Bot RPA que automatiza 3 flujos en el sistema desktop **SISMED**:
+Proyecto **sismed_wrapper** v0.1.7 — Bot RPA que automatiza 3 flujos en el sistema desktop **SISMED**:
 
 1. **Ingresos** (entradas de medicamentos a almacén) — ✅ Funcional con datos reales
 2. **Salidas** (transferencias entre almacenes) — ✅ Funcional con datos reales
-3. **Pedidos** (recetas / dispensación a pacientes) — ✅ Funcional con reintentos automáticos
+3. **Pedidos** (recetas / dispensación a pacientes) — ✅ Funcional con reintentos automáticos, actualización de estado en BD, y detección de clientes no encontrados
 
 ---
 
@@ -43,6 +43,7 @@ SP_MOVIMIENTOS_SISMED_RPA (fecha_ini, fecha_fin)
 
 ### `database/conexion.py` — Conexión a BD
 - `ejecutar_sp_movimientos(fecha_ini, fecha_fin)` → `(headers: list[dict], detalles: list[dict])`
+- `ejecutar_sp_update_estado(update_key: tuple[str,...])` → Ejecuta `SP_UPDESTADOMOV_RPA` y hace `conn.commit()`. Sin SELECT final ni lectura de resultsets.
 - Detecta resultsets por columnas: `COLUMNAS_HEADER` vs `COLUMNAS_DETALLE`
 
 ### `src/datos/sp_adapter.py` — Adaptador SP → Modelos
@@ -55,6 +56,8 @@ SP_MOVIMIENTOS_SISMED_RPA (fecha_ini, fecha_fin)
 - **Hardcodeados**: CLIENTE = "00025759", PRESCRIPTOR = "87705"
 - Fecha vencimiento: convierte `-` a `/`, corrige día 31 → 30
 - Log de "Columnas del detalle" en DEBUG (no INFO)
+- `update_key`: construye tupla de 8 campos para `SP_UPDESTADOMOV_RPA`
+- Filtro `ESTADO == "1"` → salta movimientos ya procesados
 
 ### `src/datos/test_data.py` — Datos de prueba (simulados, reemplazados por SP)
 - Contiene MOVIMIENTOS con pedidos, ingresos, salidas harcodeados
@@ -135,11 +138,25 @@ class Medicamento:
 
 ### `src/sidmed/_login.py` — Login SISMED
 - `login(username, password)`: Win+D → si no existe ventana login, abre .exe con Popen → escribe credenciales → cierra ventana productos vencidos
+- Manejo automático de backup diario: `_verificar_backup_diario()`, `_ignorar_program_error()` (cada 10s), `_esperar_backup_automatico()` con 2 fases (Backups Automátic[o] + Regeneración de índices)
+- Retry loop infinito con `input()` si el login falla
+
+### `PedidosSP/pedido_SP.py` — Automatización Pedidos (VERSIÓN ACTIVA) ✅
+- Módulo principal de pedidos con correlativo real (Boleta/Ticket) y actualización de estado en BD
+- `procesar_pedidos(tuple[Pedido])`: login una vez, itera pedidos con reintentos
+- `procesar_pedido(pedido)`: navegar → cabecera → productos → guardar → extraer correlativo real desde título ventana → procesar Boleta/Ticket → volver a menú
+- **Extracción real de correlativo**: CONTADO → ventana "BOLETA DE VENTA #176-0000007", SIS → "TICKET #003-0000008"
+- **Actualización BD**: llama `ejecutar_sp_update_estado(pedido.update_key)` tras cada pedido exitoso
+- **Detección de cliente no encontrado**: `seleccionar_cliente()` retorna `False` → llama `volver_a_menuprincipal()` → levanta `ClienteNoEncontradoError` → log `CLIENTE_NO_ENCONTRADO` en Excel sin reintentar
+- **Reintentos automáticos**: `MAX_REINTENTOS_PEDIDO = 3`. En cada fallo: cierra ventanas, reloguea, reintenta. Excepción: `ClienteNoEncontradoError` no reintenta
+- **Registro en Excel**: estado="OK", "OK_REPROCESADO", "RETRY", "ERROR", "CLIENTE_NO_ENCONTRADO"
+- Mismo `Nº de Procesado` en todos los intentos del mismo pedido
+- Boleta CONTADO: llena TxtValVta → TxtImpPag (0 → 0.01) → Aceptar. SIS/INTERVENCION: solo Aceptar
 
 ### `src/helpers/` — Helpers UI
-- `windows.py`: Accessors para ventanas SISMED (Farmacia, RegistroPedido, MenuPrincipal, etc.)
+- `windows.py`: Accesores para ventanas SISMED (Farmacia, RegistroPedido, MenuPrincipal, etc.)
 - `selecionar.py`: `seleccionar_combo_por_texto()` y `seleccionar_combo_por_texto_con_autoenter()` — logging en DEBUG
-- `cliente.py`: Busca y selecciona cliente por código
+- `cliente.py`: `seleccionar_cliente(dni) -> bool` — Busca cliente por DNI; retorna `True` si TxtCliente cambió (encontrado), `False` si no
 - `farmacia.py`: Busca farmacia por código en grilla
 - `producto.py`: `agregar_producto()` y `agregar_productos()` para pedidos
 - `diagnosticos.py`: Rellena hasta 3 diagnósticos CIE
@@ -166,6 +183,9 @@ sismed_wrapper/
 │   ├── ingresos.py                    ← Ingreso de todos los productos x5 a 06732F01
 │   ├── salidas.py                     ← 3 salidas: F01→F02, F01→F04, F01→F05
 │   └── main.py                        ← main propio: ingreso → salidas
+│
+├── PedidosSP/                         ← Módulo activo de pedidos (correlativo real + BD)
+│   └── pedido_SP.py                   ← Flujo Pedidos con Boleta/Ticket, update_key, ClienteNoEncontradoError
 │
 ├── database/
 │   └── conexion.py                    ← Conexión pyodbc + ejecutar_sp
@@ -242,18 +262,19 @@ sismed_wrapper/
 - **`Movimientos09062026/main.py`**: Pipeline completo del día 09/06/2026 — ingreso de todos los productos a F01, luego distribución a F02/F04/F05
 - **`simulacion_ingreso_test.py`**: Helper que genera ingresos *5 stock para cada producto de SALIDA (para pruebas de stock)
 - **`test_data.py` y `data_simulator.py`**: Ya no son importados por ningún módulo
+- **`SP_UPDESTADOMOV_RPA`**: Actualización de estado en BD tras cada ingreso/salida/pedido exitoso (vía `ejecutar_sp_update_estado`)
+- **`_login.py`**: Manejo automático de backup diario (detecta ventanas y espera regeneración de índices)
+- **Detección cliente no encontrado**: `seleccionar_cliente()` retorna `False` si TxtCliente no cambia → `ClienteNoEncontradoError` → log en Excel sin reintentar
 
 ## 🚧 Lo que falta hacer
 
 ### Pedidos con datos reales
 - El SP adapter ya construye objetos Pedido correctamente (testeado)
-- Falta probar/ajustar el flujo UI de `procesar_pedidos()` con datos reales
-- `extraer_correlativo_farmacia()` es un placeholder (randint) → implementar extracción real
+- El flujo pedidos con correlativo real funciona, probando con lotes más grandes
 
 ### Mejoras pendientes
 - `_obtener_fechas()` en `__main__.py` está harcodeado → parametrizar
 - Manejo de cliente y prescriptor real desde SP (no harcodeado)
-- `extraer_correlativo_farmacia()` real (no randint)
 - `Concepto` en salidas harcodeado por click ciego → mejorar
 - Validación de Ingresos y Salidas es un passthrough (no hay validación real)
 - Duplicación de productos (mismo código en un movimiento, sumar cantidades) — gap conocido no presente en datos actuales

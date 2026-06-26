@@ -16,8 +16,8 @@ from src.sidmed.ingreso import procesar_ingresos
 from src.sidmed.salidas import procesar_salidas
 
 # --- FLAGS: controlar qué flujos ejecutar ---
-PROCESAR_INGRESOS = False
-PROCESAR_SALIDAS = False
+PROCESAR_INGRESOS = True
+PROCESAR_SALIDAS = True
 PROCESAR_PEDIDOS = True
 
 

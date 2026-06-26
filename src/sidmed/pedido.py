@@ -526,8 +526,18 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
 
                 guardar_movimientos(row_retry)
 
-                cerrar_ventanas_sismed()
-                login(SISMED_USERNAME, SISMED_PASSWORD)
+                try:
+                    cerrar_ventanas_sismed()
+                    login(SISMED_USERNAME, SISMED_PASSWORD)
+                except Exception as cleanup_err:
+                    logger.error(
+                        f"[LOTE] INTERRUMPIDO: Error durante limpieza "
+                        f"({cleanup_err}). Verifique SISMED "
+                        f"(cierre ventanas de backup/manuales) "
+                        f"y presione Enter para continuar..."
+                    )
+                    input()
+                    login(SISMED_USERNAME, SISMED_PASSWORD)
 
         k_salud_correlativo += 1
         numero_procesado += 1
