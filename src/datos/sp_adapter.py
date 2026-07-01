@@ -17,6 +17,11 @@ PRESCRIPTOR_HARDCODEADO = "87705"
 ESTADOS_OK = {"1", "00"}
 ESTADOS_ERROR = {"01", "02", "10", "20"}
 
+# NOTE: Pendiente de implementación — requiere coordinación con el área de farmacia del hospital
+# @TODO: Implementar flujo para NOTA DE ENTRADA POR OTROS INGRESOS y NOTA DE SALIDA POR OTROS EGRESOS
+DOCUMENTOS_OTROS_INGRESOS = {"NOTA DE ENTRADA POR OTROS INGRESOS"}
+DOCUMENTOS_OTROS_EGRESOS = {"NOTA DE SALIDA POR OTROS EGRESOS"}
+
 COLUMNAS_HEADER = [
     "CORRELATIVO_KSALUD", "TIPO_MOVIMIENTO", "TIPO_MOVIMIENTO_DES",
     "FECHA_MOVIMIENTO", "ALMACEN_ORIGEN", "ALMACEN_VIRTUAL_ORIGEN",
@@ -158,6 +163,7 @@ def obtener_movimientos(
         return tuple(partes)
 
     saltados_error = 0
+    saltados_otros = 0
 
     for row in headers_raw:
         estado = str(row.get("ESTADO", "")).strip()
@@ -168,6 +174,24 @@ def obtener_movimientos(
             continue
         tipo = str(row.get("TIPO_MOVIMIENTO_DES", "")).strip().upper()
         ks = str(row.get("CORRELATIVO_KSALUD", "")).strip()
+
+        ks_doc_des = str(row.get("KS_DOCUMENTO_DES", "")).strip().upper()
+
+        if tipo == "INGRESO" and ks_doc_des in {d.upper() for d in DOCUMENTOS_OTROS_INGRESOS}:
+            logger.warning(
+                f"[SKIP] Ingreso {ks} omitido: KS_DOCUMENTO_DES='{row.get('KS_DOCUMENTO_DES')}' "
+                f"— pendiente de implementación con apoyo del hospital"
+            )
+            saltados_otros += 1
+            continue
+
+        if tipo == "SALIDA" and ks_doc_des in {d.upper() for d in DOCUMENTOS_OTROS_EGRESOS}:
+            logger.warning(
+                f"[SKIP] Salida {ks} omitido: KS_DOCUMENTO_DES='{row.get('KS_DOCUMENTO_DES')}' "
+                f"— pendiente de implementación con apoyo del hospital"
+            )
+            saltados_otros += 1
+            continue
         detalles = detalles_por_ks.get(ks, [])
         medicamentos = _construir_medicamentos(detalles)
 
@@ -238,6 +262,9 @@ def obtener_movimientos(
 
     if skip_errores and saltados_error:
         logger.info(f"Saltados {saltados_error} movimientos con estado de error (skip_errores=True)")
+
+    if saltados_otros:
+        logger.info(f"Saltados {saltados_otros} movimientos por ser OTROS INGRESOS/EGRESOS (pendientes de implementación)")
 
     logger.info(f"SP adapter: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas")
     return pedidos, ingresos, salidas

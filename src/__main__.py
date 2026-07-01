@@ -18,7 +18,9 @@ from src.sidmed.salidas import procesar_salidas
 
 
 def _obtener_fechas() -> tuple[str, str]:
-    return "2026-06-09", "2026-06-09"
+    fecha_ini = config.FECHA_INI or "2026-06-09"
+    fecha_fin = config.FECHA_FIN or "2026-06-09"
+    return fecha_ini, fecha_fin
 
 
 @logger.catch

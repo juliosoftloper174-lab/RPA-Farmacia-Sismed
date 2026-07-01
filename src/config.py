@@ -27,3 +27,7 @@ procesar_pedidos: bool = _bool_env("PROCESAR_PEDIDOS", True)
 
 # false = salta movimientos con estado de error
 procesar_errores: bool = _bool_env("PROCESAR_ERRORES", False)
+
+# Fechas para consulta de movimientos (opcional, fallback en __main__.py)
+FECHA_INI: str | None = environ.get("FECHA_INI")
+FECHA_FIN: str | None = environ.get("FECHA_FIN")
