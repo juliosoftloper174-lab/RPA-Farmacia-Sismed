@@ -14,6 +14,9 @@ from database.conexion import ejecutar_sp_movimientos
 CLIENTE_HARDCODEADO = "00025759"
 PRESCRIPTOR_HARDCODEADO = "87705"
 
+ESTADOS_OK = {"1", "00"}
+ESTADOS_ERROR = {"01", "02", "10", "20"}
+
 COLUMNAS_HEADER = [
     "CORRELATIVO_KSALUD", "TIPO_MOVIMIENTO", "TIPO_MOVIMIENTO_DES",
     "FECHA_MOVIMIENTO", "ALMACEN_ORIGEN", "ALMACEN_VIRTUAL_ORIGEN",
@@ -116,7 +119,11 @@ def _obtener_safe(row: dict, key: str, default=None):
     return row.get(key, row.get(key.upper(), default))
 
 
-def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], list[Ingreso], list[Salidas]]:
+def obtener_movimientos(
+    fecha_ini: str,
+    fecha_fin: str,
+    skip_errores: bool = False,
+) -> tuple[list[Pedido], list[Ingreso], list[Salidas]]:
     headers_raw, detalles_raw = ejecutar_sp_movimientos(fecha_ini, fecha_fin)
 
     if not headers_raw:
@@ -150,9 +157,14 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
             partes.append(val)
         return tuple(partes)
 
+    saltados_error = 0
+
     for row in headers_raw:
         estado = str(row.get("ESTADO", "")).strip()
-        if estado in ("1", "00"):
+        if estado in ESTADOS_OK:
+            continue
+        if skip_errores and estado in ESTADOS_ERROR:
+            saltados_error += 1
             continue
         tipo = str(row.get("TIPO_MOVIMIENTO_DES", "")).strip().upper()
         ks = str(row.get("CORRELATIVO_KSALUD", "")).strip()
@@ -223,6 +235,9 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
                 update_key=_build_update_key(row),
             )
             salidas.append(salida)
+
+    if skip_errores and saltados_error:
+        logger.info(f"Saltados {saltados_error} movimientos con estado de error (skip_errores=True)")
 
     logger.info(f"SP adapter: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas")
     return pedidos, ingresos, salidas

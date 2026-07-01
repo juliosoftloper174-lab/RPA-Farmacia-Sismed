@@ -4,6 +4,7 @@ from loguru import logger
 
 # from src.sidmed.pedido import procesar_pedidos
 from PedidosSP.pedido_SP import procesar_pedidos
+from src import config
 from src.datos.sp_adapter import obtener_movimientos
 from src.models.forma_pago import FormaPago
 from src.models.pedido import generar_fua_ficticio
@@ -14,12 +15,6 @@ from src.reportes.excel_writer import (
 )
 from src.sidmed.ingreso import procesar_ingresos
 from src.sidmed.salidas import procesar_salidas
-
-# --- FLAGS: controlar qué flujos ejecutar ---
-PROCESAR_INGRESOS = True
-PROCESAR_SALIDAS = True
-PROCESAR_PEDIDOS = True
-
 
 
 def _obtener_fechas() -> tuple[str, str]:
@@ -32,11 +27,12 @@ def main():
     logger.info("=" * 50)
     logger.info("SISMED BOT - FLUJO COMPLETO (INGRESOS + SALIDAS + PEDIDOS)")
     logger.info("=" * 50)
+    logger.info(f"Flags: ING={config.procesar_ingresos} SAL={config.procesar_salidas} PED={config.procesar_pedidos} ERR={config.procesar_errores}")
 
     fecha_ini, fecha_fin = _obtener_fechas()
     logger.info(f"Procesando movimientos desde {fecha_ini} hasta {fecha_fin}")
 
-    pedidos, ingresos, salidas = obtener_movimientos(fecha_ini, fecha_fin)
+    pedidos, ingresos, salidas = obtener_movimientos(fecha_ini, fecha_fin, skip_errores=not config.procesar_errores)
     logger.info(
         f"SP devolvio: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas"
     )
@@ -56,33 +52,33 @@ def main():
     )
 
     # --- INGRESOS ---
-    if PROCESAR_INGRESOS and ingresos:
+    if config.procesar_ingresos and ingresos:
         logger.info(f"Iniciando procesamiento de {len(ingresos)} ingresos...")
         try:
             procesar_ingresos(tuple(ingresos))
             logger.success("Ingresos procesados correctamente.")
         except Exception as e:
             logger.exception(f"Error procesando ingresos: {e}")
-    elif not PROCESAR_INGRESOS:
+    elif not config.procesar_ingresos:
         logger.info("INGRESOS: desactivado por configuracion.")
     else:
         logger.info("No hay ingresos para procesar.")
 
     # --- SALIDAS ---
-    if PROCESAR_SALIDAS and salidas:
+    if config.procesar_salidas and salidas:
         logger.info(f"Iniciando procesamiento de {len(salidas)} salidas...")
         try:
             procesar_salidas(tuple(salidas))
             logger.success("Salidas procesadas correctamente.")
         except Exception as e:
             logger.exception(f"Error procesando salidas: {e}")
-    elif not PROCESAR_SALIDAS:
+    elif not config.procesar_salidas:
         logger.info("SALIDAS: desactivado por configuracion.")
     else:
         logger.info("No hay salidas para procesar.")
 
     # --- PEDIDOS ---
-    if not PROCESAR_PEDIDOS:
+    if not config.procesar_pedidos:
         logger.info("PEDIDOS: desactivado por configuracion.")
     elif not pedidos:
         logger.warning("No se encontraron pedidos en el rango de fechas.")

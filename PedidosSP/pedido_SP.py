@@ -657,11 +657,12 @@ def main(pedidos_override: tuple = None):
     if pedidos_override is not None:
         pedidos = pedidos_override
     else:
+        from src import config
         from src.datos.sp_adapter import obtener_movimientos
 
         fecha_ini, fecha_fin = "2026-06-09", "2026-06-10"
         logger.info(f"Obteniendo pedidos desde SP ({fecha_ini} a {fecha_fin})...")
-        pedidos, _, _ = obtener_movimientos(fecha_ini, fecha_fin)
+        pedidos, _, _ = obtener_movimientos(fecha_ini, fecha_fin, skip_errores=not config.procesar_errores)
     logger.info(f"SP devolvio: {len(pedidos)} pedidos")
     for i, p in enumerate(pedidos, start=1):
         logger.info(
