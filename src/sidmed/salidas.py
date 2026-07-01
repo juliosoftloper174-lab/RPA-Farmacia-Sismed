@@ -1,4 +1,3 @@
-from random import randint
 from subprocess import Popen
 from time import sleep
 
@@ -235,7 +234,6 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
 
 
 def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
-    k_salud_correlativo = randint(1_000_000, 9_999_999)
     numero_procesado = obtener_siguiente_numero_procesado()
     total = len(salidas)
 
@@ -249,7 +247,7 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
             row = crear_row_salida(
                 i=numero_procesado,
                 username=SISMED_USERNAME,
-                correlativo_ksalud=k_salud_correlativo,
+                correlativo_ksalud=salida.correlativo_ksalud,
                 correlativo_sismed=correlativo,
                 salida=salida,
                 estado="OK",
@@ -260,10 +258,16 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
         except Exception as e:
             logger.exception(f"[SALIDA {idx}/{total}] Error: {e}")
 
+            if salida.update_key:
+                try:
+                    ejecutar_sp_update_estado(salida.update_key, "20")
+                except Exception as update_err:
+                    logger.warning(f"[SALIDA {idx}/{total}] No se pudo actualizar estado BD: {update_err}")
+
             row = crear_row_salida(
                 i=numero_procesado,
                 username=SISMED_USERNAME,
-                correlativo_ksalud=k_salud_correlativo,
+                correlativo_ksalud=salida.correlativo_ksalud,
                 correlativo_sismed="",
                 salida=salida,
                 estado="ERROR",
@@ -271,8 +275,6 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
             )
 
         guardar_movimientos(row)
-
-        k_salud_correlativo += 1
         numero_procesado += 1
 
     sleep(5)
@@ -321,8 +323,8 @@ def procesar_salida(salidas: Salidas, idx: int = 1, total: int = 1) -> str:
     logger.debug(f"[SALIDA {idx}/{total}] Correlativo obtenido: {correlativo}")
 
     if salidas.update_key:
-        logger.debug(f"[SALIDA {idx}/{total}] Actualizando estado en BD...")
-        ejecutar_sp_update_estado(salidas.update_key)
+        logger.debug(f"[SALIDA {idx}/{total}] Actualizando estado en BD (00)...")
+        ejecutar_sp_update_estado(salidas.update_key, "00")
 
     cerrar_sismed()
     sleep(5)

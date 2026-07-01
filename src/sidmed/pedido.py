@@ -431,11 +431,6 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
         SISMED_PASSWORD,
     )
 
-    k_salud_correlativo = randint(
-        1_000_000,
-        9_999_999,
-    )
-
     numero_procesado = obtener_siguiente_numero_procesado()
     total = len(pedidos)
 
@@ -452,7 +447,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 row = crear_row_pedido(
                     i=numero_procesado,
                     username=SISMED_USERNAME,
-                    correlativo_ksalud=k_salud_correlativo,
+                    correlativo_ksalud=pedido.correlativo_ksalud,
                     correlativo_sismed=correlativo,
                     pedido=pedido,
                     estado="OK_REPROCESADO" if reintentos > 0 else "OK",
@@ -475,7 +470,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 row = crear_row_pedido(
                     i=numero_procesado,
                     username=SISMED_USERNAME,
-                    correlativo_ksalud=k_salud_correlativo,
+                    correlativo_ksalud=pedido.correlativo_ksalud,
                     correlativo_sismed="",
                     pedido=pedido,
                     estado="CLIENTE_NO_ENCONTRADO",
@@ -499,7 +494,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                     row = crear_row_pedido(
                         i=numero_procesado,
                         username=SISMED_USERNAME,
-                        correlativo_ksalud=k_salud_correlativo,
+                        correlativo_ksalud=pedido.correlativo_ksalud,
                         correlativo_sismed="",
                         pedido=pedido,
                         estado="ERROR",
@@ -517,7 +512,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 row_retry = crear_row_pedido(
                     i=numero_procesado,
                     username=SISMED_USERNAME,
-                    correlativo_ksalud=k_salud_correlativo,
+                    correlativo_ksalud=pedido.correlativo_ksalud,
                     correlativo_sismed="",
                     pedido=pedido,
                     estado="RETRY",
@@ -539,7 +534,6 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                     input()
                     login(SISMED_USERNAME, SISMED_PASSWORD)
 
-        k_salud_correlativo += 1
         numero_procesado += 1
 
     logger.debug("[LOTE] Procesamiento de lote completado, cerrando SISMED")

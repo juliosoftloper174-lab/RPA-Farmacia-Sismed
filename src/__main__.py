@@ -16,13 +16,13 @@ from src.sidmed.ingreso import procesar_ingresos
 from src.sidmed.salidas import procesar_salidas
 
 # --- FLAGS: controlar qué flujos ejecutar ---
-PROCESAR_INGRESOS = True
-PROCESAR_SALIDAS = True
+PROCESAR_INGRESOS = False
+PROCESAR_SALIDAS = False
 PROCESAR_PEDIDOS = True
 
 
 def _obtener_fechas() -> tuple[str, str]:
-    return "2026-06-09", "2026-06-10"
+    return "2026-06-09", "2026-06-09"
 
 
 @logger.catch

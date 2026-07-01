@@ -152,7 +152,7 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
 
     for row in headers_raw:
         estado = str(row.get("ESTADO", "")).strip()
-        if estado == "1":
+        if estado in ("1", "00"):
             continue
         tipo = str(row.get("TIPO_MOVIMIENTO_DES", "")).strip().upper()
         ks = str(row.get("CORRELATIVO_KSALUD", "")).strip()
@@ -189,6 +189,7 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
                 diagnosticos=diagnosticos,
                 Medicamentos=medicamentos,
                 fua=fua,
+                correlativo_ksalud=ks,
                 update_key=_build_update_key(row),
             )
             pedidos.append(pedido)
@@ -202,6 +203,7 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
                 almacen_virtual_origen=_mapear_almacen_virtual(avo),
                 concepto="DISTRIBUCION",
                 medicamentos=medicamentos,
+                correlativo_ksalud=ks,
                 update_key=_build_update_key(row),
             )
             ingresos.append(ingreso)
@@ -217,6 +219,7 @@ def obtener_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[Pedido], l
                 almacen_virtual_origen=almacen_virtual_origen,
                 concepto="DISTRIBUCION",
                 medicamentos=medicamentos,
+                correlativo_ksalud=ks,
                 update_key=_build_update_key(row),
             )
             salidas.append(salida)

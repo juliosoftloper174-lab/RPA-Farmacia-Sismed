@@ -66,18 +66,18 @@ def ejecutar_sp_movimientos(fecha_ini: str, fecha_fin: str) -> tuple[list[dict],
     return headers, detalles
 
 
-def ejecutar_sp_update_estado(update_key: tuple[str, ...]) -> None:
+def ejecutar_sp_update_estado(update_key: tuple[str, ...], estado: str = "00") -> None:
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
         DECLARE @RptaCod varchar(3), @RtaMensjError varchar(900)
         SET @RptaCod = NULL; SET @RtaMensjError = NULL
-        EXEC SP_UPDESTADOMOV_RPA ?, ?, ?, ?, ?, ?, ?, ?, @RptaCod OUTPUT, @RtaMensjError OUTPUT
+        EXEC SP_UPDESTADOMOV_RPA ?, ?, ?, ?, ?, ?, ?, ?, ?, @RptaCod OUTPUT, @RtaMensjError OUTPUT
         """,
-        update_key,
+        (*update_key, estado),
     )
     conn.commit()
     cursor.close()
     conn.close()
-    logger.info("SP_UPDESTADOMOV_RPA ejecutado correctamente")
+    logger.info(f"SP_UPDESTADOMOV_RPA ejecutado con estado={estado}")

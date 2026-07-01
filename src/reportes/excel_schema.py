@@ -15,7 +15,6 @@ EXCEL_COLUMNS = [
     "almDestino",
     "almVirtual",
     "Concepto",
-    "UPS",
     # PEDIDOS
     "farmacia",
     "cliente",
@@ -127,7 +126,6 @@ def crear_row_pedido(
                 str(pedido.tipo_receta),
             ),
             "FUA": pedido.fua or "",
-            "UPS": getattr(pedido, "ups_codigo", ""),
             # DIAGNOSTICOS
             "Diag Nº1": diagnosticos[0] if len(diagnosticos) > 0 else "",
             "Diag Nº2": diagnosticos[1] if len(diagnosticos) > 1 else "",
@@ -225,7 +223,6 @@ def crear_row_incidencia_validacion(
                 data.get("almacen_virtual_origen", "") if isinstance(data, dict) else ""
             ),
             "Concepto": data.get("concepto", "") if isinstance(data, dict) else "",
-            "UPS": data.get("ups_codigo", "") if isinstance(data, dict) else "",
             "farmacia": data.get("farmacia", "") if isinstance(data, dict) else "",
             "cliente": data.get("cliente", "") if isinstance(data, dict) else "",
             "prescriptor": (

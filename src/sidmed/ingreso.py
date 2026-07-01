@@ -22,7 +22,6 @@ from src.sidmed._comun_almacen import (
     extraer_correlativo_almacen,
     guardar,
 )
-from random import randint
 from src.logger import logger
 from src.reportes.excel_schema import crear_row_ingreso
 from src.reportes.excel_writer import (
@@ -309,7 +308,6 @@ def agregar_productos(registro: WindowControl, ingreso: Ingreso):
 
 
 def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
-    k_salud_correlativo = randint(1_000_000, 9_999_999)
     numero_procesado = obtener_siguiente_numero_procesado()
     total = len(ingresos)
 
@@ -323,7 +321,7 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
             row = crear_row_ingreso(
                 i=numero_procesado,
                 username=SISMED_USERNAME,
-                correlativo_ksalud=k_salud_correlativo,
+                correlativo_ksalud=ingreso.correlativo_ksalud,
                 correlativo_sismed=correlativo,
                 ingreso=ingreso,
                 estado="OK",
@@ -334,10 +332,16 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
         except Exception as e:
             logger.exception(f"[INGRESO {idx}/{total}] Error: {e}")
 
+            if ingreso.update_key:
+                try:
+                    ejecutar_sp_update_estado(ingreso.update_key, "10")
+                except Exception as update_err:
+                    logger.warning(f"[INGRESO {idx}/{total}] No se pudo actualizar estado BD: {update_err}")
+
             row = crear_row_ingreso(
                 i=numero_procesado,
                 username=SISMED_USERNAME,
-                correlativo_ksalud=k_salud_correlativo,
+                correlativo_ksalud=ingreso.correlativo_ksalud,
                 correlativo_sismed="",
                 ingreso=ingreso,
                 estado="ERROR",
@@ -345,8 +349,6 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
             )
 
         guardar_movimientos(row)
-
-        k_salud_correlativo += 1
         numero_procesado += 1
 
     sleep(2)
@@ -377,8 +379,8 @@ def procesar_ingreso(ingreso: Ingreso, idx: int = 1, total: int = 1) -> str:
     logger.debug(f"[INGRESO {idx}/{total}] Correlativo obtenido: {correlativo}")
 
     if ingreso.update_key:
-        logger.debug(f"[INGRESO {idx}/{total}] Actualizando estado en BD...")
-        ejecutar_sp_update_estado(ingreso.update_key)
+        logger.debug(f"[INGRESO {idx}/{total}] Actualizando estado en BD (00)...")
+        ejecutar_sp_update_estado(ingreso.update_key, "00")
 
     sleep(1)
 

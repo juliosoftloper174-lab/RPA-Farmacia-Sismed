@@ -521,8 +521,6 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
         SISMED_PASSWORD,
     )
 
-    k_salud_correlativo = 1_000_000
-
     numero_procesado = obtener_siguiente_numero_procesado()
     total = len(pedidos)
 
@@ -538,10 +536,10 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
 
                 if pedido.update_key:
                     logger.debug(
-                        f"[LOTE] Pedido {idx}/{total} OK, actualizando estado en BD..."
+                        f"[LOTE] Pedido {idx}/{total} OK, actualizando estado en BD (00)..."
                     )
                     try:
-                        ejecutar_sp_update_estado(pedido.update_key)
+                        ejecutar_sp_update_estado(pedido.update_key, "00")
                     except Exception as e:
                         logger.warning(
                             f"[LOTE] No se pudo actualizar estado en BD "
@@ -551,7 +549,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 row = crear_row_pedido(
                     i=numero_procesado,
                     username=SISMED_USERNAME,
-                    correlativo_ksalud=k_salud_correlativo,
+                    correlativo_ksalud=pedido.correlativo_ksalud,
                     correlativo_sismed=correlativo,
                     pedido=pedido,
                     estado="OK_REPROCESADO" if reintentos > 0 else "OK",
@@ -571,10 +569,15 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 logger.error(
                     f"[LOTE] Pedido {idx}/{total} cliente no encontrado: {motivo}"
                 )
+                if pedido.update_key:
+                    try:
+                        ejecutar_sp_update_estado(pedido.update_key, "02")
+                    except Exception as update_err:
+                        logger.warning(f"[LOTE] No se pudo actualizar estado BD: {update_err}")
                 row = crear_row_pedido(
                     i=numero_procesado,
                     username=SISMED_USERNAME,
-                    correlativo_ksalud=k_salud_correlativo,
+                    correlativo_ksalud=pedido.correlativo_ksalud,
                     correlativo_sismed="",
                     pedido=pedido,
                     estado="CLIENTE_NO_ENCONTRADO",
@@ -595,10 +598,16 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                         f"tras {reintentos} reintentos: {motivo}"
                     )
 
+                    if pedido.update_key:
+                        try:
+                            ejecutar_sp_update_estado(pedido.update_key, "01")
+                        except Exception as update_err:
+                            logger.warning(f"[LOTE] No se pudo actualizar estado BD: {update_err}")
+
                     row = crear_row_pedido(
                         i=numero_procesado,
                         username=SISMED_USERNAME,
-                        correlativo_ksalud=k_salud_correlativo,
+                        correlativo_ksalud=pedido.correlativo_ksalud,
                         correlativo_sismed="",
                         pedido=pedido,
                         estado="ERROR",
@@ -616,7 +625,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 row_retry = crear_row_pedido(
                     i=numero_procesado,
                     username=SISMED_USERNAME,
-                    correlativo_ksalud=k_salud_correlativo,
+                    correlativo_ksalud=pedido.correlativo_ksalud,
                     correlativo_sismed="",
                     pedido=pedido,
                     estado="RETRY",
@@ -638,7 +647,6 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                     input()
                     login(SISMED_USERNAME, SISMED_PASSWORD)
 
-        k_salud_correlativo += 1
         numero_procesado += 1
 
     logger.debug("[LOTE] Procesamiento de lote completado, cerrando SISMED")

@@ -30,6 +30,7 @@ class Pedido(BaseModel):
     Medicamentos: list[Medicamento]
     fua: str | None = None
     ups_codigo: str = "301"
+    correlativo_ksalud: str = ""
     update_key: tuple[str, ...] | None = None
 
     def obtener_revisiones(self) -> list[str]:

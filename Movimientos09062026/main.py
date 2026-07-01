@@ -5,8 +5,8 @@ from src.sidmed.salidas import procesar_salidas
 from src.reportes.excel_schema import crear_row_incidencia_validacion
 from src.reportes.excel_writer import guardar_movimientos
 
-from ingresos import generar_ingresos
-from salidas import generar_salidas
+from .ingresos import generar_ingresos
+from .salidas import generar_salidas
 
 
 @logger.catch
