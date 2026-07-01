@@ -19,6 +19,8 @@ from src.sidmed._login import login
 from database.conexion import ejecutar_sp_update_estado
 from src.sidmed._comun_almacen import (
     cerrar_sismed,
+    cerrar_ventana_registro,
+    close_doc_windows,
     extraer_correlativo_almacen,
     guardar,
 )
@@ -311,12 +313,37 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
     numero_procesado = obtener_siguiente_numero_procesado()
     total = len(ingresos)
 
+    logger.info("[INGRESOS] Login SISMED...")
+    login(SISMED_USERNAME, SISMED_PASSWORD)
+    logger.info("[INGRESOS] Navegando a menu ingresos...")
+    sleep(2)
+    navegar_a_ingresos()
+
     for idx, ingreso in enumerate(ingresos, start=1):
 
         logger.info(f"[INGRESO {idx}/{total}] Procesando ingreso a {ingreso.almacen_destino} ({len(ingreso.medicamentos)} medicamentos)")
 
         try:
-            correlativo = procesar_ingreso(ingreso, idx, total)
+            logger.debug(f"[INGRESO {idx}/{total}] Abriendo registro...")
+            registro = abrir_registro()
+
+            logger.debug(f"[INGRESO {idx}/{total}] Rellenando cabecera...")
+            rellenar_cabecera(registro, ingreso)
+
+            logger.debug(f"[INGRESO {idx}/{total}] Agregando {len(ingreso.medicamentos)} productos...")
+            agregar_productos(registro, ingreso)
+
+            logger.debug(f"[INGRESO {idx}/{total}] Guardando...")
+            guardar()
+
+            sleep(1)
+
+            correlativo: str = extraer_correlativo_almacen()
+            logger.debug(f"[INGRESO {idx}/{total}] Correlativo obtenido: {correlativo}")
+
+            if ingreso.update_key:
+                logger.debug(f"[INGRESO {idx}/{total}] Actualizando estado BD (00)...")
+                ejecutar_sp_update_estado(ingreso.update_key, "00")
 
             row = crear_row_ingreso(
                 i=numero_procesado,
@@ -338,6 +365,8 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
                 except Exception as update_err:
                     logger.warning(f"[INGRESO {idx}/{total}] No se pudo actualizar estado BD: {update_err}")
 
+            close_doc_windows()
+
             row = crear_row_ingreso(
                 i=numero_procesado,
                 username=SISMED_USERNAME,
@@ -348,41 +377,12 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
                 error=str(e),
             )
 
+        cerrar_ventana_registro()
+        sleep(1.5)
+        SendKeys("{Enter}")
+
         guardar_movimientos(row)
         numero_procesado += 1
 
-    sleep(2)
-
-
-def procesar_ingreso(ingreso: Ingreso, idx: int = 1, total: int = 1) -> str:
-    logger.debug(f"[INGRESO {idx}/{total}] Login...")
-    login(SISMED_USERNAME, SISMED_PASSWORD)
-    logger.debug(f"[INGRESO {idx}/{total}] Login OK, navegando a menu ingresos...")
-    sleep(2)
-    navegar_a_ingresos()
-
-    logger.debug(f"[INGRESO {idx}/{total}] Abriendo registro...")
-    registro = abrir_registro()
-
-    logger.debug(f"[INGRESO {idx}/{total}] Rellenando cabecera...")
-    rellenar_cabecera(registro, ingreso)
-
-    logger.debug(f"[INGRESO {idx}/{total}] Agregando {len(ingreso.medicamentos)} productos...")
-    agregar_productos(registro, ingreso)
-
-    logger.debug(f"[INGRESO {idx}/{total}] Guardando...")
-    guardar()
-
-    sleep(1)
-
-    correlativo: str = extraer_correlativo_almacen()
-    logger.debug(f"[INGRESO {idx}/{total}] Correlativo obtenido: {correlativo}")
-
-    if ingreso.update_key:
-        logger.debug(f"[INGRESO {idx}/{total}] Actualizando estado en BD (00)...")
-        ejecutar_sp_update_estado(ingreso.update_key, "00")
-
-    sleep(1)
-
+    logger.info("[INGRESOS] Cerrando SISMED...")
     cerrar_sismed()
-    return correlativo

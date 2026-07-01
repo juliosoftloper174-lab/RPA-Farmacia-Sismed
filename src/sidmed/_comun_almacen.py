@@ -78,6 +78,15 @@ def extraer_correlativo_almacen() -> str:
     raise RuntimeError("No se encontró ni correlativo ni mensaje de error.")
 
 
+def cerrar_ventana_registro() -> None:
+    registro = WindowControl(Name="Registro de Ingresos .")
+    if registro.Exists(2):
+        title_bar = registro.TitleBarControl(searchDepth=1)
+        close_button = title_bar.ButtonControl(searchDepth=1, Name="Cerrar")
+        if close_button.Exists():
+            close_button.GetInvokePattern().Invoke()
+
+
 def cerrar_sismed() -> None:
     almacen_window: WindowControl = WindowControl(
         searchDepth=1, Name="ALMACEN - MINSA SISMED"

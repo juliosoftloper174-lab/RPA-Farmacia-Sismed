@@ -16,9 +16,9 @@ from src.sidmed.ingreso import procesar_ingresos
 from src.sidmed.salidas import procesar_salidas
 
 # --- FLAGS: controlar qué flujos ejecutar ---
-PROCESAR_INGRESOS = False
+PROCESAR_INGRESOS = True
 PROCESAR_SALIDAS = False
-PROCESAR_PEDIDOS = True
+PROCESAR_PEDIDOS = False
 
 
 def _obtener_fechas() -> tuple[str, str]:
