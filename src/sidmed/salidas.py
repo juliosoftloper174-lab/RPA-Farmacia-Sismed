@@ -1,43 +1,37 @@
-from subprocess import Popen
 from time import sleep
 
-from src.helpers.manejo_errores import cerrar_ventana_segura
-from src.reportes.excel_writer import guardar_movimientos
-from ..logger import logger
-
-
 from uiautomation import (
-    ListItemControl,
-    DocumentControl,
-    EditControl,
-    WindowControl,
-    TableControl,
+    ButtonControl,
+    Click,
     ComboBoxControl,
     CustomControl,
     DataItemControl,
+    EditControl,
+    ListItemControl,
     SendKeys,
-    Click,
-    ButtonControl,
-)
-
-
-from src.models.Medicamento import Medicamento
-from src.models.Salidas import Salidas
-from src.sidmed._comun_almacen import (
-    cerrar_sismed,
-    extraer_correlativo_almacen,
-    guardar,
+    TableControl,
+    WindowControl,
 )
 
 from database.conexion import ejecutar_sp_update_estado
-from ..sidmed._login import login
+from src.models.Medicamento import Medicamento
+from src.models.Salidas import Salidas
 from src.reportes.excel_schema import crear_row_salida
 from src.reportes.excel_writer import (
     guardar_movimientos,
     obtener_siguiente_numero_procesado,
 )
+from src.sidmed._comun_almacen import (
+    cerrar_sismed,
+    cerrar_ventana_salida_guardada,
+    close_doc_windows,
+    extraer_correlativo_almacen,
+    guardar,
+)
 
-from ..config import SISMED_PASSWORD, SISMED_USERNAME, SISMED_EXE
+from ..config import SISMED_PASSWORD, SISMED_USERNAME
+from ..logger import logger
+from ..sidmed._login import login
 
 # =========================================================
 # 🔹 HELPERS
@@ -74,33 +68,7 @@ def seleccionar_combo_sismed(nombre_combo: str, texto_objetivo: str, max_intento
 # =========================================================
 
 
-def Login() -> None:
-    """No used, may be a scheme for a future refactor."""
-    Popen(SISMED_EXE)
-
-    login_window = WindowControl(Name="Acceso al Sistema")
-
-    if login_window.Exists(10):
-        login_window.EditControl(Name="txtUsuario").SendKeys(SISMED_USERNAME)
-        login_window.EditControl(Name="txtClave").SendKeys(SISMED_PASSWORD)
-
-        login_window.ButtonControl(Name="Aceptar").Click()
-        logger.info("✅ Login realizado")
-    else:
-        raise Exception("❌ No se encontró la ventana de login")
-
-    sleep(1)
-
-    # 🔹 cerrar ventana de vencidos
-    ventana_vencidos = WindowControl(Name="Productos Vencidos y por Vencer")
-
-    if ventana_vencidos.Exists(5):
-        ventana_vencidos.ButtonControl(Name="Salir").Click()
-        logger.info("🧹 Ventana de productos vencidos cerrada")
-    return None
-
-
-def Navegar_Salidas() -> WindowControl:
+def navegar_a_salidas() -> WindowControl:
     Click(355, 115)
     sleep(0.3)
     SendKeys("{Enter}")
@@ -116,15 +84,20 @@ def Navegar_Salidas() -> WindowControl:
 
     for intento in range(3):
         if registro.Exists(5):
-            logger.info("✅ Ventana encontrada")
-            sleep(0.3)
-            registro.ButtonControl(Name="CmdNew").Click()
+            logger.info("Ventana Registro de Salidas encontrada")
             return registro
         else:
-            logger.info(f"⚠️ Intento {intento+1}: No se encontró la ventana")
+            logger.info(f"Intento {intento+1}: No se encontró la ventana")
             sleep(1)
 
-    raise Exception("❌ No se encontró la ventana 'Registro de Salidas'")
+    raise Exception("No se encontró la ventana 'Registro de Salidas'")
+
+
+def abrir_registro_salida() -> WindowControl:
+    registro = WindowControl(Name="Registro de Salidas ")
+    registro.Exists(10)
+    registro.ButtonControl(Name="CmdNew").Click()
+    return registro
 
 
 # =========================================================
@@ -220,29 +193,58 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
     # NOTE: Se tomo la decision de Harcodear ya que almenos se tiene entendido que siempre sera distribucion, ademas de que esta muy dificil poder seleccionar la acion ya que si jugamos con las opciones algunas quitan el almacen destino y a volver a querer poner distribucion nos da error
     sleep(2)
     Click(700, 280)
-    sleep(4)
+    sleep(2)
     Click(704, 340)
-    sleep(4)
+    sleep(2)
     Click(507, 307)
-    sleep(4)
+    sleep(2)
     sleep(1)
     Click(704, 340)
-    sleep(2.5)
+    sleep(2)
     sleep(1)
     Click(507, 307)
-    sleep(2.5)
+    sleep(2)
 
 
 def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
     numero_procesado = obtener_siguiente_numero_procesado()
     total = len(salidas)
 
+    logger.info("[SALIDAS] Login SISMED...")
+    login(SISMED_USERNAME, SISMED_PASSWORD)
+    logger.info("[SALIDAS] Navegando a menu salidas...")
+    sleep(2)
+    navegar_a_salidas()
+
     for idx, salida in enumerate(salidas, start=1):
 
-        logger.info(f"[SALIDA {idx}/{total}] Procesando salida {salida.almacen_origen} -> {salida.almacen_destino} ({len(salida.medicamentos)} medicamentos)")
+        logger.info(
+            f"[SALIDA {idx}/{total}] Procesando salida {salida.almacen_origen} -> {salida.almacen_destino} ({len(salida.medicamentos)} medicamentos)"
+        )
 
         try:
-            correlativo = procesar_salida(salida, idx, total)
+            logger.debug(f"[SALIDA {idx}/{total}] Abriendo registro...")
+            registro = abrir_registro_salida()
+
+            logger.debug(f"[SALIDA {idx}/{total}] Rellenando cabecera...")
+            rellenar_cabecera_salidas(registro, salida)
+
+            logger.debug(
+                f"[SALIDA {idx}/{total}] Agregando {len(salida.medicamentos)} productos..."
+            )
+            for producto in salida.medicamentos:
+                agregar_producto(producto)
+
+            logger.debug(f"[SALIDA {idx}/{total}] Guardando...")
+            guardar()
+            sleep(1)
+
+            correlativo = extraer_correlativo_almacen()
+            logger.debug(f"[SALIDA {idx}/{total}] Correlativo obtenido: {correlativo}")
+
+            if salida.update_key:
+                logger.debug(f"[SALIDA {idx}/{total}] Actualizando estado BD (00)...")
+                ejecutar_sp_update_estado(salida.update_key, "00")
 
             row = crear_row_salida(
                 i=numero_procesado,
@@ -262,7 +264,11 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
                 try:
                     ejecutar_sp_update_estado(salida.update_key, "20")
                 except Exception as update_err:
-                    logger.warning(f"[SALIDA {idx}/{total}] No se pudo actualizar estado BD: {update_err}")
+                    logger.warning(
+                        f"[SALIDA {idx}/{total}] No se pudo actualizar estado BD: {update_err}"
+                    )
+
+            close_doc_windows()
 
             row = crear_row_salida(
                 i=numero_procesado,
@@ -274,10 +280,15 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
                 error=str(e),
             )
 
+        cerrar_ventana_salida_guardada()
+        sleep(1.5)
+        SendKeys("{Enter}")
+
         guardar_movimientos(row)
         numero_procesado += 1
 
-    sleep(5)
+    logger.info("[SALIDAS] Cerrando SISMED...")
+    cerrar_sismed()
 
 
 def agregar_producto(producto: Medicamento):
@@ -285,48 +296,21 @@ def agregar_producto(producto: Medicamento):
     # se iba a trabajar usando inspecto pero la ventana cambia de nombre segun el almacen virtual seleccionado, alm destino, almacen origen, etc, por lo que es muy dificil asegurar el nombre de la ventana, por lo que se decidio trabajar con clicks en coordenadas especificas, ya que se tiene entendido que la ventana siempre va a tener la misma estructura y los mismos campos en las mismas posiciones
 
     SendKeys("{CONTROL}{INSERT}")  # abre ventana de agregar producto
-    sleep(1)
+    sleep(3)
     Click(825, 355)  # clic en el campo de codigo
-    sleep(0.3)
+    sleep(3)
     Click(615, 315)  # clic en el txt busca
-    sleep(0.3)
+    sleep(3)
     SendKeys(producto.codigo)  # busca el producto
-    sleep(0.3)
+    sleep(3)
     SendKeys("{Enter}")
-    sleep(0.3)
+    sleep(3)
     SendKeys("{Enter}")  # selecciona el producto
-    sleep(0.3)
+    sleep(3)
     SendKeys("{Enter}")
-    sleep(0.3)
+    sleep(3)
     SendKeys(str(producto.cantidad))  # ingresa la cantidad
-    sleep(0.3)
+    sleep(3)
     SendKeys("{Enter}")
     SendKeys("{Enter}")
     pass
-
-
-def procesar_salida(salidas: Salidas, idx: int = 1, total: int = 1) -> str:
-
-    logger.debug(f"[SALIDA {idx}/{total}] Login...")
-    login(SISMED_USERNAME, SISMED_PASSWORD)
-    logger.debug(f"[SALIDA {idx}/{total}] Navegando a registro de salidas...")
-    registro: WindowControl = Navegar_Salidas()
-    logger.debug(f"[SALIDA {idx}/{total}] Rellenando cabecera...")
-    rellenar_cabecera_salidas(registro, salidas)
-    logger.debug(f"[SALIDA {idx}/{total}] Agregando {len(salidas.medicamentos)} productos...")
-    for producto in salidas.medicamentos:
-        agregar_producto(producto)
-    logger.debug(f"[SALIDA {idx}/{total}] Guardando...")
-    guardar()
-    sleep(1)
-    correlativo: str = extraer_correlativo_almacen()
-    logger.debug(f"[SALIDA {idx}/{total}] Correlativo obtenido: {correlativo}")
-
-    if salidas.update_key:
-        logger.debug(f"[SALIDA {idx}/{total}] Actualizando estado en BD (00)...")
-        ejecutar_sp_update_estado(salidas.update_key, "00")
-
-    cerrar_sismed()
-    sleep(5)
-
-    return correlativo

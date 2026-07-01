@@ -78,13 +78,32 @@ def extraer_correlativo_almacen() -> str:
     raise RuntimeError("No se encontró ni correlativo ni mensaje de error.")
 
 
-def cerrar_ventana_registro() -> None:
-    registro = WindowControl(Name="Registro de Ingresos .")
+def cerrar_ventana_registro(nombre_ventana: str = "Registro de Ingresos .") -> None:
+    registro = WindowControl(Name=nombre_ventana)
     if registro.Exists(2):
         title_bar = registro.TitleBarControl(searchDepth=1)
         close_button = title_bar.ButtonControl(searchDepth=1, Name="Cerrar")
         if close_button.Exists():
             close_button.GetInvokePattern().Invoke()
+
+
+def cerrar_ventana_salida_guardada() -> None:
+    for intento in range(5):
+        ventana = WindowControl(RegexName=r"^E-\d+")
+        if ventana.Exists(1):
+            title_bar = ventana.TitleBarControl(searchDepth=1)
+            close_button = title_bar.ButtonControl(searchDepth=1, Name="Cerrar")
+            if close_button.Exists():
+                close_button.GetInvokePattern().Invoke()
+                sleep(0.5)
+                confirmacion = WindowControl(Name="Aviso")
+                if confirmacion.Exists(2):
+                    si = confirmacion.ButtonControl(Name="Sí")
+                    if si.Exists():
+                        si.Click()
+            return
+        sleep(1)
+    logger.warning("No se encontró ventana E-* para cerrar")
 
 
 def cerrar_sismed() -> None:

@@ -6,14 +6,17 @@ from src.reportes.excel_schema import crear_row_incidencia_validacion
 from src.reportes.excel_writer import guardar_movimientos
 
 from .ingresos import generar_ingresos
-from .salidas import generar_salidas
+from .salidas import generar_pre_distribuciones
 
 
 @logger.catch
 def main():
 
     logger.info("==========================================")
-    logger.info("SISMED BOT - MOVIMIENTOS 09/06/2026")
+    logger.info("SISMED BOT - PRE-STOCK 09/06/2026 (x20)")
+    logger.info("==========================================")
+    logger.info("Propósito: stockear todas las farmacias para")
+    logger.info("que las salidas del SP puedan ejecutarse 20 veces.")
     logger.info("==========================================")
 
     filas_excel = []
@@ -40,16 +43,16 @@ def main():
         return
 
     # =========================================
-    # PASO 2: DISTRIBUIR DESDE F01 A LAS DEMAS
+    # PASO 2: PRE-DISTRIBUIR STOCK A F02, F03, F04, F05
     # =========================================
 
-    logger.info("Paso 2/2: Distribuyendo desde 06732F01 a las demas farmacias...")
+    logger.info("Paso 2/2: Pre-distribuyendo stock a F02, F03, F04, F05...")
 
     try:
-        salidas = generar_salidas()
-        logger.info(f"Generadas {len(salidas)} salidas")
+        salidas = generar_pre_distribuciones()
+        logger.info(f"Generadas {len(salidas)} pre-distribuciones")
         procesar_salidas(salidas)
-        logger.success("Salidas procesadas correctamente.")
+        logger.success("Pre-distribuciones procesadas correctamente.")
     except Exception as e:
         filas_excel.append(
             crear_row_incidencia_validacion(
@@ -57,7 +60,7 @@ def main():
                 estado="PROCESAMIENTO",
             )
         )
-        logger.exception(f"Error en salidas: {e}")
+        logger.exception(f"Error en pre-distribuciones: {e}")
 
     if filas_excel:
         try:
