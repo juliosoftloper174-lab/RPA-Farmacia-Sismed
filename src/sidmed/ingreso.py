@@ -309,9 +309,11 @@ def agregar_productos(registro: WindowControl, ingreso: Ingreso):
 # =========================================================
 
 
-def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
+def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> dict:
     numero_procesado = obtener_siguiente_numero_procesado()
     total = len(ingresos)
+    ok_count = 0
+    error_count = 0
 
     logger.info("[INGRESOS] Login SISMED...")
     login(SISMED_USERNAME, SISMED_PASSWORD)
@@ -355,9 +357,11 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
             )
 
             logger.success(f"[INGRESO {idx}/{total}] OK -> correlativo={correlativo}")
+            ok_count += 1
 
         except Exception as e:
             logger.exception(f"[INGRESO {idx}/{total}] Error: {e}")
+            error_count += 1
 
             if ingreso.update_key:
                 try:
@@ -386,3 +390,5 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> None:
 
     logger.info("[INGRESOS] Cerrando SISMED...")
     cerrar_sismed()
+
+    return {"total": total, "ok": ok_count, "error": error_count}

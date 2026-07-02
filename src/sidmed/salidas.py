@@ -206,9 +206,11 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
     sleep(2)
 
 
-def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
+def procesar_salidas(salidas: tuple[Salidas, ...]) -> dict:
     numero_procesado = obtener_siguiente_numero_procesado()
     total = len(salidas)
+    ok_count = 0
+    error_count = 0
 
     logger.info("[SALIDAS] Login SISMED...")
     login(SISMED_USERNAME, SISMED_PASSWORD)
@@ -256,9 +258,11 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
             )
 
             logger.success(f"[SALIDA {idx}/{total}] OK -> correlativo={correlativo}")
+            ok_count += 1
 
         except Exception as e:
             logger.exception(f"[SALIDA {idx}/{total}] Error: {e}")
+            error_count += 1
 
             if salida.update_key:
                 try:
@@ -289,6 +293,8 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> None:
 
     logger.info("[SALIDAS] Cerrando SISMED...")
     cerrar_sismed()
+
+    return {"total": total, "ok": ok_count, "error": error_count}
 
 
 def agregar_producto(producto: Medicamento):

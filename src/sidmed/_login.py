@@ -3,7 +3,11 @@ from time import sleep
 
 from uiautomation import SendKeys, WindowControl, ButtonControl
 from loguru import logger
-from src.config import SISMED_EXE
+from src import config
+from src.notifications.email_sender import (
+    enviar_correo,
+    construir_cuerpo_backup,
+)
 
 
 def _verificar_backup_diario() -> None:
@@ -29,7 +33,7 @@ def _verificar_backup_diario() -> None:
 
     logger.info("Usuario confirmó backup completado. Reabriendo SISMED...")
     sleep(2)
-    Popen(SISMED_EXE)
+    Popen(config.SISMED_EXE)
     sleep(3)
 
 
@@ -50,6 +54,11 @@ def _esperar_backup_automatico() -> None:
         return
 
     logger.warning("Backup detectado. Esperando que finalice...")
+    enviar_correo(
+        f"⚠️ Bot N°{config.BOT_NUMBER} - BACKUP DETECTADO",
+        construir_cuerpo_backup("inicio"),
+    )
+
     for i in range(15):
         for _ in range(6):
             sleep(10)
@@ -75,13 +84,18 @@ def _esperar_backup_automatico() -> None:
                 break
             logger.warning(f"Regeneración en curso... ({i+1}/10)")
 
+    enviar_correo(
+        f"✅ Bot N°{config.BOT_NUMBER} - BACKUP FINALIZADO",
+        construir_cuerpo_backup("fin"),
+    )
+
 
 def login(username: str, password: str) -> None:
     SendKeys("{Win}d")
 
     LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
     if not LOGIN_WINDOW.Exists(maxSearchSeconds=0):
-        Popen(SISMED_EXE)
+        Popen(config.SISMED_EXE)
         sleep(3)
         LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
 
@@ -107,7 +121,7 @@ def login(username: str, password: str) -> None:
                 + "=" * 60
             )
             input()
-            Popen(SISMED_EXE)
+            Popen(config.SISMED_EXE)
             sleep(3)
 
 

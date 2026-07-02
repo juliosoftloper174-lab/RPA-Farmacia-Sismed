@@ -31,3 +31,10 @@ procesar_errores: bool = _bool_env("PROCESAR_ERRORES", False)
 # Fechas para consulta de movimientos (opcional, fallback en __main__.py)
 FECHA_INI: str | None = environ.get("FECHA_INI")
 FECHA_FIN: str | None = environ.get("FECHA_FIN")
+
+# Notificaciones por correo
+SMTP_EMAIL: str = environ.get("SMTP_EMAIL", "")
+SMTP_PASSWORD: str = environ.get("SMTP_PASSWORD", "")
+SMTP_DESTINO: str = environ.get("SMTP_DESTINO", "")
+BOT_NUMBER: int = int(environ.get("BOT_NUMBER", "1"))
+NOTIFICAR_CORREO: bool = _bool_env("NOTIFICAR_CORREO", False)

@@ -267,4 +267,4 @@ def obtener_movimientos(
         logger.info(f"Saltados {saltados_otros} movimientos por ser OTROS INGRESOS/EGRESOS (pendientes de implementación)")
 
     logger.info(f"SP adapter: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas")
-    return pedidos, ingresos, salidas
+    return pedidos, ingresos, salidas, saltados_otros

@@ -514,7 +514,7 @@ def cerrar_ventanas_sismed() -> None:
     sleep(3)
 
 
-def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
+def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
 
     login(
         SISMED_USERNAME,
@@ -523,6 +523,9 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
 
     numero_procesado = obtener_siguiente_numero_procesado()
     total = len(pedidos)
+    ok_count = 0
+    error_count = 0
+    sin_cliente_count = 0
 
     for idx, pedido in enumerate(pedidos, start=1):
 
@@ -561,6 +564,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 if reintentos > 0:
                     msg += f" (tras {reintentos} reintento(s))"
                 logger.success(msg)
+                ok_count += 1
 
                 break
 
@@ -569,6 +573,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                 logger.error(
                     f"[LOTE] Pedido {idx}/{total} cliente no encontrado: {motivo}"
                 )
+                sin_cliente_count += 1
                 if pedido.update_key:
                     try:
                         ejecutar_sp_update_estado(pedido.update_key, "02")
@@ -597,6 +602,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
                         f"[LOTE] Pedido {idx}/{total} falló definitivamente "
                         f"tras {reintentos} reintentos: {motivo}"
                     )
+                    error_count += 1
 
                     if pedido.update_key:
                         try:
@@ -652,6 +658,8 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> None:
     logger.debug("[LOTE] Procesamiento de lote completado, cerrando SISMED")
     cerrar_sismed_pedido()
 
+    return {"total": total, "ok": ok_count, "error": error_count, "sin_cliente": sin_cliente_count}
+
 
 def main(pedidos_override: tuple = None):
     if pedidos_override is not None:
@@ -662,7 +670,7 @@ def main(pedidos_override: tuple = None):
 
         fecha_ini, fecha_fin = "2026-06-09", "2026-06-10"
         logger.info(f"Obteniendo pedidos desde SP ({fecha_ini} a {fecha_fin})...")
-        pedidos, _, _ = obtener_movimientos(fecha_ini, fecha_fin, skip_errores=not config.procesar_errores)
+        pedidos, _, _, _ = obtener_movimientos(fecha_ini, fecha_fin, skip_errores=not config.procesar_errores)
     logger.info(f"SP devolvio: {len(pedidos)} pedidos")
     for i, p in enumerate(pedidos, start=1):
         logger.info(
