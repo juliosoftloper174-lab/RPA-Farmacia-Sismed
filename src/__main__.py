@@ -80,7 +80,7 @@ def main():
     datos_sp = {"ingresos": len(ingresos), "salidas": len(salidas), "pedidos": len(pedidos)}
     enviar_correo(
         f"🟢 Bot N°{config.BOT_NUMBER} - INICIADO",
-        construir_cuerpo_inicio(datos_sp),
+        construir_cuerpo_inicio(datos_sp, fecha_ini, fecha_fin, saltados_otros),
     )
 
     stats = {
@@ -220,7 +220,7 @@ def main():
     stats["hora_fin"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     enviar_correo(
         f"✅ Bot N°{config.BOT_NUMBER} - PROCESO FINALIZADO",
-        construir_cuerpo_resumen(stats),
+        construir_cuerpo_resumen(stats, fecha_ini, fecha_fin),
     )
     _limpiar_centinela()
 

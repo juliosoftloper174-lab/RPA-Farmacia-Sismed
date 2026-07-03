@@ -68,6 +68,21 @@ def _tabla_resumen(stats: dict) -> str:
     return filas
 
 
+def _fila_rango_fechas(fecha_ini: str | None = None, fecha_fin: str | None = None) -> str:
+    if not fecha_ini or not fecha_fin:
+        return ""
+    return f"""
+            <tr><td style="padding:4px 8px;font-weight:bold;">Rango fechas:</td><td style="padding:4px 8px;">{fecha_ini} → {fecha_fin}</td></tr>"""
+
+
+def _pendientes_html(saltados: int) -> str:
+    if not saltados:
+        return ""
+    return f"""
+        <h3 style="color:#e67e22;">📋 Pendientes</h3>
+        <p>OTROS INGRESOS/EGRESOS: <strong>{saltados}</strong> movimiento(s) pendiente(s) de implementación</p>"""
+
+
 def _tabla_datos_sp(datos_sp: dict | None = None) -> str:
     if not datos_sp:
         return ""
@@ -82,21 +97,16 @@ def _tabla_datos_sp(datos_sp: dict | None = None) -> str:
         </table>"""
 
 
-def construir_cuerpo_resumen(stats: dict) -> str:
+def construir_cuerpo_resumen(stats: dict, fecha_ini: str | None = None, fecha_fin: str | None = None) -> str:
     bot = config.BOT_NUMBER
     inicio = stats.get("hora_inicio", "")
     fin = stats.get("hora_fin", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     pendientes = stats.get("pendientes_otros", 0)
     desc = _fila_descripcion()
+    rango = _fila_rango_fechas(fecha_ini, fecha_fin)
 
     tabla = _tabla_resumen(stats)
-
-    pendientes_html = ""
-    if pendientes:
-        pendientes_html = f"""
-        <h3 style="color:#e67e22;">📋 Pendientes</h3>
-        <p>OTROS INGRESOS/EGRESOS: <strong>{pendientes}</strong> movimiento(s) pendiente(s) de implementación</p>
-        """
+    pendientes_html = _pendientes_html(pendientes)
 
     return f"""
     <html>
@@ -105,7 +115,7 @@ def construir_cuerpo_resumen(stats: dict) -> str:
         <table style="border-collapse:collapse;width:100%;max-width:500px;">
             <tr><td style="padding:4px 8px;font-weight:bold;">Hora inicio:</td><td style="padding:4px 8px;">{inicio}</td></tr>
             <tr><td style="padding:4px 8px;font-weight:bold;">Hora fin:</td><td style="padding:4px 8px;">{fin}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}
+            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}{rango}
         </table>
         <h3>📊 Resumen</h3>
         <table style="border-collapse:collapse;width:100%;max-width:500px;border:1px solid #ddd;">
@@ -150,11 +160,13 @@ def construir_cuerpo_backup(tipo: str) -> str:
     """
 
 
-def construir_cuerpo_inicio(datos_sp: dict | None = None) -> str:
+def construir_cuerpo_inicio(datos_sp: dict | None = None, fecha_ini: str | None = None, fecha_fin: str | None = None, saltados_otros: int = 0) -> str:
     bot = config.BOT_NUMBER
     ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     desc = _fila_descripcion()
+    rango = _fila_rango_fechas(fecha_ini, fecha_fin)
     sp = _tabla_datos_sp(datos_sp)
+    pendientes_html = _pendientes_html(saltados_otros)
 
     return f"""
     <html>
@@ -162,10 +174,11 @@ def construir_cuerpo_inicio(datos_sp: dict | None = None) -> str:
         <h2 style="color:#2c3e50;">🟢 Bot N°{bot} — INICIADO</h2>
         <table style="border-collapse:collapse;width:100%;max-width:400px;">
             <tr><td style="padding:4px 8px;font-weight:bold;">Hora:</td><td style="padding:4px 8px;">{ahora}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}
+            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}{rango}
         </table>
         <p>El bot ha comenzado a procesar movimientos.</p>
         {sp}
+        {pendientes_html}
         <hr style="margin-top:20px;border:1px solid #eee;">
         <p style="font-size:12px;color:#999;">Correo enviado automáticamente por SISMED RPA Bot</p>
     </body>
