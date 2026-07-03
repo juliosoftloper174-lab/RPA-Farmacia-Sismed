@@ -31,7 +31,7 @@ from src.sidmed._comun_almacen import (
 
 from ..config import SISMED_PASSWORD, SISMED_USERNAME
 from ..logger import logger
-from ..sidmed._login import login
+from ..sidmed._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
 
 # =========================================================
 # 🔹 HELPERS
@@ -219,6 +219,9 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> dict:
     navegar_a_salidas()
 
     for idx, salida in enumerate(salidas, start=1):
+
+        verificar_backup_si_aplica()
+        esperar_hora_backup_si_aplica()
 
         logger.info(
             f"[SALIDA {idx}/{total}] Procesando salida {salida.almacen_origen} -> {salida.almacen_destino} ({len(salida.medicamentos)} medicamentos)"

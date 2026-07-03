@@ -15,7 +15,7 @@ from ..config import SISMED_PASSWORD, SISMED_USERNAME
 
 from src.models.ingreso import Ingreso
 from src.models.Medicamento import Medicamento
-from src.sidmed._login import login
+from src.sidmed._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
 from database.conexion import ejecutar_sp_update_estado
 from src.sidmed._comun_almacen import (
     cerrar_sismed,
@@ -322,6 +322,9 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> dict:
     navegar_a_ingresos()
 
     for idx, ingreso in enumerate(ingresos, start=1):
+
+        verificar_backup_si_aplica()
+        esperar_hora_backup_si_aplica()
 
         logger.info(f"[INGRESO {idx}/{total}] Procesando ingreso a {ingreso.almacen_destino} ({len(ingreso.medicamentos)} medicamentos)")
 

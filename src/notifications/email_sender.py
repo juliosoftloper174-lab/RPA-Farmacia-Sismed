@@ -12,6 +12,13 @@ def _limpiar_password(password: str) -> str:
     return password.replace(" ", "")
 
 
+def _fila_descripcion() -> str:
+    if not config.DESCRIPCION:
+        return ""
+    return f"""
+            <tr><td style="padding:4px 8px;font-weight:bold;">Descripción:</td><td style="padding:4px 8px;">{config.DESCRIPCION}</td></tr>"""
+
+
 def enviar_correo(asunto: str, cuerpo_html: str) -> bool:
     if not config.NOTIFICAR_CORREO:
         logger.debug(f"[EMAIL] NOTIFICAR_CORREO=false, omitiendo: {asunto}")
@@ -61,11 +68,26 @@ def _tabla_resumen(stats: dict) -> str:
     return filas
 
 
+def _tabla_datos_sp(datos_sp: dict | None = None) -> str:
+    if not datos_sp:
+        return ""
+    filas = ""
+    for label, key in [("Ingresos", "ingresos"), ("Salidas", "salidas"), ("Pedidos", "pedidos")]:
+        val = datos_sp.get(key, 0)
+        filas += f"<tr><td style='padding:4px 32px;'>{label}:</td><td style='padding:4px 8px;'><strong>{val}</strong></td></tr>\n"
+    return f"""
+        <h3>📊 Datos capturados del SP</h3>
+        <table style="border-collapse:collapse;width:100%;max-width:400px;">
+            {filas}
+        </table>"""
+
+
 def construir_cuerpo_resumen(stats: dict) -> str:
     bot = config.BOT_NUMBER
     inicio = stats.get("hora_inicio", "")
     fin = stats.get("hora_fin", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     pendientes = stats.get("pendientes_otros", 0)
+    desc = _fila_descripcion()
 
     tabla = _tabla_resumen(stats)
 
@@ -83,7 +105,7 @@ def construir_cuerpo_resumen(stats: dict) -> str:
         <table style="border-collapse:collapse;width:100%;max-width:500px;">
             <tr><td style="padding:4px 8px;font-weight:bold;">Hora inicio:</td><td style="padding:4px 8px;">{inicio}</td></tr>
             <tr><td style="padding:4px 8px;font-weight:bold;">Hora fin:</td><td style="padding:4px 8px;">{fin}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>
+            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}
         </table>
         <h3>📊 Resumen</h3>
         <table style="border-collapse:collapse;width:100%;max-width:500px;border:1px solid #ddd;">
@@ -101,6 +123,7 @@ def construir_cuerpo_resumen(stats: dict) -> str:
 def construir_cuerpo_backup(tipo: str) -> str:
     bot = config.BOT_NUMBER
     ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    desc = _fila_descripcion()
 
     if tipo == "inicio":
         titulo = "⚠️ BACKUP DETECTADO"
@@ -117,7 +140,7 @@ def construir_cuerpo_backup(tipo: str) -> str:
         <h2 style="color:{color};">{titulo}</h2>
         <table style="border-collapse:collapse;width:100%;max-width:400px;">
             <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Hora:</td><td style="padding:4px 8px;">{ahora}</td></tr>
+            <tr><td style="padding:4px 8px;font-weight:bold;">Hora:</td><td style="padding:4px 8px;">{ahora}</td></tr>{desc}
         </table>
         <p>{mensaje}</p>
         <hr style="margin-top:20px;border:1px solid #eee;">
@@ -127,9 +150,11 @@ def construir_cuerpo_backup(tipo: str) -> str:
     """
 
 
-def construir_cuerpo_inicio() -> str:
+def construir_cuerpo_inicio(datos_sp: dict | None = None) -> str:
     bot = config.BOT_NUMBER
     ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    desc = _fila_descripcion()
+    sp = _tabla_datos_sp(datos_sp)
 
     return f"""
     <html>
@@ -137,9 +162,10 @@ def construir_cuerpo_inicio() -> str:
         <h2 style="color:#2c3e50;">🟢 Bot N°{bot} — INICIADO</h2>
         <table style="border-collapse:collapse;width:100%;max-width:400px;">
             <tr><td style="padding:4px 8px;font-weight:bold;">Hora:</td><td style="padding:4px 8px;">{ahora}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>
+            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}
         </table>
         <p>El bot ha comenzado a procesar movimientos.</p>
+        {sp}
         <hr style="margin-top:20px;border:1px solid #eee;">
         <p style="font-size:12px;color:#999;">Correo enviado automáticamente por SISMED RPA Bot</p>
     </body>
@@ -150,6 +176,7 @@ def construir_cuerpo_inicio() -> str:
 def construir_cuerpo_reinicio() -> str:
     bot = config.BOT_NUMBER
     ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    desc = _fila_descripcion()
 
     return f"""
     <html>
@@ -157,7 +184,7 @@ def construir_cuerpo_reinicio() -> str:
         <h2 style="color:#e67e22;">🔄 Bot N°{bot} — REINICIADO TRAS CAÍDA</h2>
         <table style="border-collapse:collapse;width:100%;max-width:400px;">
             <tr><td style="padding:4px 8px;font-weight:bold;">Hora reinicio:</td><td style="padding:4px 8px;">{ahora}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>
+            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}
         </table>
         <p>La ejecución anterior se interrumpió inesperadamente. El bot se ha reiniciado y continuará procesando.</p>
         <hr style="margin-top:20px;border:1px solid #eee;">
@@ -170,6 +197,7 @@ def construir_cuerpo_reinicio() -> str:
 def construir_cuerpo_error(error_msg: str) -> str:
     bot = config.BOT_NUMBER
     ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    desc = _fila_descripcion()
 
     return f"""
     <html>
@@ -177,7 +205,7 @@ def construir_cuerpo_error(error_msg: str) -> str:
         <h2 style="color:#e74c3c;">❌ Bot N°{bot} — ERROR CRÍTICO</h2>
         <table style="border-collapse:collapse;width:100%;max-width:500px;">
             <tr><td style="padding:4px 8px;font-weight:bold;">Hora:</td><td style="padding:4px 8px;">{ahora}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>
+            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}
         </table>
         <h3 style="color:#e74c3c;">Detalle del error:</h3>
         <pre style="background:#fdf2f2;padding:12px;border-left:4px solid #e74c3c;white-space:pre-wrap;">{error_msg}</pre>

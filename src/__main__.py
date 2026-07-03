@@ -61,10 +61,6 @@ def main():
     hora_inicio = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     _verificar_centinela()
-    enviar_correo(
-        f"🟢 Bot N°{config.BOT_NUMBER} - INICIADO",
-        construir_cuerpo_inicio(),
-    )
 
     logger.info("=" * 50)
     logger.info("SISMED BOT - FLUJO COMPLETO (INGRESOS + SALIDAS + PEDIDOS)")
@@ -79,6 +75,12 @@ def main():
     )
     logger.info(
         f"SP devolvio: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas"
+    )
+
+    datos_sp = {"ingresos": len(ingresos), "salidas": len(salidas), "pedidos": len(pedidos)}
+    enviar_correo(
+        f"🟢 Bot N°{config.BOT_NUMBER} - INICIADO",
+        construir_cuerpo_inicio(datos_sp),
     )
 
     stats = {

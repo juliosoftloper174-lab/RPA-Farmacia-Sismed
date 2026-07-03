@@ -59,7 +59,7 @@ from src.reportes.excel_writer import (
     guardar_movimientos,
     obtener_siguiente_numero_procesado,
 )
-from src.sidmed._login import login
+from src.sidmed._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
 
 # --- USAR EN PRODUCCIÓN ---
 SISMED_USERNAME = "RPA"
@@ -503,7 +503,7 @@ def procesar_pedido(
     return correlativo
 
 
-MAX_REINTENTOS_PEDIDO = 3
+MAX_REINTENTOS_PEDIDO = 2
 
 
 def cerrar_ventanas_sismed() -> None:
@@ -528,6 +528,9 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
     sin_cliente_count = 0
 
     for idx, pedido in enumerate(pedidos, start=1):
+
+        verificar_backup_si_aplica()
+        esperar_hora_backup_si_aplica()
 
         reintentos = 0
 
