@@ -160,11 +160,31 @@ def construir_cuerpo_backup(tipo: str) -> str:
     """
 
 
+def _config_flags_html(datos_sp: dict | None = None) -> str:
+    flags = [
+        ("Ingresos", config.procesar_ingresos, (datos_sp or {}).get("ingresos", 0)),
+        ("Salidas", config.procesar_salidas, (datos_sp or {}).get("salidas", 0)),
+        ("Pedidos", config.procesar_pedidos, (datos_sp or {}).get("pedidos", 0)),
+    ]
+    filas = ""
+    for name, active, count in flags:
+        icono = "✅" if active else "❌"
+        estado = "ACTIVADO" if active else "DESACTIVADO"
+        detalle = f" ({count} movimientos)" if active and count else ""
+        filas += f"<tr><td style='padding:4px 32px;'>{icono} {name}:</td><td style='padding:4px 8px;'><strong>{estado}</strong>{detalle}</td></tr>\n"
+    return f"""
+        <h3>⚙️ Flujos configurados</h3>
+        <table style="border-collapse:collapse;width:100%;max-width:400px;">
+            {filas}
+        </table>"""
+
+
 def construir_cuerpo_inicio(datos_sp: dict | None = None, fecha_ini: str | None = None, fecha_fin: str | None = None, saltados_otros: int = 0) -> str:
     bot = config.BOT_NUMBER
     ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     desc = _fila_descripcion()
     rango = _fila_rango_fechas(fecha_ini, fecha_fin)
+    config_html = _config_flags_html(datos_sp)
     sp = _tabla_datos_sp(datos_sp)
     pendientes_html = _pendientes_html(saltados_otros)
 
@@ -177,6 +197,7 @@ def construir_cuerpo_inicio(datos_sp: dict | None = None, fecha_ini: str | None 
             <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}{rango}
         </table>
         <p>El bot ha comenzado a procesar movimientos.</p>
+        {config_html}
         {sp}
         {pendientes_html}
         <hr style="margin-top:20px;border:1px solid #eee;">
