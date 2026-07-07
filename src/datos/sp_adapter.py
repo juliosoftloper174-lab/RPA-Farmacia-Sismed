@@ -218,12 +218,14 @@ def obtener_movimientos(
             nombre_cliente = str(_obtener_safe(row, "NOMBRE_COMPLETO_CLIENTE", "")).strip()
             sexo_cliente = str(_obtener_safe(row, "SEXO_DES_CLIENTE", "")).strip()
             fecha_nac_cliente = str(_obtener_safe(row, "FECHA_NACIMIENTO_CLIENTE", "")).strip()
+            tipo_doc_cliente = str(_obtener_safe(row, "TIPO_DOC_CLIENTE_DES", "")).strip()
 
             cliente = Cliente(
                 codigo=nro_doc if nro_doc else CLIENTE_HARDCODEADO,
                 nombre=nombre_cliente if nombre_cliente not in ("", "NULL", "None") else None,
                 sexo=sexo_cliente if sexo_cliente not in ("", "NULL", "None") else None,
                 fecha_nacimiento=fecha_nac_cliente if fecha_nac_cliente not in ("", "NULL", "None") else None,
+                tipo_documento=tipo_doc_cliente if tipo_doc_cliente not in ("", "NULL", "None") else None,
             )
 
             pedido = Pedido(
