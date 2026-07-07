@@ -183,6 +183,52 @@ def _ejecutar_ciclo_unico(fecha_hoy: str) -> dict | None:
     }
 
 
+def _ejecutar_batch():
+    fecha_ini = config.FECHA_INI
+    fecha_fin = config.FECHA_FIN
+    if not fecha_ini or not fecha_fin:
+        logger.error("MODO=batch requiere FECHA_INI y FECHA_FIN en .env")
+        return
+
+    logger.info("=" * 50)
+    logger.info("SISMED BOT - MODO BATCH")
+    logger.info(f"Procesando {fecha_ini} → {fecha_fin}")
+    logger.info(
+        f"Flags: ING={config.procesar_ingresos} SAL={config.procesar_salidas} "
+        f"PED={config.procesar_pedidos} ERR={config.procesar_errores}"
+    )
+    logger.info("=" * 50)
+
+    pedidos, ingresos, salidas, saltados_otros = obtener_movimientos(
+        fecha_ini, fecha_fin, skip_errores=not config.procesar_errores
+    )
+    total = len(pedidos) + len(ingresos) + len(salidas)
+    if total == 0:
+        logger.warning("No se encontraron movimientos en el rango.")
+        return
+
+    logger.info(
+        f"SP devolvio: {len(pedidos)} pedidos, {len(ingresos)} ingresos, "
+        f"{len(salidas)} salidas"
+    )
+
+    for pedido in pedidos:
+        if pedido.forma_pago == FormaPago.SIS and not pedido.fua:
+            pedido.fua = generar_fua_ficticio()
+
+    try:
+        _procesar_ingreso(ingresos)
+        _procesar_salida(salidas)
+        _procesar_pedido(pedidos)
+        logger.success("Batch completado.")
+    except Exception as e:
+        logger.exception(f"ERROR EN BATCH: {e}")
+        enviar_correo(
+            f"❌ Bot N°{config.BOT_NUMBER} - ERROR EN BATCH",
+            construir_cuerpo_error(str(e)),
+        )
+
+
 def main():
     _verificar_centinela()
     signal.signal(signal.SIGINT, _signal_handler)
@@ -211,7 +257,10 @@ def main():
         try:
             resultado = _ejecutar_ciclo_unico(fecha_hoy)
             if resultado is None:
-                sleep(5)
+                for i in range(60, 0, -1):
+                    print(f"  Sin datos — próximo ciclo en {i:2d}s...  ", end='\r')
+                    sleep(1)
+                print(" " * 50, end='\r')
                 continue
             logger.success("Movimientos procesados correctamente.")
         except Exception as e:
@@ -248,4 +297,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if config.MODO == "batch":
+        _ejecutar_batch()
+    else:
+        main()

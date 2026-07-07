@@ -20,6 +20,9 @@ DB_NAME: str = environ["DB_NAME"]
 DB_USER: str = environ["DB_USER"]
 DB_PASS: str = environ["DB_PASS"]
 
+# Modo de operacion: "continuo" (24/7, default) o "batch" (rango de fechas)
+MODO: str = environ.get("MODO", "continuo")
+
 # Control de flujos
 procesar_ingresos: bool = _bool_env("PROCESAR_INGRESOS", True)
 procesar_salidas: bool = _bool_env("PROCESAR_SALIDAS", True)
