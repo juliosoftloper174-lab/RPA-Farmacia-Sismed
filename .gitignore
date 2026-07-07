@@ -2,6 +2,9 @@ movimientos.xlsx
 .temp/*
 .data/*
 @AutomationLog.txt
+*.csv
+*.rpt
+Notas.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
