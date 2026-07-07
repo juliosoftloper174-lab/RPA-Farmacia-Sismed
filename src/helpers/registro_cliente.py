@@ -1,16 +1,43 @@
 from time import sleep
 
+import uiautomation as auto
+
 from src.helpers.input import escribir_input
 from src.helpers.windows import get_farmacia_window, get_registro_pedido_window
 from src.logger import logger
 from src.models.cliente import Cliente
 
+SEXO_MAP = {
+    "FEMENINO": "Femenino",
+    "MASCULINO": "Masculino",
+}
+
 TIPO_DOCUMENTO_MAP = {
-    "D.N.I": "LIBRETA ELECTORAL O DNI",
+    "D.N.I": "LIBRETA ELECTORAL O  DNI",
     "CARNE DE EXTRANJERIA": "CARNET DE EXTRANJERIA",
     "RUC": "RUC",
     "PASAPORTE": "PASAPORTE",
 }
+
+
+def _normalizar_tipo_doc(raw: str) -> str:
+    return raw.strip(" .").upper()
+
+
+def _seleccionar_item_combo(combo, valor: str):
+    combo.Click()
+    sleep(0.5)
+    auto.SendKeys("{Alt}{Down}")
+    sleep(1)
+    children = combo.GetChildren()
+    for child in children:
+        if child.Name.strip() == valor:
+            child.Click()
+            return
+    logger.warning(f"No se encontró item '{valor}' en combo, escribiendo directamente")
+    combo.SendKeys(valor)
+    sleep(0.5)
+    auto.SendKeys("{Enter}")
 
 
 def registrar_cliente_en_sismed(cliente: Cliente) -> bool:
@@ -36,18 +63,28 @@ def registrar_cliente_en_sismed(cliente: Cliente) -> bool:
 
     if cliente.tipo_documento:
         logger.info(f"Seleccionando tipo documento: {cliente.tipo_documento}")
-        valor_combo = TIPO_DOCUMENTO_MAP.get(cliente.tipo_documento)
+        tipo_normalizado = _normalizar_tipo_doc(cliente.tipo_documento)
+        valor_combo = TIPO_DOCUMENTO_MAP.get(tipo_normalizado)
         if not valor_combo:
             logger.warning(
-                f"Tipo documento no mapeado: '{cliente.tipo_documento}', "
+                f"Tipo documento no mapeado: '{cliente.tipo_documento}' (normalizado: '{tipo_normalizado}'), "
                 f"usando valor directo"
             )
             valor_combo = cliente.tipo_documento
         combo = modal.ComboBoxControl(Name="cmbTDoc")
-        combo.Click()
-        sleep(1)
-        item = combo.ListItemControl(Name=valor_combo)
-        item.Click()
+        _seleccionar_item_combo(combo, valor_combo)
+
+    if cliente.sexo:
+        logger.info(f"Seleccionando sexo: {cliente.sexo}")
+        sexo_normalizado = cliente.sexo.strip().upper()
+        nombre_radio = SEXO_MAP.get(sexo_normalizado)
+        if not nombre_radio:
+            logger.warning(f"Sexo no mapeado: '{cliente.sexo}', usando valor directo")
+            nombre_radio = sexo_normalizado.capitalize()
+        grupo = modal.GroupControl(Name="optsexo")
+        radio = grupo.RadioButtonControl(Name=nombre_radio)
+        radio.Click()
+        logger.info(f"Sexo seleccionado: {nombre_radio}")
 
     logger.info(f"Escribiendo DNI: {cliente.codigo}")
     txt_dni = modal.EditControl(Name="TxtCLINUMEDOC")
