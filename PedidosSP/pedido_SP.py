@@ -49,6 +49,7 @@ from src.helpers.diagnosticos import rellenar_diagnosticos
 from src.helpers.farmacia import seleccionar_farmacia_por_codigo
 from src.helpers.input import escribir_input
 from src.helpers.producto import agregar_productos
+from src.helpers.registro_cliente import registrar_cliente_en_sismed
 from src.helpers.windows import *
 from src.logger import logger
 from src.models import pedido
@@ -295,10 +296,25 @@ def rellenar_cabecera(
 
     logger.debug(f"[CABECERA] Seleccionando cliente: {pedido.cliente.codigo}")
     if not seleccionar_cliente(pedido.cliente.codigo):
-        volver_a_menuprincipal()
-        raise ClienteNoEncontradoError(
-            f"Cliente {pedido.cliente.codigo} no encontrado en SISMED"
-        )
+        if pedido.cliente.nombre:
+            logger.info(
+                f"[CABECERA] Cliente no encontrado, registrando: "
+                f"{pedido.cliente.nombre} (DNI {pedido.cliente.codigo})"
+            )
+            registrar_cliente_en_sismed(pedido.cliente)
+            if not seleccionar_cliente(pedido.cliente.codigo):
+                logger.warning(
+                    f"[CABECERA] Cliente aun no encontrado despues del registro"
+                )
+                volver_a_menuprincipal()
+                raise ClienteNoEncontradoError(
+                    f"Cliente {pedido.cliente.codigo} no encontrado en SISMED"
+                )
+        else:
+            volver_a_menuprincipal()
+            raise ClienteNoEncontradoError(
+                f"Cliente {pedido.cliente.codigo} no encontrado en SISMED"
+            )
 
     logger.debug(f"[CABECERA] Rellenando UPS: {pedido.ups_codigo}")
     rellenar_ups_pedido(pedido)

@@ -215,10 +215,20 @@ def obtener_movimientos(
                 farmacia_cod = _obtener_safe(row, "ALMACEN_DESTINO", "")
 
             nro_doc = str(_obtener_safe(row, "NRO_DOC_CLIENTE", "")).strip()
+            nombre_cliente = str(_obtener_safe(row, "NOMBRE_COMPLETO_CLIENTE", "")).strip()
+            sexo_cliente = str(_obtener_safe(row, "SEXO_DES_CLIENTE", "")).strip()
+            fecha_nac_cliente = str(_obtener_safe(row, "FECHA_NACIMIENTO_CLIENTE", "")).strip()
+
+            cliente = Cliente(
+                codigo=nro_doc if nro_doc else CLIENTE_HARDCODEADO,
+                nombre=nombre_cliente if nombre_cliente not in ("", "NULL", "None") else None,
+                sexo=sexo_cliente if sexo_cliente not in ("", "NULL", "None") else None,
+                fecha_nacimiento=fecha_nac_cliente if fecha_nac_cliente not in ("", "NULL", "None") else None,
+            )
 
             pedido = Pedido(
                 farmacia=Farmacia(str(farmacia_cod).strip()),
-                cliente=Cliente(nro_doc if nro_doc else CLIENTE_HARDCODEADO),
+                cliente=cliente,
                 prescriptor=prescriptor,
                 forma_pago=forma_pago,
                 tipo_receta=TipoReceta.SIN_NUMERO,
