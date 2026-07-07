@@ -12,93 +12,47 @@ from src.notifications.email_sender import (
 
 _backup_pause_handled = False
 
-
-def _verificar_backup_diario() -> None:
-    backup_diario = WindowControl(
-        searchDepth=1, RegexName="Envío de información de Consumo Diaria.*"
-    )
-
-    if not backup_diario.Exists(maxSearchSeconds=0):
-        return
-
-    logger.warning("=" * 60)
-    logger.warning("VENTANA 'ENVÍO DE INFORMACIÓN DE CONSUMO DIARIA' DETECTADA")
-    logger.warning("El backup diario está en proceso.")
-    logger.warning(
-        "Por favor:\n"
-        "  1. Realice el backup manualmente\n"
-        "  2. Cierre TODAS las ventanas de SISMED\n"
-        "  3. Vuelva a esta terminal y presione Enter"
-    )
-    logger.warning("=" * 60)
-
-    input()
-
-    logger.info("Usuario confirmó backup completado. Reabriendo SISMED...")
-    sleep(2)
-    Popen(config.SISMED_EXE)
-    sleep(3)
+PATRONES_BACKUP = [
+    "Envío de información de Consumo Diaria.*",
+    "Backups Automátic[o]?",
+    "Regeneración de índices.*",
+]
 
 
-def _ignorar_program_error() -> None:
-    # NOTE: no se sabe con seguridad si el boton se llama Ignore,
-    # sera trabajo para despues
-    error = WindowControl(Name="Program Error")
-    if error.Exists(maxSearchSeconds=0):
-        ignore = error.ButtonControl(searchDepth=1, Name="Ignore")
-        if ignore.Exists():
-            ignore.Click()
-            logger.warning("Program Error ignorado durante backup.")
+def _pausar_por_backup() -> bool:
+    for patron in PATRONES_BACKUP:
+        ventana = WindowControl(searchDepth=1, RegexName=patron)
+        if not ventana.Exists(maxSearchSeconds=0):
+            continue
 
+        logger.warning("=" * 60)
+        logger.warning(f"BACKUP DETECTADO — ventana: {patron}")
+        logger.warning(
+            "El bot se pausa. Realice el backup manualmente,\n"
+            "cierre TODAS las ventanas de SISMED y presione Enter."
+        )
+        logger.warning("=" * 60)
 
-def _esperar_backup_automatico() -> None:
-    backup = WindowControl(searchDepth=1, RegexName="Backups Automátic[o]?")
-    if not backup.Exists(maxSearchSeconds=0):
-        return
+        enviar_correo(
+            f"⚠️ Bot N°{config.BOT_NUMBER} - BACKUP DETECTADO",
+            construir_cuerpo_backup("inicio"),
+        )
 
-    logger.warning("Backup detectado. Esperando que finalice...")
-    enviar_correo(
-        f"⚠️ Bot N°{config.BOT_NUMBER} - BACKUP DETECTADO",
-        construir_cuerpo_backup("inicio"),
-    )
+        input()
+        sleep(1)
 
-    for i in range(15):
-        for _ in range(6):
-            sleep(10)
-            _ignorar_program_error()
-        if not backup.Exists(maxSearchSeconds=0):
-            logger.info("Backup finalizado.")
-            break
-        logger.warning(f"Backup en curso... ({i+1}/15, ~{i+1} min)")
-    else:
-        logger.critical("Backup no finalizó tras 15 min.")
+        logger.info("Backup confirmado. Reanudando...")
+        enviar_correo(
+            f"✅ Bot N°{config.BOT_NUMBER} - BACKUP FINALIZADO",
+            construir_cuerpo_backup("fin"),
+        )
+        return True
 
-    sleep(2)
-
-    regeneracion = WindowControl(searchDepth=1, RegexName="Regeneración de índices.*")
-    if regeneracion.Exists(maxSearchSeconds=0):
-        logger.warning("Regeneración de índices detectada. Esperando...")
-        for i in range(10):
-            for _ in range(6):
-                sleep(10)
-                _ignorar_program_error()
-            if not regeneracion.Exists(maxSearchSeconds=0):
-                logger.info("Regeneración de índices finalizada.")
-                break
-            logger.warning(f"Regeneración en curso... ({i+1}/10)")
-
-    enviar_correo(
-        f"✅ Bot N°{config.BOT_NUMBER} - BACKUP FINALIZADO",
-        construir_cuerpo_backup("fin"),
-    )
+    return False
 
 
 def verificar_backup_si_aplica() -> None:
-    backup = WindowControl(searchDepth=1, RegexName="Backups Automátic[o]?")
-    regeneracion = WindowControl(searchDepth=1, RegexName="Regeneración de índices.*")
-    if backup.Exists(maxSearchSeconds=0) or regeneracion.Exists(maxSearchSeconds=0):
-        logger.warning("Ventana de backup/regeneración detectada durante procesamiento. Esperando...")
-        _esperar_backup_automatico()
+    _pausar_por_backup()
 
 
 def esperar_hora_backup_si_aplica() -> None:
@@ -162,8 +116,7 @@ def login(username: str, password: str) -> None:
         sleep(3)
         LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
 
-    _verificar_backup_diario()
-    _esperar_backup_automatico()
+    _pausar_por_backup()
 
     while True:
         try:

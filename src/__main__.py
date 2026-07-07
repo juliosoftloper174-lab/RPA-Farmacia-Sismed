@@ -1,7 +1,7 @@
 import signal
 import sys
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from time import sleep
 
@@ -14,15 +14,12 @@ from src.models.forma_pago import FormaPago
 from src.models.pedido import generar_fua_ficticio
 from src.notifications.email_sender import (
     construir_cuerpo_error,
-    construir_cuerpo_hora,
-    construir_cuerpo_inicio,
     construir_cuerpo_reinicio,
-    construir_cuerpo_resumen,
     construir_cuerpo_resumen_diario,
     enviar_correo,
     enviar_correo_con_adjunto,
 )
-from src.reportes.excel_schema import crear_row_incidencia_validacion, crear_row_saltado
+from src.reportes.excel_schema import crear_row_incidencia_validacion
 from src.reportes.excel_writer import (
     _path_del_dia,
     guardar_movimientos,
@@ -161,57 +158,32 @@ def _procesar_pedido(pedidos):
         }
 
 
-def _procesar_ciclo(fecha_hoy: str) -> dict:
-    minuto = datetime.now().minute
-    if minuto == 0:
-        logger.info("=== EJECUCION HORARIA ===")
-    else:
-        logger.info("=== EJECUCION MANUAL ===")
-
-    logger.info(
-        f"Flags: ING={config.procesar_ingresos} SAL={config.procesar_salidas} "
-        f"PED={config.procesar_pedidos} ERR={config.procesar_errores}"
-    )
-
-    hora_inicio = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def _ejecutar_ciclo_unico(fecha_hoy: str) -> dict | None:
     pedidos, ingresos, salidas, saltados_otros = obtener_movimientos(
         fecha_hoy, fecha_hoy, skip_errores=not config.procesar_errores
     )
+
+    total = len(pedidos) + len(ingresos) + len(salidas)
+    if total == 0:
+        return None
+
     logger.info(
         f"SP devolvio: {len(pedidos)} pedidos, {len(ingresos)} ingresos, "
         f"{len(salidas)} salidas"
     )
 
-    stats: dict = {
-        "hora_inicio": hora_inicio,
-        "hora_fin": "",
-        "ingresos": None,
-        "salidas": None,
-        "pedidos": None,
-        "pendientes_otros": saltados_otros,
-    }
-
     for pedido in pedidos:
         if pedido.forma_pago == FormaPago.SIS and not pedido.fua:
             pedido.fua = generar_fua_ficticio()
 
-    stats["ingresos"] = _procesar_ingreso(ingresos)
-    stats["salidas"] = _procesar_salida(salidas)
-    stats["pedidos"] = _procesar_pedido(pedidos)
-
-    stats["hora_fin"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    total_pendientes = len(pedidos) + len(ingresos) + len(salidas)
-
-    hora_actual = datetime.now().strftime("%H:%M")
-    enviar_correo(
-        f"🕐 Bot N°{config.BOT_NUMBER} - Ejecucion {hora_actual}",
-        construir_cuerpo_hora(stats, hora_actual, total_pendientes, saltados_otros),
-    )
-
-    return stats
+    return {
+        "ingresos": _procesar_ingreso(ingresos),
+        "salidas": _procesar_salida(salidas),
+        "pedidos": _procesar_pedido(pedidos),
+    }
 
 
-def ejecutar_horario():
+def main():
     _verificar_centinela()
     signal.signal(signal.SIGINT, _signal_handler)
 
@@ -237,7 +209,11 @@ def ejecutar_horario():
         fecha_actual = fecha_hoy
 
         try:
-            _procesar_ciclo(fecha_hoy)
+            resultado = _ejecutar_ciclo_unico(fecha_hoy)
+            if resultado is None:
+                sleep(5)
+                continue
+            logger.success("Movimientos procesados correctamente.")
         except Exception as e:
             logger.exception(f"ERROR EN CICLO: {e}")
             enviar_correo(
@@ -268,102 +244,6 @@ def ejecutar_horario():
             except Exception as e:
                 logger.exception(f"Error al enviar resumen diario: {e}")
 
-            input("\nPresione Enter para continuar con el siguiente ciclo...")
-            print()
-
-        next_hour = ahora.replace(minute=0, second=0, microsecond=0) + timedelta(
-            hours=1
-        )
-        sleep_seconds = int((next_hour - datetime.now()).total_seconds())
-        if sleep_seconds > 0:
-            logger.info(
-                f"Proximo ciclo a las {next_hour.strftime('%H:%M')}. "
-                f"Esperando {sleep_seconds}s..."
-            )
-            for _ in range(sleep_seconds):
-                sleep(1)
-
-
-def ejecutar_batch():
-    hora_inicio = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    _verificar_centinela()
-
-    logger.info("=" * 50)
-    logger.info("SISMED BOT - FLUJO COMPLETO (INGRESOS + SALIDAS + PEDIDOS)")
-    logger.info("=" * 50)
-    logger.info(
-        f"Flags: ING={config.procesar_ingresos} SAL={config.procesar_salidas} "
-        f"PED={config.procesar_pedidos} ERR={config.procesar_errores}"
-    )
-
-    fecha_ini, fecha_fin = _obtener_fechas()
-    logger.info(f"Procesando movimientos desde {fecha_ini} hasta {fecha_fin}")
-
-    pedidos, ingresos, salidas, saltados_otros = obtener_movimientos(
-        fecha_ini, fecha_fin, skip_errores=not config.procesar_errores
-    )
-    logger.info(
-        f"SP devolvio: {len(pedidos)} pedidos, {len(ingresos)} ingresos, "
-        f"{len(salidas)} salidas"
-    )
-
-    datos_sp = {
-        "ingresos": len(ingresos),
-        "salidas": len(salidas),
-        "pedidos": len(pedidos),
-    }
-    enviar_correo(
-        f"🟢 Bot N°{config.BOT_NUMBER} - INICIADO",
-        construir_cuerpo_inicio(datos_sp, fecha_ini, fecha_fin, saltados_otros),
-    )
-
-    stats = {
-        "hora_inicio": hora_inicio,
-        "hora_fin": "",
-        "ingresos": None,
-        "salidas": None,
-        "pedidos": None,
-        "pendientes_otros": saltados_otros,
-    }
-
-    try:
-        for pedido in pedidos:
-            if pedido.forma_pago == FormaPago.SIS and not pedido.fua:
-                pedido.fua = generar_fua_ficticio()
-
-        stats["ingresos"] = _procesar_ingreso(ingresos)
-        stats["salidas"] = _procesar_salida(salidas)
-        stats["pedidos"] = _procesar_pedido(pedidos)
-
-        logger.info("=" * 50)
-        logger.success("PROCESO COMPLETO FINALIZADO")
-        logger.info("=" * 50)
-
-    except Exception as global_err:
-        logger.exception(f"ERROR CRITICO GLOBAL: {global_err}")
-        enviar_correo(
-            f"❌ Bot N°{config.BOT_NUMBER} - ERROR CRITICO",
-            construir_cuerpo_error(str(global_err)),
-        )
-        _limpiar_centinela()
-        return
-
-    stats["hora_fin"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    enviar_correo(
-        f"✅ Bot N°{config.BOT_NUMBER} - PROCESO FINALIZADO",
-        construir_cuerpo_resumen(stats, fecha_ini, fecha_fin),
-    )
-    _limpiar_centinela()
-
-
-def main():
-    while True:
-        if config.MODO == "horario":
-            ejecutar_horario()
-        else:
-            ejecutar_batch()
-        print("Descansando 5 segundos antes de reiniciar el ciclo...")
         sleep(5)
 
 

@@ -85,51 +85,8 @@ def _pendientes_html(saltados: int) -> str:
         <p>OTROS INGRESOS/EGRESOS: <strong>{saltados}</strong> movimiento(s) pendiente(s) de implementación</p>"""
 
 
-def _tabla_datos_sp(datos_sp: dict | None = None) -> str:
-    if not datos_sp:
-        return ""
-    filas = ""
-    for label, key in [("Ingresos", "ingresos"), ("Salidas", "salidas"), ("Pedidos", "pedidos")]:
-        val = datos_sp.get(key, 0)
-        filas += f"<tr><td style='padding:4px 32px;'>{label}:</td><td style='padding:4px 8px;'><strong>{val}</strong></td></tr>\n"
-    return f"""
-        <h3>📊 Datos capturados del SP</h3>
-        <table style="border-collapse:collapse;width:100%;max-width:400px;">
-            {filas}
-        </table>"""
 
 
-def construir_cuerpo_resumen(stats: dict, fecha_ini: str | None = None, fecha_fin: str | None = None) -> str:
-    bot = config.BOT_NUMBER
-    inicio = stats.get("hora_inicio", "")
-    fin = stats.get("hora_fin", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    pendientes = stats.get("pendientes_otros", 0)
-    desc = _fila_descripcion()
-    rango = _fila_rango_fechas(fecha_ini, fecha_fin)
-
-    tabla = _tabla_resumen(stats)
-    pendientes_html = _pendientes_html(pendientes)
-
-    return f"""
-    <html>
-    <body style="font-family:Arial,sans-serif;color:#333;">
-        <h2 style="color:#2c3e50;">✅ Bot N°{bot} — PROCESO FINALIZADO</h2>
-        <table style="border-collapse:collapse;width:100%;max-width:500px;">
-            <tr><td style="padding:4px 8px;font-weight:bold;">Hora inicio:</td><td style="padding:4px 8px;">{inicio}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Hora fin:</td><td style="padding:4px 8px;">{fin}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}{rango}
-        </table>
-        <h3>📊 Resumen</h3>
-        <table style="border-collapse:collapse;width:100%;max-width:500px;border:1px solid #ddd;">
-            <tr style="background:#3498db;color:white;"><th style="padding:8px;text-align:left;">Movimiento</th><th style="padding:8px;text-align:left;">Resultado</th></tr>
-            {tabla}
-        </table>
-        {pendientes_html}
-        <hr style="margin-top:20px;border:1px solid #eee;">
-        <p style="font-size:12px;color:#999;">Correo enviado automáticamente por SISMED RPA Bot</p>
-    </body>
-    </html>
-    """
 
 
 def construir_cuerpo_backup(tipo: str) -> str:
@@ -162,51 +119,7 @@ def construir_cuerpo_backup(tipo: str) -> str:
     """
 
 
-def _config_flags_html(datos_sp: dict | None = None) -> str:
-    flags = [
-        ("Ingresos", config.procesar_ingresos, (datos_sp or {}).get("ingresos", 0)),
-        ("Salidas", config.procesar_salidas, (datos_sp or {}).get("salidas", 0)),
-        ("Pedidos", config.procesar_pedidos, (datos_sp or {}).get("pedidos", 0)),
-    ]
-    filas = ""
-    for name, active, count in flags:
-        icono = "✅" if active else "❌"
-        estado = "ACTIVADO" if active else "DESACTIVADO"
-        detalle = f" ({count} movimientos)" if active and count else ""
-        filas += f"<tr><td style='padding:4px 32px;'>{icono} {name}:</td><td style='padding:4px 8px;'><strong>{estado}</strong>{detalle}</td></tr>\n"
-    return f"""
-        <h3>⚙️ Flujos configurados</h3>
-        <table style="border-collapse:collapse;width:100%;max-width:400px;">
-            {filas}
-        </table>"""
 
-
-def construir_cuerpo_inicio(datos_sp: dict | None = None, fecha_ini: str | None = None, fecha_fin: str | None = None, saltados_otros: int = 0) -> str:
-    bot = config.BOT_NUMBER
-    ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    desc = _fila_descripcion()
-    rango = _fila_rango_fechas(fecha_ini, fecha_fin)
-    config_html = _config_flags_html(datos_sp)
-    sp = _tabla_datos_sp(datos_sp)
-    pendientes_html = _pendientes_html(saltados_otros)
-
-    return f"""
-    <html>
-    <body style="font-family:Arial,sans-serif;color:#333;">
-        <h2 style="color:#2c3e50;">🟢 Bot N°{bot} — INICIADO</h2>
-        <table style="border-collapse:collapse;width:100%;max-width:400px;">
-            <tr><td style="padding:4px 8px;font-weight:bold;">Hora:</td><td style="padding:4px 8px;">{ahora}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Bot número:</td><td style="padding:4px 8px;">{bot}</td></tr>{desc}{rango}
-        </table>
-        <p>El bot ha comenzado a procesar movimientos.</p>
-        {config_html}
-        {sp}
-        {pendientes_html}
-        <hr style="margin-top:20px;border:1px solid #eee;">
-        <p style="font-size:12px;color:#999;">Correo enviado automáticamente por SISMED RPA Bot</p>
-    </body>
-    </html>
-    """
 
 
 def construir_cuerpo_reinicio() -> str:
@@ -252,31 +165,7 @@ def construir_cuerpo_error(error_msg: str) -> str:
     """
 
 
-def construir_cuerpo_hora(stats: dict, hora_actual: str, pendientes: int, saltados_otros: int = 0) -> str:
-    tabla = _tabla_resumen(stats)
-    pendientes_html = _pendientes_html(saltados_otros)
-    bot = config.BOT_NUMBER
-    desc = _fila_descripcion()
 
-    return f"""
-    <html>
-    <body style="font-family:Arial,sans-serif;color:#333;">
-        <h2 style="color:#2980b9;">🕐 Bot N°{bot} — EJECUCIÓN HORARIA</h2>
-        <table style="border-collapse:collapse;width:100%;max-width:400px;">
-            <tr><td style="padding:4px 8px;font-weight:bold;">Hora:</td><td style="padding:4px 8px;">{hora_actual}</td></tr>
-            <tr><td style="padding:4px 8px;font-weight:bold;">Pendientes proceso:</td><td style="padding:4px 8px;">{pendientes}</td></tr>{desc}
-        </table>
-        <h3>📊 Resumen de esta hora</h3>
-        <table style="border-collapse:collapse;width:100%;max-width:500px;border:1px solid #ddd;">
-            <tr style="background:#3498db;color:white;"><th style="padding:8px;text-align:left;">Movimiento</th><th style="padding:8px;text-align:left;">Resultado</th></tr>
-            {tabla}
-        </table>
-        {pendientes_html}
-        <hr style="margin-top:20px;border:1px solid #eee;">
-        <p style="font-size:12px;color:#999;">Correo enviado automáticamente por SISMED RPA Bot</p>
-    </body>
-    </html>
-    """
 
 
 def construir_cuerpo_resumen_diario(resumen: dict, fecha: str) -> str:
