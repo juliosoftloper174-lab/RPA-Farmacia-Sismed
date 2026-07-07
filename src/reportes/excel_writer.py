@@ -1,13 +1,13 @@
 from pathlib import Path
 import re
 import unicodedata
+from datetime import datetime
 import polars as pl
 from src.reportes.excel_schema import EXCEL_COLUMNS
 
-EXCEL_PATH = "movimientos.xlsx"
 EXCEL_INCIDENCIAS_PATH = "incidencias.xlsx"
 
-# Columnas específicas para incidencias
+# Columnas especificas para incidencias
 EXCEL_COLUMNS_INCIDENCIAS = [
     "Nº de Procesado",
     "Fecha",
@@ -17,6 +17,12 @@ EXCEL_COLUMNS_INCIDENCIAS = [
     "Error",
     "CantidadMedicamentos",
 ]
+
+
+def _path_del_dia(fecha: str | None = None) -> Path:
+    if fecha is None:
+        fecha = datetime.now().strftime("%Y-%m-%d")
+    return Path(f"movimientos_{fecha}.xlsx")
 
 
 def _normalize_header_text(value: str) -> str:
@@ -64,7 +70,7 @@ def _normalizar_df_existente(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def guardar_movimientos(rows: list[dict] | dict):
+def guardar_movimientos(rows: list[dict] | dict, fecha: str | None = None):
     if isinstance(rows, dict):
         rows = [rows]
 
@@ -72,25 +78,27 @@ def guardar_movimientos(rows: list[dict] | dict):
         for key, value in row.items():
             row[key] = str(value) if value is not None else ""
 
+    path = _path_del_dia(fecha)
     nuevo_df = pl.DataFrame(rows)
 
-    if Path(EXCEL_PATH).exists():
+    if path.exists():
         schema_overrides = {col: pl.Utf8 for col in EXCEL_COLUMNS}
-        df_actual = pl.read_excel(EXCEL_PATH, schema_overrides=schema_overrides)
+        df_actual = pl.read_excel(path, schema_overrides=schema_overrides)
         df_actual = _normalizar_df_existente(df_actual)
         df_final = pl.concat([df_actual, nuevo_df], how="diagonal_relaxed")
     else:
         df_final = nuevo_df
 
-    df_final.write_excel(EXCEL_PATH)
+    df_final.write_excel(path)
 
 
-def obtener_siguiente_numero_procesado() -> int:
-    if not Path(EXCEL_PATH).exists():
+def obtener_siguiente_numero_procesado(fecha: str | None = None) -> int:
+    path = _path_del_dia(fecha)
+    if not path.exists():
         return 1
 
     schema_overrides = {col: pl.Utf8 for col in EXCEL_COLUMNS}
-    df = pl.read_excel(EXCEL_PATH, schema_overrides=schema_overrides)
+    df = pl.read_excel(path, schema_overrides=schema_overrides)
     df = _normalizar_df_existente(df)
 
     if df.height == 0:
@@ -110,13 +118,30 @@ def obtener_siguiente_numero_procesado() -> int:
         return df.height + 1
 
 
-def guardar_incidencias(rows: list[dict]):
-    """
-    Guarda incidencias de validación en un Excel separado (incidencias.xlsx).
+def leer_resumen_diario(fecha: str | None = None) -> dict:
+    path = _path_del_dia(fecha)
+    if not path.exists():
+        return {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "saltados": 0}
 
-    Args:
-        rows: lista de dicts con incidencias creadas por crear_row_incidencia_validacion
-    """
+    schema_overrides = {col: pl.Utf8 for col in EXCEL_COLUMNS}
+    df = pl.read_excel(path, schema_overrides=schema_overrides)
+
+    resumen = {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "saltados": 0}
+
+    if "TipoMovimiento" in df.columns:
+        for tipo in ("INGRESO", "SALIDA", "PEDIDO"):
+            resumen[tipo.lower() + "s"] = (df["TipoMovimiento"] == tipo).sum()
+
+    if "Estado" in df.columns:
+        estados = df["Estado"].to_list()
+        resumen["ok"] = sum(1 for e in estados if str(e).upper() in ("OK", "OK_REPROCESADO"))
+        resumen["error"] = sum(1 for e in estados if str(e).upper() == "ERROR")
+        resumen["saltados"] = sum(1 for e in estados if str(e).upper() == "SALTADO")
+
+    return resumen
+
+
+def guardar_incidencias(rows: list[dict]):
     if not rows:
         return
 
@@ -132,7 +157,6 @@ def guardar_incidencias(rows: list[dict]):
 
 
 def obtener_siguiente_numero_incidencia() -> int:
-    """Obtiene el siguiente número de incidencia para Excel de incidencias."""
     if not Path(EXCEL_INCIDENCIAS_PATH).exists():
         return 1
 

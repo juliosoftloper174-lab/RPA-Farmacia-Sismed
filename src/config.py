@@ -20,6 +20,9 @@ DB_NAME: str = environ["DB_NAME"]
 DB_USER: str = environ["DB_USER"]
 DB_PASS: str = environ["DB_PASS"]
 
+# Modo de operacion: "horario" (Task Scheduler) o "batch" (una ejecucion)
+MODO: str = environ.get("MODO", "batch")
+
 # Control de flujos
 procesar_ingresos: bool = _bool_env("PROCESAR_INGRESOS", True)
 procesar_salidas: bool = _bool_env("PROCESAR_SALIDAS", True)
@@ -38,5 +41,5 @@ SMTP_PASSWORD: str = environ.get("SMTP_PASSWORD", "")
 SMTP_DESTINO: str = environ.get("SMTP_DESTINO", "")
 BOT_NUMBER: int = int(environ.get("BOT_NUMBER", "1"))
 NOTIFICAR_CORREO: bool = _bool_env("NOTIFICAR_CORREO", False)
-BACKUP_HORA_PAUSA: str = environ.get("BACKUP_HORA_PAUSA", "23:55")
+HORA_CIERRE: str = environ.get("HORA_CIERRE", "23:45")
 DESCRIPCION: str = environ.get("DESCRIPCION", "")

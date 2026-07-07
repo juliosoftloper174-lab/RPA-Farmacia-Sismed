@@ -133,7 +133,7 @@ def obtener_movimientos(
 
     if not headers_raw:
         logger.warning("No se encontraron movimientos en el rango de fechas.")
-        return [], [], []
+        return [], [], [], 0
 
     tipos_validos = {"PEDIDO", "INGRESO", "SALIDA"}
     headers_raw = [r for r in headers_raw if str(r.get("TIPO_MOVIMIENTO_DES", "")).strip().upper() in tipos_validos]

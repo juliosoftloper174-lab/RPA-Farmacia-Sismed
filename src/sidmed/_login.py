@@ -107,7 +107,7 @@ def esperar_hora_backup_si_aplica() -> None:
         return
 
     ahora = datetime.now()
-    hora_pausa_str = config.BACKUP_HORA_PAUSA
+    hora_pausa_str = config.HORA_CIERRE
     hora_pausa = datetime.strptime(hora_pausa_str, "%H:%M").time()
 
     if ahora.time() >= hora_pausa:

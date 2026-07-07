@@ -175,6 +175,29 @@ def crear_row_salida(
     return row
 
 
+def crear_row_saltado(
+    i: int,
+    tipo_mov: str,
+    data,
+    motivo: str = "Pendiente de implementacion",
+) -> dict:
+    row = crear_row_base()
+    now = datetime.now()
+    cant_meds = len(getattr(data, "medicamentos", getattr(data, "Medicamentos", [])))
+    row.update(
+        {
+            "Nº de Procesado": i,
+            "Fecha": now.strftime("%Y-%m-%d"),
+            "Hora": now.strftime("%H:%M:%S"),
+            "TipoMovimiento": tipo_mov,
+            "Estado": "SALTADO",
+            "Error": motivo,
+            "CantidadMedicamentos": cant_meds,
+        }
+    )
+    return row
+
+
 def crear_row_incidencia_validacion(
     tipo: str,
     error: str,
