@@ -2,8 +2,6 @@ from time import sleep
 
 from uiautomation import EditControl, SendKeys, WindowControl
 
-from src.logger import logger
-
 
 def seleccionar_cliente(dni: str) -> bool:
     ventana = WindowControl(Name="Registro de Pedido")
@@ -19,17 +17,6 @@ def seleccionar_cliente(dni: str) -> bool:
     sleep(0.5)
     SendKeys("{Enter}")
     sleep(0.5)
-
-    aviso = WindowControl(Name="Aviso.")
-    for _ in range(10):
-        if aviso.Exists(maxSearchSeconds=0.3):
-            logger.info(f"[SELECCIONAR_CLIENTE] Aviso: cliente no encontrado (DNI {dni})")
-            boton_aceptar = aviso.ButtonControl(Name="Aceptar")
-            if boton_aceptar.Exists(maxSearchSeconds=1):
-                boton_aceptar.Click()
-                sleep(0.5)
-            return False
-        sleep(0.3)
 
     valor_final = txt_cliente.GetValuePattern().Value
     return valor_final != valor_inicial

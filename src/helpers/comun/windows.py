@@ -37,4 +37,4 @@ def get_system_info_panel() -> PaneControl:
 
 
 def get_barrar_group() -> GroupControl:
-    return get_registro_pedido_window().GroupControl(searchDepth=1, Name="Barra")
+    return WindowControl(Name="Registro de Pedido").GroupControl(Name="Barra")

@@ -196,7 +196,14 @@ def _esperar_combo(
     )
 
 
-def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
+FORMA_PAGO_MAP = {
+    FormaPago.CONTADO: "CONTADO",
+    FormaPago.INTERVENCION_SANITARIA: "INTERVENCION SANITAR",
+    FormaPago.SIS: "SIS",
+}
+
+
+def selecionar_forma_pago(pedido: Pedido) -> None:
     cbo = _esperar_combo("CboDato")
 
     cbo.Click()
@@ -216,6 +223,19 @@ def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
         raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago}")
 
 
+
+def _cerrar_aviso_si_existe() -> None:
+    try:
+        aviso = WindowControl(Name="Aviso.")
+        if aviso.Exists(maxSearchSeconds=0.5):
+            boton = aviso.ButtonControl(Name="Aceptar")
+            if boton.Exists(maxSearchSeconds=0.5):
+                boton.Click()
+                sleep(0.5)
+    except Exception:
+        pass
+
+
 def rellenar_cabecera(
     pedido: Pedido,
 ) -> None:
@@ -223,7 +243,7 @@ def rellenar_cabecera(
     sleep(1.5)
     logger.debug("[CABECERA] Seleccionando forma de pago")
 
-    selecionar_forma_pago_Julio(pedido)
+    selecionar_forma_pago(pedido)
 
     manejar_forma_pago(pedido)
 
@@ -231,20 +251,16 @@ def rellenar_cabecera(
 
     logger.debug(f"[CABECERA] Seleccionando cliente: {pedido.cliente.codigo}")
     if not seleccionar_cliente(pedido.cliente.codigo):
+        _cerrar_aviso_si_existe()
         if pedido.cliente.nombre:
             logger.info(
                 f"[CABECERA] Cliente no encontrado, registrando: "
                 f"{pedido.cliente.nombre} (DNI {pedido.cliente.codigo})"
             )
             registrar_cliente_en_sismed(pedido.cliente)
-            if not seleccionar_cliente(pedido.cliente.codigo):
-                logger.warning(
-                    f"[CABECERA] Cliente aun no encontrado despues del registro"
-                )
-                volver_a_menuprincipal()
-                raise ClienteNoEncontradoError(
-                    f"Cliente {pedido.cliente.codigo} no encontrado en SISMED"
-                )
+            logger.info(
+                f"[CABECERA] Cliente registrado, continuando flujo"
+            )
         else:
             volver_a_menuprincipal()
             raise ClienteNoEncontradoError(

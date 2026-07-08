@@ -106,7 +106,15 @@ def registrar_cliente_en_sismed(cliente: Cliente) -> bool:
     txt_dni = modal.EditControl(Name="TxtCLINUMEDOC")
     escribir_input(txt_dni, cliente.codigo)
 
-    logger.info("Registro completado (modo prueba). Esperando 20s...")
-    sleep(20)
+    logger.info("Registro completado, cerrando modal con Aceptar")
+    btn_aceptar = modal.ButtonControl(Name="Aceptar")
+    if btn_aceptar.Exists(maxSearchSeconds=2):
+        btn_aceptar.Click()
+        sleep(0.5)
+
+    for _ in range(10):
+        if not modal.Exists(maxSearchSeconds=0.5):
+            break
+        sleep(0.5)
 
     return True
