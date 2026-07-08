@@ -48,7 +48,7 @@ def registrar_cliente_en_sismed(cliente: Cliente) -> bool:
 
     modal = None
     for _ in range(20):
-        modal = auto.WindowControl(Name="FARMACIA - MINSA SISMED C:\sismedv2_hospitalrioja ()").WindowControl(Name="Registro de Nuevo Cliente")
+        modal = auto.WindowControl(Name="Registro de Nuevo Cliente")
         if modal.Exists(maxSearchSeconds=0.5):
             break
         sleep(0.5)

@@ -44,13 +44,18 @@ from uiautomation import (
 )
 
 from database.conexion import ejecutar_sp_update_estado
+from src.flujos._login import (
+    esperar_hora_backup_si_aplica,
+    login,
+    verificar_backup_si_aplica,
+)
+from src.helpers.comun.input import escribir_input
+from src.helpers.comun.windows import get_barrar_group, get_system_info_panel
 from src.helpers.pedido.cliente import seleccionar_cliente
 from src.helpers.pedido.diagnosticos import rellenar_diagnosticos
 from src.helpers.pedido.farmacia import seleccionar_farmacia_por_codigo
-from src.helpers.comun.input import escribir_input
 from src.helpers.pedido.producto import agregar_productos
 from src.helpers.pedido.registro_cliente import registrar_cliente_en_sismed
-from src.helpers.comun.windows import get_barrar_group, get_system_info_panel
 from src.logger import logger
 from src.models import pedido
 from src.models.forma_pago import FormaPago
@@ -60,11 +65,10 @@ from src.reportes.excel_writer import (
     guardar_movimientos,
     obtener_siguiente_numero_procesado,
 )
-from src.flujos._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
 
 # --- USAR EN PRODUCCIÓN ---
-SISMED_USERNAME = "RPA"
-SISMED_PASSWORD = "RPA"
+SISMED_USERNAME = "admin"
+SISMED_PASSWORD = "admin"
 
 
 class ClienteNoEncontradoError(Exception):
@@ -528,7 +532,9 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
                     try:
                         ejecutar_sp_update_estado(pedido.update_key, "02")
                     except Exception as update_err:
-                        logger.warning(f"[LOTE] No se pudo actualizar estado BD: {update_err}")
+                        logger.warning(
+                            f"[LOTE] No se pudo actualizar estado BD: {update_err}"
+                        )
                 row = crear_row_pedido(
                     i=numero_procesado,
                     username=SISMED_USERNAME,
@@ -558,7 +564,9 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
                         try:
                             ejecutar_sp_update_estado(pedido.update_key, "01")
                         except Exception as update_err:
-                            logger.warning(f"[LOTE] No se pudo actualizar estado BD: {update_err}")
+                            logger.warning(
+                                f"[LOTE] No se pudo actualizar estado BD: {update_err}"
+                            )
 
                     row = crear_row_pedido(
                         i=numero_procesado,
@@ -608,7 +616,12 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
     logger.debug("[LOTE] Procesamiento de lote completado, cerrando SISMED")
     cerrar_sismed_pedido()
 
-    return {"total": total, "ok": ok_count, "error": error_count, "sin_cliente": sin_cliente_count}
+    return {
+        "total": total,
+        "ok": ok_count,
+        "error": error_count,
+        "sin_cliente": sin_cliente_count,
+    }
 
 
 def main(pedidos_override: tuple = None):
@@ -620,7 +633,9 @@ def main(pedidos_override: tuple = None):
 
         fecha_ini, fecha_fin = "2026-06-09", "2026-06-10"
         logger.info(f"Obteniendo pedidos desde SP ({fecha_ini} a {fecha_fin})...")
-        pedidos, _, _, _ = obtener_movimientos(fecha_ini, fecha_fin, skip_errores=not config.procesar_errores)
+        pedidos, _, _, _ = obtener_movimientos(
+            fecha_ini, fecha_fin, skip_errores=not config.procesar_errores
+        )
     logger.info(f"SP devolvio: {len(pedidos)} pedidos")
     for i, p in enumerate(pedidos, start=1):
         logger.info(
