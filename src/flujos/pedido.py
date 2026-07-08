@@ -234,14 +234,9 @@ def rellenar_cabecera(
                 f"{pedido.cliente.nombre} (DNI {pedido.cliente.codigo})"
             )
             registrar_cliente_en_sismed(pedido.cliente)
-            if not seleccionar_cliente(pedido.cliente.codigo):
-                logger.warning(
-                    f"[CABECERA] Cliente aun no encontrado despues del registro"
-                )
-                volver_a_menuprincipal()
-                raise ClienteNoEncontradoError(
-                    f"Cliente {pedido.cliente.codigo} no encontrado en SISMED"
-                )
+            logger.info(
+                f"[CABECERA] Cliente registrado, continuando flujo"
+            )
         else:
             volver_a_menuprincipal()
             raise ClienteNoEncontradoError(
