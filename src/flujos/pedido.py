@@ -50,7 +50,7 @@ from src.helpers.pedido.farmacia import seleccionar_farmacia_por_codigo
 from src.helpers.comun.input import escribir_input
 from src.helpers.pedido.producto import agregar_productos
 from src.helpers.pedido.registro_cliente import registrar_cliente_en_sismed
-from src.helpers.comun.windows import *
+from src.helpers.comun.windows import get_barrar_group, get_system_info_panel
 from src.logger import logger
 from src.models import pedido
 from src.models.forma_pago import FormaPago
@@ -114,8 +114,7 @@ def navegar_a_pedidos(pedido: Pedido) -> None:
 
 def rellenar_fua(pedido: Pedido) -> None:
 
-    input_fua: EditControl = get_registro_pedido_window().EditControl(
-        searchDepth=1,
+    input_fua: EditControl = WindowControl(Name="Registro de Pedido").EditControl(
         Name="Txtfua",
     )
 
@@ -252,7 +251,7 @@ def rellenar_cabecera(
     rellenar_ups_pedido(pedido)
 
     if pedido.prescriptor is not None:
-        presc: EditControl = get_registro_pedido_window().EditControl(
+        presc: EditControl = WindowControl(Name="Registro de Pedido").EditControl(
             Name="TxtColPresc"
         )
 
@@ -269,7 +268,7 @@ def rellenar_cabecera(
                 f"[CABECERA] Rellenando diagnosticos: {[d.codigo for d in pedido.diagnosticos]}"
             )
             rellenar_diagnosticos(
-                get_registro_pedido_window(),
+                WindowControl(Name="Registro de Pedido"),
                 [d.codigo for d in pedido.diagnosticos],
             )
     else:

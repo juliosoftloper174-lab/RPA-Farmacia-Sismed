@@ -1,12 +1,10 @@
 from time import sleep
 
-from uiautomation import EditControl, SendKeys
-
-from src.helpers.comun.windows import get_registro_pedido_window
+from uiautomation import EditControl, SendKeys, WindowControl
 
 
 def seleccionar_cliente(dni: str) -> bool:
-    ventana = get_registro_pedido_window()
+    ventana = WindowControl(Name="Registro de Pedido")
 
     txt_cliente: EditControl = ventana.EditControl(Name="TxtCliente")
     valor_inicial = txt_cliente.GetValuePattern().Value
