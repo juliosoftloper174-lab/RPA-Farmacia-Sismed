@@ -11,20 +11,20 @@ DIFERENCIAS con pedido.py (src/sidmed/):
 5. Guarda el correlativo real en Excel (no randint)
 
 MODO DE EJECUCIÓN:
-  1. Abre terminal (VS Code: Ctrl + N, o PowerShell)
-  2. Asegurate de estar en la raiz del proyecto:
-     cd C:/Users/DELL/Documents/RPA-Sismed/sismed_wrapper
-  3. Activa el entorno virtual (si no lo esta):
-     .\\.venv\\Scripts\\activate
-  4. Ejecuta:
-     python -m PedidosSP.pedido_SP
-  5. Espera a que SISMED se abra y procese los 3 pedidos demo.
-  6. Los resultados se guardan en movimientos.xlsx.
+   1. Abre terminal (VS Code: Ctrl + N, o PowerShell)
+   2. Asegurate de estar en la raiz del proyecto:
+      cd C:/Users/DELL/Documents/RPA-Sismed/sismed_wrapper
+   3. Activa el entorno virtual (si no lo esta):
+      .\\.venv\\Scripts\\activate
+   4. Ejecuta:
+      python -m src.flujos.pedido
+   5. Espera a que SISMED se abra y procese los 3 pedidos demo.
+   6. Los resultados se guardan en movimientos.xlsx.
 
   Para detener la ejecucion: Ctrl + C
 
 CONFIGURACION DESDE __main__.py:
-  from PedidosSP.pedido_SP import procesar_pedidos
+  from src.flujos.pedido import procesar_pedidos
   procesar_pedidos(tuple(pedidos))
 
   main(pedidos_override=tuple(pedidos))  # para usar el entry point con datos externos
@@ -44,13 +44,13 @@ from uiautomation import (
 )
 
 from database.conexion import ejecutar_sp_update_estado
-from src.helpers.cliente import seleccionar_cliente
-from src.helpers.diagnosticos import rellenar_diagnosticos
-from src.helpers.farmacia import seleccionar_farmacia_por_codigo
-from src.helpers.input import escribir_input
-from src.helpers.producto import agregar_productos
-from src.helpers.registro_cliente import registrar_cliente_en_sismed
-from src.helpers.windows import *
+from src.helpers.pedido.cliente import seleccionar_cliente
+from src.helpers.pedido.diagnosticos import rellenar_diagnosticos
+from src.helpers.pedido.farmacia import seleccionar_farmacia_por_codigo
+from src.helpers.comun.input import escribir_input
+from src.helpers.pedido.producto import agregar_productos
+from src.helpers.pedido.registro_cliente import registrar_cliente_en_sismed
+from src.helpers.comun.windows import *
 from src.logger import logger
 from src.models import pedido
 from src.models.forma_pago import FormaPago
@@ -60,7 +60,7 @@ from src.reportes.excel_writer import (
     guardar_movimientos,
     obtener_siguiente_numero_procesado,
 )
-from src.sidmed._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
+from src.flujos._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
 
 # --- USAR EN PRODUCCIÓN ---
 SISMED_USERNAME = "RPA"
@@ -175,74 +175,6 @@ def selecionar_receta(pedido: Pedido) -> None:
         sleep(0.5)
     Click(525, 406)
     sleep(0.5)
-
-
-def obtener_valor_seleccionado_cbo(cbo: ComboBoxControl) -> str:
-    children = cbo.GetChildren()
-    items = tuple(
-        child for child in children if child.ControlType == ControlType.ListItemControl
-    )
-    selected = tuple(
-        item.Name.strip() for item in items if item.GetSelectionItemPattern().IsSelected
-    )
-    if len(selected) != 1:
-        raise RuntimeError(
-            f"Error obteniendo valor del CBO: {cbo.Name}. "
-            f"Se encontraron {len(selected)} items seleccionados (se esperaba 1)"
-        )
-    return selected[0]
-
-
-def selecionar_forma_pago_Cesar(pedido: Pedido) -> None:
-
-    expected_value: str
-
-    if pedido.forma_pago == FormaPago.CONTADO:
-        logger.debug("[FORMA_PAGO] CONTADO — ya preseleccionado, sin acción")
-        expected_value = FormaPago.CONTADO
-
-    elif pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
-        logger.debug("[FORMA_PAGO] INTERVENCION_SANITARIA — 2 clicks")
-        sleep(2)
-        Click(610, 320)
-        sleep(2)
-        Click(510, 432)
-        sleep(2)
-        expected_value = FormaPago.INTERVENCION_SANITARIA
-
-    elif pedido.forma_pago == FormaPago.SIS:
-        logger.debug("[FORMA_PAGO] SIS — 3 clicks")
-        sleep(2)
-        Click(610, 320)
-        sleep(2)
-        Click(612, 412)
-        sleep(2)
-        Click(502, 385)
-        sleep(2)
-        expected_value = FormaPago.SIS
-
-    else:
-        raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago.value}")
-
-    sleep(1)
-
-    cbo = ComboBoxControl(Name="CboDato")
-
-    # NOTE: Open to force update, then close.
-    cbo.Click()
-    sleep(1)
-    cbo.SendKeys("{Enter}")
-    sleep(1)
-
-    selected = obtener_valor_seleccionado_cbo(cbo)
-    if selected != expected_value:
-        raise RuntimeError(
-            f"Forma de pago no se seleccionó correctamente: "
-            f"se esperaba '{expected_value}', se obtuvo '{selected}'"
-        )
-
-    msg = f"Forma de pago '{expected_value}' seleccionada correctamente"
-    return logger.success(msg)
 
 
 def _esperar_combo(

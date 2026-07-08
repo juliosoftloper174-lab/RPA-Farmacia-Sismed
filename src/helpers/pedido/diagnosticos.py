@@ -2,7 +2,7 @@ from time import sleep
 from src.logger import logger
 from uiautomation import SendKeys, WindowControl
 
-from src.helpers.input import escribir_input
+from src.helpers.comun.input import escribir_input
 
 
 def rellenar_diagnosticos(

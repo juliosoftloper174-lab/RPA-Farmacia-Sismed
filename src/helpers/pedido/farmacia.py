@@ -2,7 +2,7 @@ from time import sleep
 from src.logger import logger
 import uiautomation as auto
 from uiautomation import Click, SendKeys
-from ..helpers.ui_helper import normalizar, obtener_texto_edit
+from src.helpers.comun.ui_helper import normalizar, obtener_texto_edit
 from uiautomation import WindowControl
 
 

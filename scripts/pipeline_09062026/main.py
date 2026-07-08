@@ -1,7 +1,7 @@
 from loguru import logger
 
-from src.sidmed.ingreso import procesar_ingresos
-from src.sidmed.salidas import procesar_salidas
+from src.flujos.ingreso import procesar_ingresos
+from src.flujos.salida import procesar_salidas
 from src.reportes.excel_schema import crear_row_incidencia_validacion
 from src.reportes.excel_writer import guardar_movimientos
 

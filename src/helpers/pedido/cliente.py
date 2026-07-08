@@ -2,7 +2,7 @@ from time import sleep
 
 from uiautomation import EditControl, SendKeys
 
-from src.helpers.windows import get_registro_pedido_window
+from src.helpers.comun.windows import get_registro_pedido_window
 
 
 def seleccionar_cliente(dni: str) -> bool:

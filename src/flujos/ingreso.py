@@ -8,16 +8,16 @@ from uiautomation import (
     WindowControl,
 )
 
-from src.helpers.manejo_errores import cerrar_ventana_segura
-from ..helpers.selecionar import seleccionar_combo_por_texto
-from ..helpers.selecionar import seleccionar_combo_por_texto_con_autoenter
-from ..config import SISMED_PASSWORD, SISMED_USERNAME
+from src.helpers.comun.manejo_errores import cerrar_ventana_segura
+from src.helpers.comun.selecionar import seleccionar_combo_por_texto
+from src.helpers.comun.selecionar import seleccionar_combo_por_texto_con_autoenter
+from src.config import SISMED_PASSWORD, SISMED_USERNAME
 
 from src.models.ingreso import Ingreso
 from src.models.Medicamento import Medicamento
-from src.sidmed._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
+from src.flujos._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
 from database.conexion import ejecutar_sp_update_estado
-from src.sidmed._comun_almacen import (
+from src.flujos._comun_almacen import (
     cerrar_sismed,
     cerrar_ventana_registro,
     close_doc_windows,

@@ -3,8 +3,8 @@ from src.logger import logger
 import uiautomation as auto
 from uiautomation import TableControl
 
-from src.helpers.input import escribir_input
-from src.helpers.ventana import esperar_ventana
+from src.helpers.comun.input import escribir_input
+from src.helpers.comun.ventana import esperar_ventana
 from src.models.Medicamento import Medicamento
 
 

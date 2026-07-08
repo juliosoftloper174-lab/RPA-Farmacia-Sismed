@@ -2,8 +2,8 @@ from time import sleep
 
 import uiautomation as auto
 
-from src.helpers.input import escribir_input
-from src.helpers.windows import get_farmacia_window, get_registro_pedido_window
+from src.helpers.comun.input import escribir_input
+from src.helpers.comun.windows import get_farmacia_window, get_registro_pedido_window
 from src.logger import logger
 from src.models.cliente import Cliente
 
@@ -85,6 +85,23 @@ def registrar_cliente_en_sismed(cliente: Cliente) -> bool:
         radio = grupo.RadioButtonControl(Name=nombre_radio)
         radio.Click()
         logger.info(f"Sexo seleccionado: {nombre_radio}")
+
+    if cliente.fecha_nacimiento:
+        logger.info(f"Escribiendo fecha nacimiento: {cliente.fecha_nacimiento}")
+        partes = cliente.fecha_nacimiento.split("-")
+        fecha_formateada = f"{partes[2]}/{partes[1]}/{partes[0]}"
+        logger.debug(f"Fecha formateada: {fecha_formateada}")
+        fecha = modal.EditControl(Name="fechanac")
+        fecha.Click()
+        sleep(0.3)
+        auto.SendKeys("{CONTROL}a")
+        sleep(0.3)
+        auto.SendKeys("{CONTROL}a")
+        sleep(0.3)
+        auto.SendKeys("{DEL}")
+        sleep(0.3)
+        fecha.SendKeys(fecha_formateada)
+        logger.info(f"Fecha nacimiento escrita: {fecha_formateada}")
 
     logger.info(f"Escribiendo DNI: {cliente.codigo}")
     txt_dni = modal.EditControl(Name="TxtCLINUMEDOC")

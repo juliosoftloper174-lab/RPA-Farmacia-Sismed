@@ -7,7 +7,7 @@ from time import sleep
 
 from loguru import logger
 
-from PedidosSP.pedido_SP import procesar_pedidos
+from src.flujos.pedido import procesar_pedidos
 from src import config
 from src.datos.sp_adapter import obtener_movimientos
 from src.models.forma_pago import FormaPago
@@ -26,8 +26,8 @@ from src.reportes.excel_writer import (
     leer_resumen_diario,
     obtener_siguiente_numero_procesado,
 )
-from src.sidmed.ingreso import procesar_ingresos
-from src.sidmed.salidas import procesar_salidas
+from src.flujos.ingreso import procesar_ingresos
+from src.flujos.salida import procesar_salidas
 
 RUNNING_FILE = Path(__file__).resolve().parent.parent / ".running"
 

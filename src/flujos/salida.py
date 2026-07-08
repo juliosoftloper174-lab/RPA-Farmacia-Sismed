@@ -21,7 +21,7 @@ from src.reportes.excel_writer import (
     guardar_movimientos,
     obtener_siguiente_numero_procesado,
 )
-from src.sidmed._comun_almacen import (
+from src.flujos._comun_almacen import (
     cerrar_sismed,
     cerrar_ventana_salida_guardada,
     close_doc_windows,
@@ -29,9 +29,9 @@ from src.sidmed._comun_almacen import (
     guardar,
 )
 
-from ..config import SISMED_PASSWORD, SISMED_USERNAME
-from ..logger import logger
-from ..sidmed._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
+from src.config import SISMED_PASSWORD, SISMED_USERNAME
+from src.logger import logger
+from src.flujos._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
 
 # =========================================================
 # 🔹 HELPERS
