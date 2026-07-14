@@ -67,13 +67,13 @@ def _signal_handler(sig, frame):
     sys.exit(0)
 
 
-def _procesar_ingreso(ingresos):
+def _procesar_ingreso(ingresos, fecha=None, fecha_fin=None, modo="horario"):
     if not config.procesar_ingresos or not ingresos:
         logger.info("INGRESOS: desactivado o sin datos.")
         return None
     logger.info(f"Iniciando procesamiento de {len(ingresos)} ingresos...")
     try:
-        stats_ing = procesar_ingresos(tuple(ingresos))
+        stats_ing = procesar_ingresos(tuple(ingresos), fecha=fecha, fecha_fin=fecha_fin, modo=modo)
         logger.success("Ingresos procesados correctamente.")
         return stats_ing
     except Exception as e:
@@ -81,13 +81,13 @@ def _procesar_ingreso(ingresos):
         return {"total": len(ingresos), "ok": 0, "error": len(ingresos)}
 
 
-def _procesar_salida(salidas):
+def _procesar_salida(salidas, fecha=None, fecha_fin=None, modo="horario"):
     if not config.procesar_salidas or not salidas:
         logger.info("SALIDAS: desactivado o sin datos.")
         return None
     logger.info(f"Iniciando procesamiento de {len(salidas)} salidas...")
     try:
-        stats_sal = procesar_salidas(tuple(salidas))
+        stats_sal = procesar_salidas(tuple(salidas), fecha=fecha, fecha_fin=fecha_fin, modo=modo)
         logger.success("Salidas procesadas correctamente.")
         return stats_sal
     except Exception as e:
@@ -95,7 +95,7 @@ def _procesar_salida(salidas):
         return {"total": len(salidas), "ok": 0, "error": len(salidas)}
 
 
-def _procesar_pedido(pedidos):
+def _procesar_pedido(pedidos, fecha=None, fecha_fin=None, modo="horario"):
     if not config.procesar_pedidos:
         logger.info("PEDIDOS: desactivado por configuracion.")
         return None
@@ -105,7 +105,7 @@ def _procesar_pedido(pedidos):
 
     pedidos_validos = []
     filas_excel = []
-    numero_procesado = obtener_siguiente_numero_procesado()
+    numero_procesado = obtener_siguiente_numero_procesado(fecha, fecha_fin, modo)
 
     for i, pedido in enumerate(pedidos, start=1):
         motivos = pedido.obtener_revisiones()
@@ -130,7 +130,7 @@ def _procesar_pedido(pedidos):
 
     if filas_excel:
         try:
-            guardar_movimientos(filas_excel)
+            guardar_movimientos(filas_excel, fecha=fecha, fecha_fin=fecha_fin, modo=modo)
         except Exception as e:
             logger.exception(f"Error guardando incidencias de validacion: {e}")
 
@@ -145,7 +145,7 @@ def _procesar_pedido(pedidos):
 
     logger.info("Iniciando procesamiento de pedidos en SISMED...")
     try:
-        stats_ped = procesar_pedidos(tuple(pedidos_validos))
+        stats_ped = procesar_pedidos(tuple(pedidos_validos), fecha=fecha, fecha_fin=fecha_fin, modo=modo)
         logger.success("Todos los pedidos fueron procesados correctamente.")
         return stats_ped
     except Exception as e:
@@ -217,14 +217,14 @@ def _ejecutar_batch():
             pedido.fua = generar_fua_ficticio()
 
     try:
-        _procesar_ingreso(ingresos)
-        _procesar_salida(salidas)
-        _procesar_pedido(pedidos)
+        _procesar_ingreso(ingresos, fecha_ini, fecha_fin, modo="batch")
+        _procesar_salida(salidas, fecha_ini, fecha_fin, modo="batch")
+        _procesar_pedido(pedidos, fecha_ini, fecha_fin, modo="batch")
         logger.success("Batch completado.")
 
         if config.NOTIFICAR_CORREO:
-            resumen = leer_resumen_diario(fecha_ini)
-            excel_path = _path_del_dia(fecha_ini)
+            resumen = leer_resumen_diario(fecha_ini, fecha_fin, modo="batch")
+            excel_path = _path_del_dia(fecha_ini, fecha_fin, modo="batch")
             enviar_correo_con_adjunto(
                 f"📊 Bot N°{config.BOT_NUMBER} - Resumen batch {fecha_ini} → {fecha_fin}",
                 construir_cuerpo_resumen_diario(resumen, fecha_ini),

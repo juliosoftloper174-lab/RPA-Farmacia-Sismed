@@ -309,8 +309,8 @@ def agregar_productos(registro: WindowControl, ingreso: Ingreso):
 # =========================================================
 
 
-def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> dict:
-    numero_procesado = obtener_siguiente_numero_procesado()
+def procesar_ingresos(ingresos: tuple[Ingreso, ...], fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> dict:
+    numero_procesado = obtener_siguiente_numero_procesado(fecha, fecha_fin, modo)
     total = len(ingresos)
     ok_count = 0
     error_count = 0
@@ -388,7 +388,7 @@ def procesar_ingresos(ingresos: tuple[Ingreso, ...]) -> dict:
         sleep(1.5)
         SendKeys("{Enter}")
 
-        guardar_movimientos(row)
+        guardar_movimientos(row, fecha, fecha_fin, modo)
         numero_procesado += 1
 
     logger.info("[INGRESOS] Cerrando SISMED...")

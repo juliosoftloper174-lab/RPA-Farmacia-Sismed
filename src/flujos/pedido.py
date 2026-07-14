@@ -31,7 +31,7 @@ CONFIGURACION DESDE __main__.py:
 """
 
 import re
-from time import sleep
+from time import sleep, time
 
 from uiautomation import (
     ButtonControl,
@@ -275,15 +275,17 @@ def rellenar_cabecera(
 
 
 def guardar() -> None:
-
+    t0 = time()
     cmd_save: ButtonControl = get_barrar_group().ButtonControl(
         searchDepth=1,
         Name="CmdSave",
     )
 
     cmd_save.Click()
+    logger.debug(f"[TIMING] guardar() click CmdSave en {time()-t0:.1f}s")
 
     sleep(0.3)
+    logger.debug(f"[TIMING] guardar() sleep(0.3) completado, total={time()-t0:.1f}s")
 
 
 def selecionar_receta_verificacion() -> None:
@@ -296,7 +298,10 @@ def selecionar_receta_verificacion() -> None:
 
 
 def verificar_receta() -> bool:
+    t0 = time()
+    logger.debug(f"[TIMING] verificar_receta() esperando 1.5s...")
     sleep(1.5)
+    logger.debug(f"[TIMING] verificar_receta() sleep(1.5) completado en {time()-t0:.1f}s, verificando ventanas...")
     for name in ("Aviso", "Microsoft Visual FoxPro"):
         w = WindowControl(Name=name)
         if w.Exists(maxSearchSeconds=1):
@@ -305,13 +310,17 @@ def verificar_receta() -> bool:
             sleep(1)
             selecionar_receta_verificacion()
             guardar()
+            logger.debug(f"[TIMING] verificar_receta() corregido, total={time()-t0:.1f}s")
             return True
+    logger.debug(f"[TIMING] verificar_receta() sin errores, total={time()-t0:.1f}s")
     return False
 
 
 def verificar_stock() -> bool:
+    t0 = time()
     aviso = WindowControl(Name="Aviso")
     if not aviso.Exists(maxSearchSeconds=1):
+        logger.debug(f"[TIMING] verificar_stock() no encontró aviso, {time()-t0:.1f}s")
         return False
     try:
         mensaje = aviso.TextControl(searchDepth=1).Name.strip()
@@ -321,7 +330,9 @@ def verificar_stock() -> bool:
         logger.warning(f"[STOCK] Aviso de sin stock: {mensaje}")
         aviso.ButtonControl(Name="Aceptar").Click()
         sleep(1)
+        logger.debug(f"[TIMING] verificar_stock() sin stock, total={time()-t0:.1f}s")
         return True
+    logger.debug(f"[TIMING] verificar_stock() aviso ignorado, {time()-t0:.1f}s")
     return False
 
 
@@ -331,23 +342,28 @@ def extraer_correlativo_farmacia(forma_pago: FormaPago) -> str:
     - CONTADO: 'BOLETA DE VENTA #176-0000007' → '176-0000007'
     - SIS / INTERVENCION_SANITARIA: 'TICKET #003-0000008' → '003-0000008'
     """
+    t0 = time()
+    tipo = "BOLETA" if forma_pago == FormaPago.CONTADO else "TICKET"
     if forma_pago == FormaPago.CONTADO:
         ventana = WindowControl(RegexName=r"^BOLETA DE VENTA #")
         if not ventana.Exists(maxSearchSeconds=5):
+            logger.debug(f"[TIMING] extraer_correlativo() BOLETA no encontrada en {time()-t0:.1f}s")
             raise RuntimeError(
                 "No se encontró la ventana BOLETA DE VENTA después de guardar"
             )
     else:
         ventana = WindowControl(RegexName=r"^TICKET #")
         if not ventana.Exists(maxSearchSeconds=5):
+            logger.debug(f"[TIMING] extraer_correlativo() TICKET no encontrado en {time()-t0:.1f}s")
             raise RuntimeError("No se encontró la ventana TICKET después de guardar")
+
+    logger.debug(f"[TIMING] extraer_correlativo() ventana {tipo} encontrada en {time()-t0:.1f}s")
 
     match = re.search(r"#(.+)", ventana.Name)
     if not match:
         raise RuntimeError(f"No se pudo extraer correlativo del título: {ventana.Name}")
 
     correlativo = match.group(1).strip()
-    tipo = "BOLETA" if forma_pago == FormaPago.CONTADO else "TICKET"
     logger.debug(f"[{tipo}] Correlativo extraído: {correlativo}")
     return correlativo
 
@@ -358,7 +374,10 @@ def procesar_boleta_venta(forma_pago: FormaPago) -> None:
     - CONTADO: ventana 'BOLETA DE VENTA #...', extrae TxtValVta → TxtImpPag → Aceptar
     - SIS / INTERVENCION_SANITARIA: ventana 'TICKET #...', solo Aceptar
     """
+    t0 = time()
+    logger.debug(f"[TIMING] procesar_boleta() esperando 3s inicial...")
     sleep(3)
+    logger.debug(f"[TIMING] procesar_boleta() sleep(3) inicial completado en {time()-t0:.1f}s")
     if forma_pago == FormaPago.CONTADO:
         ventana = WindowControl(RegexName=r"^BOLETA DE VENTA #")
         logger.debug("[BOLETA] Procesando pago CONTADO")
@@ -379,14 +398,17 @@ def procesar_boleta_venta(forma_pago: FormaPago) -> None:
         sleep(0.5)
         txt_imp_pag.SendKeys(valor)
         sleep(0.5)
+        logger.debug(f"[TIMING] procesar_boleta() CONTADO llenado en {time()-t0:.1f}s")
     else:
         ventana = WindowControl(RegexName=r"^TICKET #")
-        logger.debug("[TICKET] Procesando SIS / INTERVENCION_SANITARIA")
+        logger.debug(f"[TIMING] procesar_boleta() TICKET encontrado en {time()-t0:.1f}s")
 
     # Para TODOS los casos: click Aceptar
     logger.debug(f"Haciendo click en Aceptar")
     ventana.ButtonControl(Name="Aceptar").Click()
+    logger.debug(f"[TIMING] procesar_boleta() click Aceptar, esperando 3s final...")
     sleep(3)
+    logger.debug(f"[TIMING] procesar_boleta() sleep(3) final completado, total={time()-t0:.1f}s")
 
 
 def volver_a_menuprincipal() -> None:
@@ -396,13 +418,18 @@ def volver_a_menuprincipal() -> None:
     - Click(1585, 15): Cierra ventana de farmacia Minsa sismed
     (La ventana de registro de consumo ya se cerró al aceptar la boleta)
     """
+    t0 = time()
     # Cerrar ventana de registro de pedido
     Click(1189, 214)
+    logger.debug(f"[TIMING] volver_menu() click(1189,214), esperando 1.5s...")
     sleep(1.5)
+    logger.debug(f"[TIMING] volver_menu() sleep(1.5)#1 completado en {time()-t0:.1f}s")
 
     # Cerrar ventana de farmacia Minsa sismed
     Click(1585, 15)
+    logger.debug(f"[TIMING] volver_menu() click(1585,15), esperando 1.5s...")
     sleep(1.5)
+    logger.debug(f"[TIMING] volver_menu() total={time()-t0:.1f}s")
 
 
 def cerrar_sismed_pedido() -> None:
@@ -448,6 +475,7 @@ def procesar_pedido(
     agregar_productos(tuple(pedido.Medicamentos))
 
     logger.debug("[PROCESAR] Productos OK, guardando")
+    t_guardado = time()
     guardar()
     if verificar_stock():
         volver_a_menuprincipal()
@@ -456,6 +484,7 @@ def procesar_pedido(
 
     # Extraer correlativo real de la ventana (Boleta o Ticket según forma de pago)
     correlativo = extraer_correlativo_farmacia(pedido.forma_pago)
+    logger.debug(f"[TIMING] FLOW POST-GUARDADO: {time()-t_guardado:.1f}s (guardar→correlativo)")
     logger.debug(f"[PROCESAR] Guardado OK, correlativo={correlativo}")
 
     # Procesar Boleta/Ticket (Aceptar, y si CONTADO: llenar pago)
@@ -463,6 +492,7 @@ def procesar_pedido(
 
     # Volver al menú principal (unificado para todos los casos)
     volver_a_menuprincipal()
+    logger.debug(f"[TIMING] FLOW COMPLETO post-guardado: {time()-t_guardado:.1f}s")
 
     logger.debug(f"[PROCESAR] Pedido completado: correlativo={correlativo}")
     return correlativo
@@ -479,14 +509,14 @@ def cerrar_ventanas_sismed() -> None:
     sleep(3)
 
 
-def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
+def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> dict:
 
     login(
         SISMED_USERNAME,
         SISMED_PASSWORD,
     )
 
-    numero_procesado = obtener_siguiente_numero_procesado()
+    numero_procesado = obtener_siguiente_numero_procesado(fecha, fecha_fin, modo)
     total = len(pedidos)
     ok_count = 0
     error_count = 0
@@ -527,7 +557,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
                     estado="OK_REPROCESADO" if reintentos > 0 else "OK",
                 )
 
-                guardar_movimientos(row)
+                guardar_movimientos(row, fecha, fecha_fin, modo)
 
                 msg = f"[LOTE] Pedido {idx}/{total} OK: correlativo={correlativo}"
                 if reintentos > 0:
@@ -557,7 +587,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
                     estado="CLIENTE_NO_ENCONTRADO",
                     error=motivo,
                 )
-                guardar_movimientos(row)
+                guardar_movimientos(row, fecha, fecha_fin, modo)
                 break
 
             except SinStockError as exc:
@@ -580,7 +610,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
                     estado="SIN_STOCK",
                     error=motivo,
                 )
-                guardar_movimientos(row)
+                guardar_movimientos(row, fecha, fecha_fin, modo)
                 break
 
             except Exception as exc:
@@ -612,7 +642,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
                         error=f"Se agotaron {MAX_REINTENTOS_PEDIDO} reintentos: {motivo}",
                     )
 
-                    guardar_movimientos(row)
+                    guardar_movimientos(row, fecha, fecha_fin, modo)
                     continue
 
                 logger.warning(
@@ -630,7 +660,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
                     error=f"Fallo intento {reintentos}/{MAX_REINTENTOS_PEDIDO}: {motivo}",
                 )
 
-                guardar_movimientos(row_retry)
+                guardar_movimientos(row_retry, fecha, fecha_fin, modo)
 
                 try:
                     cerrar_ventanas_sismed()

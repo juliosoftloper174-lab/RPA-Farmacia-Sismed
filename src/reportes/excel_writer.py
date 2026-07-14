@@ -11,11 +11,16 @@ MESES_ES = [
 ]
 
 
-def _path_del_dia(fecha: str | None = None) -> Path:
+def _path_del_dia(fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> Path:
     if fecha is None:
         fecha = datetime.now().strftime("%Y-%m-%d")
     dt = datetime.strptime(fecha, "%Y-%m-%d")
-    ruta = Path("ReportesExcel") / str(dt.year) / MESES_ES[dt.month] / f"MOV_{dt.strftime('%d-%m-%y')}.xlsx"
+    if fecha_fin:
+        dt_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+        filename = f"MOV_{dt.strftime('%d-%m-%y')}_{dt_fin.strftime('%d-%m-%y')}.xlsx"
+    else:
+        filename = f"MOV_{dt.strftime('%d-%m-%y')}.xlsx"
+    ruta = Path("ReportesExcel") / modo / str(dt.year) / MESES_ES[dt.month] / filename
     ruta.parent.mkdir(parents=True, exist_ok=True)
     return ruta
 
@@ -65,7 +70,7 @@ def _normalizar_df_existente(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def guardar_movimientos(rows: list[dict] | dict, fecha: str | None = None):
+def guardar_movimientos(rows: list[dict] | dict, fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario"):
     if isinstance(rows, dict):
         rows = [rows]
 
@@ -73,7 +78,7 @@ def guardar_movimientos(rows: list[dict] | dict, fecha: str | None = None):
         for key, value in row.items():
             row[key] = str(value) if value is not None else ""
 
-    path = _path_del_dia(fecha)
+    path = _path_del_dia(fecha, fecha_fin, modo)
     nuevo_df = pl.DataFrame(rows)
 
     if path.exists():
@@ -87,8 +92,8 @@ def guardar_movimientos(rows: list[dict] | dict, fecha: str | None = None):
     df_final.write_excel(path)
 
 
-def obtener_siguiente_numero_procesado(fecha: str | None = None) -> int:
-    path = _path_del_dia(fecha)
+def obtener_siguiente_numero_procesado(fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> int:
+    path = _path_del_dia(fecha, fecha_fin, modo)
     if not path.exists():
         return 1
 
@@ -113,8 +118,8 @@ def obtener_siguiente_numero_procesado(fecha: str | None = None) -> int:
         return df.height + 1
 
 
-def leer_resumen_diario(fecha: str | None = None) -> dict:
-    path = _path_del_dia(fecha)
+def leer_resumen_diario(fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> dict:
+    path = _path_del_dia(fecha, fecha_fin, modo)
     if not path.exists():
         return {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0}
 

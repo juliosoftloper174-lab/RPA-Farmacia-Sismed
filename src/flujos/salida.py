@@ -206,8 +206,8 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
     sleep(2)
 
 
-def procesar_salidas(salidas: tuple[Salidas, ...]) -> dict:
-    numero_procesado = obtener_siguiente_numero_procesado()
+def procesar_salidas(salidas: tuple[Salidas, ...], fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> dict:
+    numero_procesado = obtener_siguiente_numero_procesado(fecha, fecha_fin, modo)
     total = len(salidas)
     ok_count = 0
     error_count = 0
@@ -291,7 +291,7 @@ def procesar_salidas(salidas: tuple[Salidas, ...]) -> dict:
         sleep(1.5)
         SendKeys("{Enter}")
 
-        guardar_movimientos(row)
+        guardar_movimientos(row, fecha, fecha_fin, modo)
         numero_procesado += 1
 
     logger.info("[SALIDAS] Cerrando SISMED...")
