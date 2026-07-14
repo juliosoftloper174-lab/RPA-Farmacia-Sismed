@@ -5,24 +5,19 @@ from datetime import datetime
 import polars as pl
 from src.reportes.excel_schema import EXCEL_COLUMNS
 
-EXCEL_INCIDENCIAS_PATH = "incidencias.xlsx"
-
-# Columnas especificas para incidencias
-EXCEL_COLUMNS_INCIDENCIAS = [
-    "Nº de Procesado",
-    "Fecha",
-    "Hora",
-    "TipoMovimiento",
-    "Estado",
-    "Error",
-    "CantidadMedicamentos",
+MESES_ES = [
+    "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ]
 
 
 def _path_del_dia(fecha: str | None = None) -> Path:
     if fecha is None:
         fecha = datetime.now().strftime("%Y-%m-%d")
-    return Path(f"movimientos_{fecha}.xlsx")
+    dt = datetime.strptime(fecha, "%Y-%m-%d")
+    ruta = Path("ReportesExcel") / str(dt.year) / MESES_ES[dt.month] / f"MOV_{dt.strftime('%d-%m-%y')}.xlsx"
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    return ruta
 
 
 def _normalize_header_text(value: str) -> str:
@@ -141,39 +136,4 @@ def leer_resumen_diario(fecha: str | None = None) -> dict:
     return resumen
 
 
-def guardar_incidencias(rows: list[dict]):
-    if not rows:
-        return
 
-    nuevo_df = pl.DataFrame(rows)
-
-    if Path(EXCEL_INCIDENCIAS_PATH).exists():
-        df_actual = pl.read_excel(EXCEL_INCIDENCIAS_PATH)
-        df_final = pl.concat([df_actual, nuevo_df], how="diagonal_relaxed")
-    else:
-        df_final = nuevo_df
-
-    df_final.write_excel(EXCEL_INCIDENCIAS_PATH)
-
-
-def obtener_siguiente_numero_incidencia() -> int:
-    if not Path(EXCEL_INCIDENCIAS_PATH).exists():
-        return 1
-
-    df = pl.read_excel(EXCEL_INCIDENCIAS_PATH)
-
-    if df.height == 0:
-        return 1
-
-    ultima_fila = df.tail(1)
-
-    if "Nº de Procesado" in df.columns:
-        ultimo_numero = ultima_fila["Nº de Procesado"][0]
-    else:
-        fallback_col = df.columns[0]
-        ultimo_numero = ultima_fila[fallback_col][0]
-
-    try:
-        return int(ultimo_numero) + 1
-    except Exception:
-        return df.height + 1

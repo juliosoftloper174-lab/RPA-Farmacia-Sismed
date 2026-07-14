@@ -16,7 +16,7 @@ def get_farmacia_panel() -> PaneControl:
 
 
 def get_registro_pedido_window() -> WindowControl:
-    return get_farmacia_panel().WindowControl(searchDepth=1, Name="Registro de Pedido")
+    return WindowControl(Name="Registro de Pedido")
 
 
 def get_minsa_sismed_window() -> WindowControl:

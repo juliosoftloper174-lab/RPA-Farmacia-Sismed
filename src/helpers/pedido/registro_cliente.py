@@ -1,6 +1,7 @@
 from time import sleep
 
 import uiautomation as auto
+from uiautomation import WindowControl
 
 from src.helpers.comun.input import escribir_input
 from src.helpers.comun.windows import get_farmacia_window, get_registro_pedido_window
@@ -49,7 +50,7 @@ def registrar_cliente_en_sismed(cliente: Cliente) -> bool:
 
     modal = None
     for _ in range(20):
-        modal = get_farmacia_window().WindowControl(Name="Registro de Nuevo Cliente")
+        modal = WindowControl(Name="Registro de Nuevo Cliente")
         if modal.Exists(maxSearchSeconds=0.5):
             break
         sleep(0.5)

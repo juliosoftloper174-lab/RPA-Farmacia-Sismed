@@ -114,8 +114,7 @@ def navegar_a_pedidos(pedido: Pedido) -> None:
 
 def rellenar_fua(pedido: Pedido) -> None:
 
-    input_fua: EditControl = get_registro_pedido_window().EditControl(
-        searchDepth=1,
+    input_fua: EditControl = WindowControl(Name="Registro de Pedido").EditControl(
         Name="Txtfua",
     )
 
