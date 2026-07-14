@@ -180,6 +180,7 @@ def construir_cuerpo_resumen_diario(resumen: dict, fecha: str) -> str:
 
     ok = resumen.get("ok", 0)
     error = resumen.get("error", 0)
+    sin_stock = resumen.get("sin_stock", 0)
     saltados = resumen.get("saltados", 0)
 
     return f"""
@@ -196,6 +197,7 @@ def construir_cuerpo_resumen_diario(resumen: dict, fecha: str) -> str:
         <table style="border-collapse:collapse;width:100%;max-width:400px;">
             <tr><td style="padding:4px 32px;">✅ OK:</td><td style="padding:4px 8px;"><strong>{ok}</strong></td></tr>
             <tr><td style="padding:4px 32px;">❌ Error:</td><td style="padding:4px 8px;"><strong>{error}</strong></td></tr>
+            <tr><td style='padding:4px 32px;'>⚠️ Sin stock:</td><td style='padding:4px 8px;'><strong>{sin_stock}</strong></td></tr>
             <tr><td style="padding:4px 32px;">⏭️ Saltados:</td><td style="padding:4px 8px;"><strong>{saltados}</strong></td></tr>
         </table>
         <hr style="margin-top:20px;border:1px solid #eee;">

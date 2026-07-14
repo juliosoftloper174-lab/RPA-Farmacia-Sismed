@@ -15,7 +15,7 @@ CLIENTE_HARDCODEADO = "00025759"
 PRESCRIPTOR_HARDCODEADO = "87705"
 
 ESTADOS_OK = {"1", "00"}
-ESTADOS_ERROR = {"01", "02", "10", "20"}
+ESTADOS_ERROR = {"01", "02", "03", "10", "20"}
 
 # NOTE: Pendiente de implementación — requiere coordinación con el área de farmacia del hospital
 # @TODO: Implementar flujo para NOTA DE ENTRADA POR OTROS INGRESOS y NOTA DE SALIDA POR OTROS EGRESOS

@@ -221,6 +221,15 @@ def _ejecutar_batch():
         _procesar_salida(salidas)
         _procesar_pedido(pedidos)
         logger.success("Batch completado.")
+
+        if config.NOTIFICAR_CORREO:
+            resumen = leer_resumen_diario(fecha_ini)
+            excel_path = _path_del_dia(fecha_ini)
+            enviar_correo_con_adjunto(
+                f"📊 Bot N°{config.BOT_NUMBER} - Resumen batch {fecha_ini} → {fecha_fin}",
+                construir_cuerpo_resumen_diario(resumen, fecha_ini),
+                excel_path,
+            )
     except Exception as e:
         logger.exception(f"ERROR EN BATCH: {e}")
         enviar_correo(

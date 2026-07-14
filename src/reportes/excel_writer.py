@@ -116,12 +116,12 @@ def obtener_siguiente_numero_procesado(fecha: str | None = None) -> int:
 def leer_resumen_diario(fecha: str | None = None) -> dict:
     path = _path_del_dia(fecha)
     if not path.exists():
-        return {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "saltados": 0}
+        return {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0}
 
     schema_overrides = {col: pl.Utf8 for col in EXCEL_COLUMNS}
     df = pl.read_excel(path, schema_overrides=schema_overrides)
 
-    resumen = {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "saltados": 0}
+    resumen = {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0}
 
     if "TipoMovimiento" in df.columns:
         for tipo in ("INGRESO", "SALIDA", "PEDIDO"):
@@ -131,6 +131,7 @@ def leer_resumen_diario(fecha: str | None = None) -> dict:
         estados = df["Estado"].to_list()
         resumen["ok"] = sum(1 for e in estados if str(e).upper() in ("OK", "OK_REPROCESADO"))
         resumen["error"] = sum(1 for e in estados if str(e).upper() == "ERROR")
+        resumen["sin_stock"] = sum(1 for e in estados if str(e).upper() == "SIN_STOCK")
         resumen["saltados"] = sum(1 for e in estados if str(e).upper() == "SALTADO")
 
     return resumen

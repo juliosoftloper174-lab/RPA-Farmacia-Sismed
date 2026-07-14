@@ -71,6 +71,10 @@ class ClienteNoEncontradoError(Exception):
     pass
 
 
+class SinStockError(Exception):
+    pass
+
+
 def navegar_a_pedidos(pedido: Pedido) -> None:
 
     logger.debug(
@@ -305,6 +309,22 @@ def verificar_receta() -> bool:
     return False
 
 
+def verificar_stock() -> bool:
+    aviso = WindowControl(Name="Aviso")
+    if not aviso.Exists(maxSearchSeconds=1):
+        return False
+    try:
+        mensaje = aviso.TextControl(searchDepth=1).Name.strip()
+    except Exception:
+        return False
+    if "Stock" in mensaje or "no hay Stock" in mensaje:
+        logger.warning(f"[STOCK] Aviso de sin stock: {mensaje}")
+        aviso.ButtonControl(Name="Aceptar").Click()
+        sleep(1)
+        return True
+    return False
+
+
 def extraer_correlativo_farmacia(forma_pago: FormaPago) -> str:
     """
     Extrae el número de la ventana que aparece después de guardar.
@@ -429,6 +449,9 @@ def procesar_pedido(
 
     logger.debug("[PROCESAR] Productos OK, guardando")
     guardar()
+    if verificar_stock():
+        volver_a_menuprincipal()
+        raise SinStockError("No hay stock disponible")
     verificar_receta()
 
     # Extraer correlativo real de la ventana (Boleta o Ticket según forma de pago)
@@ -468,6 +491,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
     ok_count = 0
     error_count = 0
     sin_cliente_count = 0
+    sin_stock_count = 0
 
     for idx, pedido in enumerate(pedidos, start=1):
 
@@ -531,6 +555,29 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
                     correlativo_sismed="",
                     pedido=pedido,
                     estado="CLIENTE_NO_ENCONTRADO",
+                    error=motivo,
+                )
+                guardar_movimientos(row)
+                break
+
+            except SinStockError as exc:
+                motivo = str(exc)
+                logger.warning(
+                    f"[LOTE] Pedido {idx}/{total} sin stock: {motivo}"
+                )
+                sin_stock_count += 1
+                if pedido.update_key:
+                    try:
+                        ejecutar_sp_update_estado(pedido.update_key, "03")
+                    except Exception as update_err:
+                        logger.warning(f"[LOTE] No se pudo actualizar estado BD: {update_err}")
+                row = crear_row_pedido(
+                    i=numero_procesado,
+                    username=SISMED_USERNAME,
+                    correlativo_ksalud=pedido.correlativo_ksalud,
+                    correlativo_sismed="",
+                    pedido=pedido,
+                    estado="SIN_STOCK",
                     error=motivo,
                 )
                 guardar_movimientos(row)
@@ -603,7 +650,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...]) -> dict:
     logger.debug("[LOTE] Procesamiento de lote completado, cerrando SISMED")
     cerrar_sismed_pedido()
 
-    return {"total": total, "ok": ok_count, "error": error_count, "sin_cliente": sin_cliente_count}
+    return {"total": total, "ok": ok_count, "error": error_count, "sin_cliente": sin_cliente_count, "sin_stock": sin_stock_count}
 
 
 def main(pedidos_override: tuple = None):
