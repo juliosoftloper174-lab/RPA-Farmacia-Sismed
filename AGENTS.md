@@ -266,7 +266,50 @@ sismed_wrapper/
 - **`_login.py`**: Manejo automático de backup diario (detecta ventanas y espera regeneración de índices)
 - **Detección cliente no encontrado**: `seleccionar_cliente()` retorna `False` si TxtCliente no cambia → `ClienteNoEncontradoError` → log en Excel sin reintentar
 
+### 📊 Análisis de Tipos de Movimiento (SP_Junio.csv)
+Datos del SP para junio 2026: **7,152 movimientos totales**.
+
+| KS_TIPO_MOV | Descripción | Cantidad | % del Total | Estado |
+|---|---|---|---|---|
+| 211 | PEDIDO (venta a otros hospitales) | 4,605 | 64.4% | ⚠️ **No implementado** |
+| 201 | PEDIDO (dispensación normal) | 2,233 | 31.2% | ✅ Implementado |
+| 212 | SALIDA | 166 | 2.3% | ✅ Implementado |
+| 108 | **EXTORNO** | 80 | 1.1% | ⚠️ **No implementado** |
+| 200 | INGRESO | 68 | 0.9% | ✅ Implementado |
+| 206 | SALIDA (otro tipo) | 21 | 0.3% | 🔄 Parcial |
+
+#### Flujo EXTORNO (KS_TIPO_MOV=108)
+- **Volumen**: 80 movimientos/mes, ~503 líneas de medicamento, 109,612 unidades
+- **KS_CONCEPTO**: 20 (NOTA DE ENTRADA POR OTROS INGRESOS)
+- **ALMACEN_ORIGEN**: Siempre NULL (no requiere almacén origen)
+- **ALMACEN_DESTINO**: Código de farmacia (ej. 06732F01)
+- **Tiene cliente**: Sí (DNI del paciente)
+- **Referencia**: `KS_PEDIDO_NUMERO` (referencia al pedido original)
+- **Campos vacíos**: FORMA_PAGO, DIAGNOSTICO, PRESCRIPTOR, UPS_VIRTUAL_ORIGEN
+- **Uso**: Devolución de medicamentos no utilizados al almacén
+- **Flujo UI esperado**: Similar a INGRESO pero con concepto "OTROS INGRESOS" y referencia al pedido
+
+#### Flujo CONSUMO/VENTA (KS_TIPO_MOV=211)
+- **Volumen**: 4,605 pedidos/mes (74% de todos los pedidos)
+- **KS_CONCEPTO**: 22 (NOTA DE SALIDA POR VENTAS)
+- **ALMACEN_DESTINO**: Código de hospital comprador
+- **Tiene cliente**: Sí (DNI del paciente)
+- **Forma de pago**: SIS o CONTADO
+- **Uso**: Venta de medicamentos a otros hospitales del sistema
+- **Flujo UI esperado**: Similar a PEDIDO pero con hospital destino en vez de farmacia
+
+#### Gap conocido
+- El SP devuelve movimiento tipo 211 (venta externa) como "PEDIDO" — confundido con dispensación normal (201)
+- Se necesita filtrar por `KS_TIPO_MOV` para distinguir entre:
+  - 201: Dispensación a paciente (flujo PEDIDO actual)
+  - 211: Venta a otro hospital (flujo nuevo pendiente)
+
 ## 🚧 Lo que falta hacer
+
+### Flujos nuevos (por KS_TIPO_MOV)
+- **Extorno** (KS_TIPO_MOV=108): Devolución de medicamentos — similar a INGRESO pero con concepto "OTROS INGRESOS" y referencia al pedido original
+- **Consumo/Venta** (KS_TIPO_MOV=211): Venta a otros hospitales — similar a PEDIDO pero con hospital destino en vez de farmacia
+- **Filtrar pedidos**: Distinguir KS_TIPO_MOV=201 (dispensación) de 211 (venta) en el SP adapter
 
 ### Pedidos con datos reales
 - El SP adapter ya construye objetos Pedido correctamente (testeado)
@@ -278,6 +321,7 @@ sismed_wrapper/
 - `Concepto` en salidas harcodeado por click ciego → mejorar
 - Validación de Ingresos y Salidas es un passthrough (no hay validación real)
 - Duplicación de productos (mismo código en un movimiento, sumar cantidades) — gap conocido no presente en datos actuales
+- **BOLETA_NO_ENCONTRADA**: ~2.3% de pedidos fallan porque la UI cierra la boleta sin mostrar popup "Volver a Menu" — investigar timeout o estrategia alternativa
 
 ---
 

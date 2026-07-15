@@ -126,7 +126,7 @@ def leer_resumen_diario(fecha: str | None = None, fecha_fin: str | None = None, 
     schema_overrides = {col: pl.Utf8 for col in EXCEL_COLUMNS}
     df = pl.read_excel(path, schema_overrides=schema_overrides)
 
-    resumen = {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0}
+    resumen = {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0, "validacion": 0}
 
     if "TipoMovimiento" in df.columns:
         for tipo in ("INGRESO", "SALIDA", "PEDIDO"):
@@ -138,6 +138,7 @@ def leer_resumen_diario(fecha: str | None = None, fecha_fin: str | None = None, 
         resumen["error"] = sum(1 for e in estados if str(e).upper() == "ERROR")
         resumen["sin_stock"] = sum(1 for e in estados if str(e).upper() == "SIN_STOCK")
         resumen["saltados"] = sum(1 for e in estados if str(e).upper() == "SALTADO")
+        resumen["validacion"] = sum(1 for e in estados if str(e).upper() == "VALIDACION")
 
     return resumen
 
