@@ -233,12 +233,17 @@ def rellenar_cabecera(
     if not seleccionar_cliente(pedido.cliente.codigo):
         if pedido.cliente.nombre:
             logger.info(
-                f"[CABECERA] Cliente no encontrado, registrando: "
+                f"[CABECERA] Cliente no encontrado, intentando registro: "
                 f"{pedido.cliente.nombre} (DNI {pedido.cliente.codigo})"
             )
-            registrar_cliente_en_sismed(pedido.cliente)
+            if not registrar_cliente_en_sismed(pedido.cliente):
+                if not seleccionar_cliente(pedido.cliente.codigo):
+                    volver_a_menuprincipal()
+                    raise ClienteNoEncontradoError(
+                        f"Cliente {pedido.cliente.codigo} no encontrado tras registro"
+                    )
             logger.info(
-                f"[CABECERA] Cliente registrado, continuando flujo"
+                f"[CABECERA] Cliente registrado/seleccionado, continuando flujo"
             )
         else:
             volver_a_menuprincipal()
@@ -513,7 +518,7 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fech
 
                 estado = "OK_REPROCESADO" if reintentos > 0 else "OK"
                 reintento_str = f" | tras {reintentos} reintento(s)" if reintentos > 0 else ""
-                logger.info(
+                logger.success(
                     f"[LOTE] Pedido {idx}/{total} {estado} | "
                     f"{pedido.farmacia.codigo} | {pedido.forma_pago.value} | "
                     f"{len(pedido.Medicamentos)} meds | "
@@ -570,6 +575,18 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fech
                     error=motivo,
                 )
                 guardar_movimientos(row, fecha, fecha_fin, modo)
+                break
+
+            except KeyboardInterrupt:
+                logger.warning(
+                    f"[LOTE] Ctrl+C detectado en pedido {idx}/{total}. "
+                    f"Saltando al siguiente..."
+                )
+                try:
+                    cerrar_ventanas_sismed()
+                    login(SISMED_USERNAME, SISMED_PASSWORD)
+                except Exception:
+                    pass
                 break
 
             except Exception as exc:

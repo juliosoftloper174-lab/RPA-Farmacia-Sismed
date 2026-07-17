@@ -184,6 +184,8 @@ def _ejecutar_ciclo_unico(fecha_hoy: str) -> dict | None:
 
 
 def _ejecutar_batch():
+    signal.signal(signal.SIGINT, _signal_handler)
+
     fecha_ini = config.FECHA_INI
     fecha_fin = config.FECHA_FIN
     if not fecha_ini or not fecha_fin:
@@ -302,7 +304,7 @@ def main():
             except Exception as e:
                 logger.exception(f"Error al enviar resumen diario: {e}")
 
-        sleep(5)
+        sleep(60)
 
 
 if __name__ == "__main__":

@@ -269,40 +269,48 @@ sismed_wrapper/
 ### 📊 Análisis de Tipos de Movimiento (SP_Junio.csv)
 Datos del SP para junio 2026: **7,152 movimientos totales**.
 
-| KS_TIPO_MOV | Descripción | Cantidad | % del Total | Estado |
-|---|---|---|---|---|
-| 211 | PEDIDO (venta a otros hospitales) | 4,605 | 64.4% | ⚠️ **No implementado** |
-| 201 | PEDIDO (dispensación normal) | 2,233 | 31.2% | ✅ Implementado |
-| 212 | SALIDA | 166 | 2.3% | ✅ Implementado |
-| 108 | **EXTORNO** | 80 | 1.1% | ⚠️ **No implementado** |
-| 200 | INGRESO | 68 | 0.9% | ✅ Implementado |
-| 206 | SALIDA (otro tipo) | 21 | 0.3% | 🔄 Parcial |
+| KS_TIPO_MOV | KS_TIPO_MOVIMIENTO_DES | TIPO_MOV_DES | Cantidad | % | Unidades | % Unid. | Estado |
+|---|---|---|---|---|---|---|---|
+| 211 | ENTREGA A TERCERO POR VENTA | PEDIDO | 6,725 | 94.0% | 1,198,446 | 59.3% | ✅ Procesado como PEDIDO |
+| 207 | ENTREGA A PACIENTE | PEDIDO | 113 | 1.6% | 2,349 | 0.1% | ✅ Procesado como PEDIDO |
+| 205 | EGRESO TRANSFERENCIA A FARMACIA | SALIDA | 144 | 2.0% | 326,805 | 16.2% | ✅ Implementado |
+| 101 | COMPRA INSTITUCIONAL | INGRESO | 58 | 0.8% | ~370,000 | 18.4% | ✅ Implementado |
+| 112 | TRANSFERENCIAS ESTRATEGICAS | INGRESO | 10 | 0.1% | ~5,000 | 0.2% | ✅ Implementado |
+| 108 | EXTORNO DE UN EGRESO | EXTORNO | 80 | 1.1% | 109,615 | 5.4% | ⚠️ No implementado |
+| 206 | ENTREGA A SERVICIO | SALIDA | 21 | 0.3% | 7,082 | 0.3% | ⚠️ No implementado |
+| 202 | EGRESO NO INFORMA AL SAP | SALIDA | 1 | <0.1% | — | — | ⚠️ No implementado |
+
+#### Detalle: PEDIDO 211 vs 207
+Ambos caen en TIPO_MOVIMIENTO_DES="PEDIDO" y el SP adapter los procesa igual.
+La diferencia clave es TIPO_PACIENTE:
+
+| Campo | 211 (Venta/Tercero) | 207 (Paciente Internado) |
+|---|---|---|
+| TIPO_PACIENTE | E (Externo) | I (Internado) |
+| DIAGNOSTICO | Siempre NULL | Siempre lleno (CIE) |
+| PRESCRIPTOR | Siempre NULL | Siempre lleno |
+| FARMACIA/DESTINO | F02/F03/F04/F05 | Solo F02 |
+| Seguros | SIS-MINSA, SALUDPOL, PARTICULAR | Solo SIS-MINSA |
+
+El bot actual procesa ambos como PEDIDO y funciona. Para 211 (externo) es innecesario llenar diagnóstico/prescriptor.
+
+#### Detalle: SALIDA 205 vs 206
+| Campo | 205 (Transferencia) | 206 (Servicio/UPSS) |
+|---|---|---|
+| ALMACEN_DESTINO | Siempre lleno | Siempre NULL |
+| FARMACIA | Siempre lleno | Siempre NULL |
+| ALMACEN_ORIGEN | 06732F01 o F05 | Solo 06732F06 (UPSS) |
+| KS_CONCEPTO | 22 (TRANSFERENCIA) | 02 (CONSUMO) |
+| Movimientos | 144 | 21 |
 
 #### Flujo EXTORNO (KS_TIPO_MOV=108)
-- **Volumen**: 80 movimientos/mes, ~503 líneas de medicamento, 109,612 unidades
+- **Volumen**: 80 movimientos/mes, 504 líneas, 109,615 unidades (5.4% del total)
 - **KS_CONCEPTO**: 20 (NOTA DE ENTRADA POR OTROS INGRESOS)
-- **ALMACEN_ORIGEN**: Siempre NULL (no requiere almacén origen)
+- **ALMACEN_ORIGEN**: Siempre NULL
 - **ALMACEN_DESTINO**: Código de farmacia (ej. 06732F01)
-- **Tiene cliente**: Sí (DNI del paciente)
-- **Referencia**: `KS_PEDIDO_NUMERO` (referencia al pedido original)
+- **KS_PEDIDO_NUMERO**: Referencia al pedido original
 - **Campos vacíos**: FORMA_PAGO, DIAGNOSTICO, PRESCRIPTOR, UPS_VIRTUAL_ORIGEN
-- **Uso**: Devolución de medicamentos no utilizados al almacén
 - **Flujo UI esperado**: Similar a INGRESO pero con concepto "OTROS INGRESOS" y referencia al pedido
-
-#### Flujo CONSUMO/VENTA (KS_TIPO_MOV=211)
-- **Volumen**: 4,605 pedidos/mes (74% de todos los pedidos)
-- **KS_CONCEPTO**: 22 (NOTA DE SALIDA POR VENTAS)
-- **ALMACEN_DESTINO**: Código de hospital comprador
-- **Tiene cliente**: Sí (DNI del paciente)
-- **Forma de pago**: SIS o CONTADO
-- **Uso**: Venta de medicamentos a otros hospitales del sistema
-- **Flujo UI esperado**: Similar a PEDIDO pero con hospital destino en vez de farmacia
-
-#### Gap conocido
-- El SP devuelve movimiento tipo 211 (venta externa) como "PEDIDO" — confundido con dispensación normal (201)
-- Se necesita filtrar por `KS_TIPO_MOV` para distinguir entre:
-  - 201: Dispensación a paciente (flujo PEDIDO actual)
-  - 211: Venta a otro hospital (flujo nuevo pendiente)
 
 ## 🚧 Lo que falta hacer
 

@@ -18,7 +18,12 @@ def seleccionar_cliente(dni: str) -> bool:
     txt_dni.SendKeys(dni)
     sleep(0.5)
     SendKeys("{Enter}")
-    sleep(0.5)
 
-    valor_final = txt_cliente.GetValuePattern().Value
+    valor_final = ""
+    for _ in range(8):
+        sleep(0.5)
+        valor_final = txt_cliente.GetValuePattern().Value
+        if valor_final:
+            break
+
     return valor_final != valor_inicial

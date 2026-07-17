@@ -53,9 +53,17 @@ def registrar_cliente_en_sismed(cliente: Cliente) -> bool:
         modal = WindowControl(Name="Registro de Nuevo Cliente")
         if modal.Exists(maxSearchSeconds=0.5):
             break
+        modal_mod = WindowControl(Name="Modificar datos Clientes")
+        if modal_mod.Exists(maxSearchSeconds=0.3):
+            logger.info("Cliente ya registrado — ventana 'Modificar datos' detectada, cerrando")
+            btn_aceptar = modal_mod.ButtonControl(Name="Aceptar")
+            if btn_aceptar.Exists(maxSearchSeconds=1):
+                btn_aceptar.Click()
+                sleep(0.5)
+            return True
         sleep(0.5)
     else:
-        logger.error("No apareció la ventana 'Registro de Nuevo Cliente' tras 10s")
+        logger.error("No apareció ninguna ventana de cliente tras 10s")
         return False
 
     logger.info(f"Escribiendo nombre: {cliente.nombre}")
