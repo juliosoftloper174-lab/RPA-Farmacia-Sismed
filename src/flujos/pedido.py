@@ -44,13 +44,18 @@ from uiautomation import (
 )
 
 from database.conexion import ejecutar_sp_update_estado
+from src.flujos._login import (
+    esperar_hora_backup_si_aplica,
+    login,
+    verificar_backup_si_aplica,
+)
+from src.helpers.comun.input import escribir_input
+from src.helpers.comun.windows import *
 from src.helpers.pedido.cliente import seleccionar_cliente
 from src.helpers.pedido.diagnosticos import rellenar_diagnosticos
 from src.helpers.pedido.farmacia import seleccionar_farmacia_por_codigo
-from src.helpers.comun.input import escribir_input
 from src.helpers.pedido.producto import agregar_productos
 from src.helpers.pedido.registro_cliente import registrar_cliente_en_sismed
-from src.helpers.comun.windows import *
 from src.logger import logger
 from src.models import pedido
 from src.models.forma_pago import FormaPago
@@ -60,7 +65,6 @@ from src.reportes.excel_writer import (
     guardar_movimientos,
     obtener_siguiente_numero_procesado,
 )
-from src.flujos._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
 
 # --- USAR EN PRODUCCIÓN ---
 SISMED_USERNAME = "RPA"
@@ -200,17 +204,17 @@ def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
     cbo = _esperar_combo("CboDato")
 
     cbo.Click()
-    sleep(1)
+    sleep(2)
 
     if pedido.forma_pago == FormaPago.CONTADO:
         cbo.Click()
-        sleep(1)
+        sleep(1.5)
     elif pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
         Click(537, 427)
-        sleep(1)
+        sleep(1.5)
     elif pedido.forma_pago == FormaPago.SIS:
         Click(615, 410)
-        sleep(1)
+        sleep(1.5)
         Click(495, 385)
     else:
         raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago}")
@@ -220,7 +224,7 @@ def rellenar_cabecera(
     pedido: Pedido,
 ) -> None:
 
-    sleep(1.5)
+    sleep(2.5)
     logger.debug("[CABECERA] Seleccionando forma de pago")
 
     selecionar_forma_pago_Julio(pedido)
@@ -475,7 +479,12 @@ def cerrar_ventanas_sismed() -> None:
     sleep(3)
 
 
-def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> dict:
+def procesar_pedidos(
+    pedidos: tuple[Pedido, ...],
+    fecha: str | None = None,
+    fecha_fin: str | None = None,
+    modo: str = "horario",
+) -> dict:
 
     login(
         SISMED_USERNAME,
@@ -523,7 +532,9 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fech
                 guardar_movimientos(row, fecha, fecha_fin, modo)
 
                 estado = "OK_REPROCESADO" if reintentos > 0 else "OK"
-                reintento_str = f" | tras {reintentos} reintento(s)" if reintentos > 0 else ""
+                reintento_str = (
+                    f" | tras {reintentos} reintento(s)" if reintentos > 0 else ""
+                )
                 logger.success(
                     f"[LOTE] Pedido {idx}/{total} {estado} | "
                     f"{pedido.farmacia.codigo} | {pedido.forma_pago.value} | "
@@ -547,7 +558,9 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fech
                     try:
                         ejecutar_sp_update_estado(pedido.update_key, "02")
                     except Exception as update_err:
-                        logger.warning(f"[LOTE] No se pudo actualizar estado BD: {update_err}")
+                        logger.warning(
+                            f"[LOTE] No se pudo actualizar estado BD: {update_err}"
+                        )
                 row = crear_row_pedido(
                     i=numero_procesado,
                     username=SISMED_USERNAME,
@@ -562,15 +575,15 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fech
 
             except SinStockError as exc:
                 motivo = str(exc)
-                logger.warning(
-                    f"[LOTE] Pedido {idx}/{total} sin stock: {motivo}"
-                )
+                logger.warning(f"[LOTE] Pedido {idx}/{total} sin stock: {motivo}")
                 sin_stock_count += 1
                 if pedido.update_key:
                     try:
                         ejecutar_sp_update_estado(pedido.update_key, "03")
                     except Exception as update_err:
-                        logger.warning(f"[LOTE] No se pudo actualizar estado BD: {update_err}")
+                        logger.warning(
+                            f"[LOTE] No se pudo actualizar estado BD: {update_err}"
+                        )
                 row = crear_row_pedido(
                     i=numero_procesado,
                     username=SISMED_USERNAME,
@@ -612,7 +625,9 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fech
                         try:
                             ejecutar_sp_update_estado(pedido.update_key, "01")
                         except Exception as update_err:
-                            logger.warning(f"[LOTE] No se pudo actualizar estado BD: {update_err}")
+                            logger.warning(
+                                f"[LOTE] No se pudo actualizar estado BD: {update_err}"
+                            )
 
                     row = crear_row_pedido(
                         i=numero_procesado,
@@ -636,7 +651,9 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fech
                 try:
                     cerrar_ventanas_sismed()
                 except Exception:
-                    logger.warning("[LOTE] Error al cerrar ventanas durante limpieza, forzando relogin")
+                    logger.warning(
+                        "[LOTE] Error al cerrar ventanas durante limpieza, forzando relogin"
+                    )
                 try:
                     login(SISMED_USERNAME, SISMED_PASSWORD)
                 except Exception as login_err:
@@ -651,7 +668,13 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fech
     logger.info("[LOTE] Procesamiento de lote completado, cerrando SISMED")
     cerrar_sismed_pedido()
 
-    return {"total": total, "ok": ok_count, "error": error_count, "sin_cliente": sin_cliente_count, "sin_stock": sin_stock_count}
+    return {
+        "total": total,
+        "ok": ok_count,
+        "error": error_count,
+        "sin_cliente": sin_cliente_count,
+        "sin_stock": sin_stock_count,
+    }
 
 
 def main(pedidos_override: tuple = None):
@@ -663,7 +686,9 @@ def main(pedidos_override: tuple = None):
 
         fecha_ini, fecha_fin = "2026-06-09", "2026-06-10"
         logger.info(f"Obteniendo pedidos desde SP ({fecha_ini} a {fecha_fin})...")
-        pedidos, _, _, _ = obtener_movimientos(fecha_ini, fecha_fin, skip_errores=not config.procesar_errores)
+        pedidos, _, _, _ = obtener_movimientos(
+            fecha_ini, fecha_fin, skip_errores=not config.procesar_errores
+        )
     logger.info(f"SP devolvio: {len(pedidos)} pedidos")
     for i, p in enumerate(pedidos, start=1):
         logger.info(
