@@ -14,13 +14,7 @@ from uiautomation import (
 )
 
 from database.conexion import ejecutar_sp_update_estado
-from src.models.Medicamento import Medicamento
-from src.models.Salidas import Salidas
-from src.reportes.excel_schema import crear_row_salida
-from src.reportes.excel_writer import (
-    guardar_movimientos,
-    obtener_siguiente_numero_procesado,
-)
+from src.config import SISMED_PASSWORD, SISMED_USERNAME
 from src.flujos._comun_almacen import (
     cerrar_sismed,
     cerrar_ventana_salida_guardada,
@@ -28,10 +22,19 @@ from src.flujos._comun_almacen import (
     extraer_correlativo_almacen,
     guardar,
 )
-
-from src.config import SISMED_PASSWORD, SISMED_USERNAME
+from src.flujos._login import (
+    esperar_hora_backup_si_aplica,
+    login,
+    verificar_backup_si_aplica,
+)
 from src.logger import logger
-from src.flujos._login import login, verificar_backup_si_aplica, esperar_hora_backup_si_aplica
+from src.models.Medicamento import Medicamento
+from src.models.Salidas import Salidas
+from src.reportes.excel_schema import crear_row_salida
+from src.reportes.excel_writer import (
+    guardar_movimientos,
+    obtener_siguiente_numero_procesado,
+)
 
 # =========================================================
 # 🔹 HELPERS
@@ -206,7 +209,12 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
     sleep(2)
 
 
-def procesar_salidas(salidas: tuple[Salidas, ...], fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> dict:
+def procesar_salidas(
+    salidas: tuple[Salidas, ...],
+    fecha: str | None = None,
+    fecha_fin: str | None = None,
+    modo: str = "horario",
+) -> dict:
     numero_procesado = obtener_siguiente_numero_procesado(fecha, fecha_fin, modo)
     total = len(salidas)
     ok_count = 0
@@ -307,19 +315,19 @@ def agregar_producto(producto: Medicamento):
     SendKeys("{CONTROL}{INSERT}")  # abre ventana de agregar producto
     sleep(3)
     Click(825, 355)  # clic en el campo de codigo
-    sleep(3)
+    sleep(2)
     Click(615, 315)  # clic en el txt busca
-    sleep(3)
+    sleep(2)
     SendKeys(producto.codigo)  # busca el producto
     sleep(3)
     SendKeys("{Enter}")
-    sleep(3)
+    sleep(2)
     SendKeys("{Enter}")  # selecciona el producto
-    sleep(3)
+    sleep(2)
     SendKeys("{Enter}")
-    sleep(3)
+    sleep(2)
     SendKeys(str(producto.cantidad))  # ingresa la cantidad
-    sleep(3)
+    sleep(2)
     SendKeys("{Enter}")
     SendKeys("{Enter}")
     pass
