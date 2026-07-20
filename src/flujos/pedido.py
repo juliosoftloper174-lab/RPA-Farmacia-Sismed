@@ -463,9 +463,15 @@ MAX_REINTENTOS_PEDIDO = 2
 
 def cerrar_ventanas_sismed() -> None:
     sleep(2)
-    Click(1585, 15)
+    try:
+        Click(1585, 15)
+    except Exception:
+        pass
     sleep(3)
-    Click(1585, 15)
+    try:
+        Click(1585, 15)
+    except Exception:
+        pass
     sleep(3)
 
 
@@ -629,16 +635,16 @@ def procesar_pedidos(pedidos: tuple[Pedido, ...], fecha: str | None = None, fech
 
                 try:
                     cerrar_ventanas_sismed()
+                except Exception:
+                    logger.warning("[LOTE] Error al cerrar ventanas durante limpieza, forzando relogin")
+                try:
                     login(SISMED_USERNAME, SISMED_PASSWORD)
-                except Exception as cleanup_err:
+                except Exception as login_err:
                     logger.error(
-                        f"[LOTE] INTERRUMPIDO: Error durante limpieza "
-                        f"({cleanup_err}). Verifique SISMED "
-                        f"(cierre ventanas de backup/manuales) "
-                        f"y presione Enter para continuar..."
+                        f"[LOTE] No se pudo reloguear tras limpieza: {login_err}. "
+                        f"Saltando pedido {idx}/{total}..."
                     )
-                    input()
-                    login(SISMED_USERNAME, SISMED_PASSWORD)
+                    break
 
         numero_procesado += 1
 

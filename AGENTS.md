@@ -312,11 +312,42 @@ El bot actual procesa ambos como PEDIDO y funciona. Para 211 (externo) es innece
 - **Campos vacíos**: FORMA_PAGO, DIAGNOSTICO, PRESCRIPTOR, UPS_VIRTUAL_ORIGEN
 - **Flujo UI esperado**: Similar a INGRESO pero con concepto "OTROS INGRESOS" y referencia al pedido
 
+### 🔍 Investigación Extorno — datos reales 19/07/2026
+
+Archivo analizado: `19-07-26_SP_extorno.csv`
+
+- **6 extornos** y **138 pedidos** en el día.
+- Todos los extornos tienen `KS_PEDIDO_FECHA = 2026-07-19` → **corresponden a pedidos del mismo día**.
+- **Los extornos NO extornan todo el pedido**. Son **devoluciones parciales** de medicamentos específicos.
+- Cada extorno trae su propia lista de medicamentos en el detalle.
+
+| Extorno | Pedido Ref | Farmacia | DNI | Medicamentos en extorno |
+|---|---|---|---|---|
+| 1 | 57 | 06732F02 | 62450106 | 6 medicamentos |
+| 2 | 132 | 06732F03 | 90976850 | 1 medicamento (39992 x 1) |
+| 3 | 134 | 06732F03 | 71213890 | 1 medicamento (08140 x 360) |
+| 4 | 23 | 06732F03 | 71213890 | 1 medicamento (39992 x 1) |
+| 5 | 135 | 06732F03 | 71213890 | 1 medicamento (08140 x 360) |
+| 6 | 22 | 06732F03 | 43901684 | 5 medicamentos |
+
+**Conclusión clave**: `KS_PEDIDO_NUMERO` es una referencia al pedido original, pero el extorno procesa su propio detalle. No asumir relación 1:1 entre pedido y extorno.
+
+### 🛠️ Plan de implementación del flujo Extorno
+
+1. **Modelo**: `src/models/extorno.py` (clase simple: farmacia, almacen_destino, concepto, medicamentos, correlativo_ksalud, update_key)
+2. **SP Adapter**: agregar `"EXTORNO"` a `tipos_validos` y construir objetos `Extorno`
+3. **Navegación**: reutilizar selección de farmacia de `navegar_a_pedidos`, pero después del `{TAB}` enviar `{RIGHT}{Enter}` para llegar a "registro de consumo"
+4. **Flujo**: crear `src/flujos/extorno.py` con `procesar_extornos()`
+5. **Excel**: agregar `crear_row_extorno()` en `excel_schema.py`
+6. **Orquestador**: en `src/__main__.py` ejecutar extornos **después de pedidos**
+7. **Prueba simulada**: crear `src/datos/test_extorno.py` con datos ficticios (cliente 002964401, medicamento 30588, cantidad 1, farmacia 02). Primero ejecutar el pedido, luego el extorno.
+8. **Conexión real**: una vez validada la prueba simulada, conectar al SP real.
+
 ## 🚧 Lo que falta hacer
 
 ### Flujos nuevos (por KS_TIPO_MOV)
-- **Extorno** (KS_TIPO_MOV=108): Devolución de medicamentos — similar a INGRESO pero con concepto "OTROS INGRESOS" y referencia al pedido original
-- **Consumo/Venta** (KS_TIPO_MOV=211): Venta a otros hospitales — similar a PEDIDO pero con hospital destino en vez de farmacia
+- **Extorno** (KS_TIPO_MOV=108): Datos confirmados (ver investigación 19/07/2026). Plan definido. Pendiente implementación.
+- **Consumo/Venta** (KS_TIPO_MOV=206): Salidas sin almacén destino — 21 movimientos/mes, 0.3%. Pendiente implementación.
 - **Filtrar pedidos**: Distinguir KS_TIPO_MOV=201 (dispensación) de 211 (venta) en el SP adapter
 
 ### Pedidos con datos reales
