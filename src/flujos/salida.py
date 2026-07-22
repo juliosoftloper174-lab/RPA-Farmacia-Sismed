@@ -1,5 +1,13 @@
+import sys
+from pathlib import Path
+
+project_root = Path(__file__).resolve().parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from time import sleep
 
+import uiautomation as auto
 from uiautomation import (
     ButtonControl,
     Click,
@@ -27,6 +35,7 @@ from src.flujos._login import (
     login,
     verificar_backup_si_aplica,
 )
+from src.helpers.comun.input import escribir_input
 from src.logger import logger
 from src.models.Medicamento import Medicamento
 from src.models.Salidas import Salidas
@@ -194,19 +203,18 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
     # 🔹 Concepto (combo)
     # seleccionar_combo_por_texto("cmbConcepto", salidas.concepto)
     # NOTE: Se tomo la decision de Harcodear ya que almenos se tiene entendido que siempre sera distribucion, ademas de que esta muy dificil poder seleccionar la acion ya que si jugamos con las opciones algunas quitan el almacen destino y a volver a querer poner distribucion nos da error
-    sleep(2)
+    sleep(1.5)
     Click(700, 280)
-    sleep(2)
-    Click(704, 340)
-    sleep(2)
-    Click(507, 307)
-    sleep(2)
     sleep(1)
     Click(704, 340)
-    sleep(2)
     sleep(1)
     Click(507, 307)
-    sleep(2)
+    sleep(1)
+    sleep(1)
+    Click(704, 340)
+    sleep(1)
+    Click(507, 307)
+    sleep(1)
 
 
 def procesar_salidas(
@@ -308,26 +316,196 @@ def procesar_salidas(
     return {"total": total, "ok": ok_count, "error": error_count}
 
 
+# =========================================================
+# 🔹 AGREGAR PRODUCTO (CON SELECCIÓN DE LOTE)
+# =========================================================
+
+
+def _esperar_ventana_salida_producto() -> WindowControl:
+    ventana = auto.WindowControl(ClassName="almacen7c000000")
+    if ventana.Exists(maxSearchSeconds=5):
+        logger.debug("[SALIDA PRODUCTO] Ventana encontrada por ClassName")
+        return ventana
+
+    ventana = auto.WindowControl(RegexName="Medicamentos e Insumos del Almacen")
+    if ventana.Exists(maxSearchSeconds=3):
+        logger.debug("[SALIDA PRODUCTO] Ventana encontrada por RegexName")
+        return ventana
+
+    raise RuntimeError("No se encontró la ventana de medicamentos para salida")
+
+
+def _click_header_tabla(
+    ventana: WindowControl, tabla_name: str, header_name: str
+) -> None:
+    tabla = ventana.TableControl(Name=tabla_name)
+    if not tabla.Exists(maxSearchSeconds=3):
+        raise RuntimeError(f"No se encontró la tabla '{tabla_name}'")
+
+    view = tabla.TableControl(Name="View 1")
+    if not view.Exists(maxSearchSeconds=3):
+        raise RuntimeError(f"No se encontró 'View 1' dentro de '{tabla_name}'")
+
+    header = view.HeaderControl(Name=header_name)
+    if not header.Exists(maxSearchSeconds=3):
+        raise RuntimeError(f"No se encontró el header '{header_name}'")
+
+    header.Click()
+    logger.debug(f"[SALIDA PRODUCTO] Click en header '{header_name}' de '{tabla_name}'")
+
+
+def _leer_texto_celda(celda) -> str:
+    # Si la celda contiene un EditControl, leer su Value pattern
+    try:
+        edit = celda.EditControl(Name="Text1")
+        if edit.Exists(maxSearchSeconds=0.5):
+            return edit.GetValuePattern().Value.strip()
+    except Exception:
+        pass
+
+    if celda.Name:
+        return celda.Name.strip()
+
+    for hijo in celda.GetChildren():
+        texto = _leer_texto_celda(hijo)
+        if texto:
+            return texto
+    return ""
+
+
+def _parsear_stock(valor: str) -> int:
+    if not valor:
+        return 0
+    valor = valor.replace(",", "").replace(".", "")
+    try:
+        return int(float(valor))
+    except ValueError:
+        return 0
+
+
+def _seleccionar_lote(
+    ventana: WindowControl, lote_esperado: str, cantidad: int
+) -> None:
+    if not lote_esperado:
+        logger.warning("[SALIDA PRODUCTO] No se especificó lote, se usará primera fila")
+
+    tabla = ventana.TableControl(Name="grdDetallado")
+    if not tabla.Exists(maxSearchSeconds=3):
+        raise RuntimeError("No se encontró la tabla 'grdDetallado'")
+
+    view = tabla.TableControl(Name="View 1")
+    if not view.Exists(maxSearchSeconds=3):
+        raise RuntimeError("No se encontró 'View 1' dentro de 'grdDetallado'")
+
+    filas = []
+    for hijo in view.GetChildren():
+        if "Group" in str(hijo.ControlType):
+            continue
+        filas.append(hijo)
+
+    logger.debug(f"[SALIDA PRODUCTO] Filas de lotes encontradas: {len(filas)}")
+
+    primera_fila = None
+    for fila in filas:
+        celdas = fila.GetChildren()
+        if len(celdas) < 5:
+            logger.debug(f"[SALIDA PRODUCTO] Fila ignorada, solo {len(celdas)} celdas")
+            continue
+
+        lote_valor = _leer_texto_celda(celdas[3])
+        stock_valor = _parsear_stock(_leer_texto_celda(celdas[4]))
+
+        logger.debug(f"[SALIDA PRODUCTO] Fila: lote='{lote_valor}' stock={stock_valor}")
+
+        # Saltar fila de header si aparece como row
+        if lote_valor in ("Lote", "", "Text1"):
+            continue
+
+        if primera_fila is None:
+            primera_fila = fila
+
+        if lote_esperado and lote_valor.strip() == lote_esperado.strip():
+            if stock_valor < cantidad:
+                raise RuntimeError(
+                    f"Stock insuficiente para lote '{lote_esperado}': {stock_valor} < {cantidad}"
+                )
+            fila.Click()
+            logger.info(
+                f"[SALIDA PRODUCTO] Lote seleccionado: '{lote_esperado}' (stock: {stock_valor})"
+            )
+            return
+
+    if lote_esperado and primera_fila:
+        logger.warning(
+            f"[SALIDA PRODUCTO] Lote '{lote_esperado}' no encontrado, usando primera fila"
+        )
+        primera_fila.Click()
+        return
+
+    if not primera_fila:
+        raise RuntimeError("No se encontró ninguna fila de lotes")
+
+    primera_fila.Click()
+
+
 def agregar_producto(producto: Medicamento):
+    logger.debug(
+        f"[SALIDA PRODUCTO] Agregando código={producto.codigo}, lote={producto.lote}, cantidad={producto.cantidad}"
+    )
 
-    # se iba a trabajar usando inspecto pero la ventana cambia de nombre segun el almacen virtual seleccionado, alm destino, almacen origen, etc, por lo que es muy dificil asegurar el nombre de la ventana, por lo que se decidio trabajar con clicks en coordenadas especificas, ya que se tiene entendido que la ventana siempre va a tener la misma estructura y los mismos campos en las mismas posiciones
+    SendKeys("{CONTROL}{INSERT}")
+    sleep(2)
 
-    SendKeys("{CONTROL}{INSERT}")  # abre ventana de agregar producto
-    sleep(3)
-    Click(825, 355)  # clic en el campo de codigo
+    ventana = _esperar_ventana_salida_producto()
+
+    _click_header_tabla(ventana, "GrdConsolidado", "Código")
+    sleep(0.5)
+
+    txt_buscar = ventana.EditControl(Name="txtBuscar")
+    if not txt_buscar.Exists(maxSearchSeconds=3):
+        raise RuntimeError("No se encontró el input 'txtBuscar'")
+
+    escribir_input(txt_buscar, producto.codigo)
+    sleep(0.3)
+
+    btn_buscar = ventana.ButtonControl(Name="cmdBuscar")
+    if not btn_buscar.Exists(maxSearchSeconds=3):
+        raise RuntimeError("No se encontró el botón 'cmdBuscar'")
+    btn_buscar.Click()
+    logger.debug("[SALIDA PRODUCTO] Click en cmdBuscar")
     sleep(2)
-    Click(615, 315)  # clic en el txt busca
-    sleep(2)
-    SendKeys(producto.codigo)  # busca el producto
-    sleep(3)
-    SendKeys("{Enter}")
-    sleep(2)
-    SendKeys("{Enter}")  # selecciona el producto
-    sleep(2)
-    SendKeys("{Enter}")
-    sleep(2)
-    SendKeys(str(producto.cantidad))  # ingresa la cantidad
-    sleep(2)
-    SendKeys("{Enter}")
-    SendKeys("{Enter}")
-    pass
+
+    _seleccionar_lote(ventana, producto.lote, producto.cantidad)
+
+    btn_aceptar = ventana.ButtonControl(Name="Aceptar")
+    if not btn_aceptar.Exists(maxSearchSeconds=3):
+        raise RuntimeError("No se encontró el botón 'Aceptar'")
+    btn_aceptar.Click()
+    logger.debug("[SALIDA PRODUCTO] Click en Aceptar")
+    sleep(1.5)
+
+    auto.SendKeys(str(producto.cantidad))
+    sleep(0.5)
+
+    registro = WindowControl(Name="Registro de Salidas ")
+    if registro.Exists(maxSearchSeconds=3):
+        btn_cmd_aceptar = registro.ButtonControl(Name="cmdAceptar")
+        if btn_cmd_aceptar.Exists(maxSearchSeconds=2):
+            btn_cmd_aceptar.Click()
+            logger.debug("[SALIDA PRODUCTO] Click en cmdAceptar")
+            sleep(0.5)
+        else:
+            logger.warning(
+                "[SALIDA PRODUCTO] No se encontró cmdAceptar en Registro de Salidas"
+            )
+    else:
+        logger.warning(
+            "[SALIDA PRODUCTO] No se encontró ventana Registro de Salidas para cmdAceptar"
+        )
+
+    logger.success(
+        f"[SALIDA PRODUCTO] Producto agregado: {producto.codigo} lote={producto.lote} cantidad={producto.cantidad}"
+    )
+
+
+
