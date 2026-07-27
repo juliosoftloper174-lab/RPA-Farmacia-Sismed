@@ -18,7 +18,6 @@ from src.helpers.comun.windows import get_system_info_panel
 from src.helpers.pedido.farmacia import seleccionar_farmacia_por_codigo
 from src.logger import logger
 from src.models.extorno import Extorno
-from src.models.Medicamento import Medicamento
 
 
 def _debug_children(control, label: str = "") -> None:
@@ -135,57 +134,7 @@ def _buscar_por_otro_documento(ventana_venta, documento: str) -> None:
 # =========================================================
 
 
-def _leer_texto_celda(celda) -> str:
-    try:
-        edit = celda.EditControl(Name="Text1")
-        if edit.Exists(maxSearchSeconds=0.5):
-            return edit.GetValuePattern().Value.strip()
-    except Exception:
-        pass
-
-    if celda.Name:
-        return celda.Name.strip()
-
-    for hijo in celda.GetChildren():
-        texto = _leer_texto_celda(hijo)
-        if texto:
-            return texto
-    return ""
-
-
-def _leer_codigos_grd_deta(ventana_venta: WindowControl) -> set[str]:
-    tabla = ventana_venta.TableControl(Name="GrdDeta")
-    if not tabla.Exists(maxSearchSeconds=3):
-        logger.debug("[EXTORNO] No se encontró GrdDeta aún")
-        return set()
-
-    view = tabla.TableControl(Name="View 1")
-    if not view.Exists(maxSearchSeconds=3):
-        return set()
-
-    codigos = set()
-    for fila in view.GetChildren():
-        if "Group" in str(fila.ControlType):
-            continue
-
-        celdas = fila.GetChildren()
-        if len(celdas) < 3:
-            continue
-
-        codigo = _leer_texto_celda(celdas[2])
-        if codigo and codigo.lower() != "codigo":
-            codigos.add(codigo)
-
-    logger.debug(f"[EXTORNO] Códigos leídos en GrdDeta: {codigos}")
-    return codigos
-
-
-def _seleccionar_pedido_correcto(
-    ventana_venta: WindowControl, medicamentos: list[Medicamento]
-) -> None:
-    codigos_esperados = {m.codigo.strip() for m in medicamentos}
-    logger.debug(f"[EXTORNO] Códigos esperados: {codigos_esperados}")
-
+def _seleccionar_primera_fila(ventana_venta: WindowControl) -> None:
     tabla = ventana_venta.TableControl(Name="GrdSel")
     if not tabla.Exists(maxSearchSeconds=5):
         raise RuntimeError("No se encontró la tabla 'GrdSel'")
@@ -200,58 +149,31 @@ def _seleccionar_pedido_correcto(
     if not filas:
         raise RuntimeError("No se encontraron filas en GrdSel")
 
-    codigos_anteriores: set[str] = set()
+    fila = filas[0]
+    seleccionado = False
+    try:
+        patron_invoke = fila.GetInvokePattern()
+        if patron_invoke:
+            patron_invoke.Invoke()
+            logger.debug("[EXTORNO] Primera fila activada vía InvokePattern")
+            seleccionado = True
+    except Exception as e:
+        logger.debug(f"[EXTORNO] InvokePattern no disponible: {e}")
 
-    for idx, fila in enumerate(filas, start=1):
-        logger.debug(f"[EXTORNO] Revisando fila {idx}")
+    if not seleccionado:
+        celdas_fila = fila.GetChildren()
+        if len(celdas_fila) > 4:
+            celdas_fila[4].Click()
+            logger.debug("[EXTORNO] Primera fila click en celda Cliente")
+        elif celdas_fila:
+            celdas_fila[0].Click()
+            logger.debug("[EXTORNO] Primera fila click en primera celda")
+        else:
+            fila.Click()
+            logger.debug("[EXTORNO] Primera fila click en fila")
 
-        # Seleccionar fila: primero InvokePattern, luego click en celda de cliente
-        seleccionado = False
-        try:
-            patron_invoke = fila.GetInvokePattern()
-            if patron_invoke:
-                patron_invoke.Invoke()
-                logger.debug(f"[EXTORNO] Fila {idx} activada vía InvokePattern")
-                seleccionado = True
-        except Exception as e:
-            logger.debug(f"[EXTORNO] InvokePattern no disponible: {e}")
-
-        if not seleccionado:
-            celdas_fila = fila.GetChildren()
-            # Intentar click en celda de cliente (índice 4 según headers: T/D, Numero, Fecha, DNI, Cliente...)
-            if len(celdas_fila) > 4:
-                celdas_fila[4].Click()
-                logger.debug(f"[EXTORNO] Fila {idx} click en celda Cliente")
-            elif celdas_fila:
-                celdas_fila[0].Click()
-                logger.debug(f"[EXTORNO] Fila {idx} click en primera celda")
-            else:
-                fila.Click()
-                logger.debug(f"[EXTORNO] Fila {idx} click en fila")
-
-        sleep(2.5)
-
-        codigos_encontrados = _leer_codigos_grd_deta(ventana_venta)
-
-        # Si GrdDeta no cambió, puede estar mostrando datos de la fila anterior.
-        reintentos = 0
-        while codigos_encontrados == codigos_anteriores and codigos_encontrados and reintentos < 2:
-            logger.debug("[EXTORNO] GrdDeta parece no haber cambiado, reintentando...")
-            sleep(2)
-            codigos_encontrados = _leer_codigos_grd_deta(ventana_venta)
-            reintentos += 1
-
-        codigos_anteriores = codigos_encontrados
-
-        if codigos_esperados == codigos_encontrados:
-            logger.info(f"[EXTORNO] Pedido correcto encontrado en fila {idx}")
-            return
-
-        logger.debug(
-            f"[EXTORNO] Fila {idx} no coincide. Esperado: {codigos_esperados}, Encontrado: {codigos_encontrados}"
-        )
-
-    raise RuntimeError("No se encontró pedido con los medicamentos esperados")
+    sleep(1.5)
+    logger.info("[EXTORNO] Primera fila seleccionada")
 
 
 def _completar_anulacion() -> None:
@@ -386,7 +308,7 @@ def buscar_venta_extorno(extorno: Extorno) -> None:
     logger.success("[EXTORNO] Búsqueda de venta iniciada")
 
     sleep(1)
-    _seleccionar_pedido_correcto(ventana_venta, extorno.medicamentos)
+    _seleccionar_primera_fila(ventana_venta)
     _completar_anulacion()
 
 
@@ -436,8 +358,5 @@ if __name__ == "__main__":
         cliente_dni="002964401",
         fecha="20/07/2026",
         tipo_documento="CE",
-        medicamentos=[
-            Medicamento(codigo="19499", cantidad=8),
-        ],
     )
     procesar_extorno(extorno)
