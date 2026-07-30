@@ -312,6 +312,13 @@ def buscar_venta_extorno(extorno: Extorno) -> None:
     _completar_anulacion()
 
 
+def volver_menu_principal_extorno() -> None:
+    Click(1170, 185)
+    sleep(1.5)
+    Click(1585, 15)
+    sleep(1.5)
+
+
 def procesar_extorno(extorno: Extorno) -> dict:
     login(SISMED_USERNAME, SISMED_PASSWORD)
     navegar_a_extorno(extorno.farmacia)
@@ -321,6 +328,7 @@ def procesar_extorno(extorno: Extorno) -> dict:
         logger.debug("[EXTORNO] Actualizando estado BD (00)...")
         ejecutar_sp_update_estado(extorno.update_key, "00")
 
+    volver_menu_principal_extorno()
     return {"estado": "OK", "correlativo": None}
 
 
@@ -342,6 +350,7 @@ def procesar_extornos(extornos: tuple[Extorno, ...]) -> dict:
                 logger.debug(f"[EXTORNO] {idx}/{total} Actualizando estado BD (00)...")
                 ejecutar_sp_update_estado(extorno.update_key, "00")
 
+            volver_menu_principal_extorno()
             logger.success(f"[EXTORNO] {idx}/{total} OK")
             ok_count += 1
 
