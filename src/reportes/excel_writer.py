@@ -121,15 +121,15 @@ def obtener_siguiente_numero_procesado(fecha: str | None = None, fecha_fin: str 
 def leer_resumen_diario(fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> dict:
     path = _path_del_dia(fecha, fecha_fin, modo)
     if not path.exists():
-        return {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0}
+        return {"ingresos": 0, "salidas": 0, "pedidos": 0, "extornos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0}
 
     schema_overrides = {col: pl.Utf8 for col in EXCEL_COLUMNS}
     df = pl.read_excel(path, schema_overrides=schema_overrides)
 
-    resumen = {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0, "validacion": 0}
+    resumen = {"ingresos": 0, "salidas": 0, "pedidos": 0, "extornos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0, "validacion": 0}
 
     if "TipoMovimiento" in df.columns:
-        for tipo in ("INGRESO", "SALIDA", "PEDIDO"):
+        for tipo in ("INGRESO", "SALIDA", "PEDIDO", "EXTORNO"):
             resumen[tipo.lower() + "s"] = (df["TipoMovimiento"] == tipo).sum()
 
     if "Estado" in df.columns:
