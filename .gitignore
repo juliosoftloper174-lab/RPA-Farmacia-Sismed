@@ -5,6 +5,7 @@ movimientos.xlsx
 *.csv
 *.rpt
 Notas.txt
+ReportesExcel/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

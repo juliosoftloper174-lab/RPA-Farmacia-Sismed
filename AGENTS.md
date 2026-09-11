@@ -343,6 +343,24 @@ Archivo analizado: `19-07-26_SP_extorno.csv`
 7. **Prueba simulada**: crear `src/datos/test_extorno.py` con datos ficticios (cliente 002964401, medicamento 30588, cantidad 1, farmacia 02). Primero ejecutar el pedido, luego el extorno.
 8. **Conexión real**: una vez validada la prueba simulada, conectar al SP real.
 
+### 🔀 Rama `feature/validacion-forma-pago` — Validación de forma de pago (pendiente validar)
+
+**Problema**: En ocasiones, pese a que el bot ejecuta los clicks para seleccionar la forma de pago **SIS** (incluso el click que selecciona SIS en el dropdown), SISMED deja el combo `CboDato` en **CONTADO**. El registro se guarda mal, y al extraer el correlativo el bot espera una ventana `TICKET` pero aparece `BOLETA DE VENTA` → el programa se cae. Descartadas causas de timing/posición (grabado y analizado a detalle): parece bug de SISMED en sí.
+
+**Solución implementada** (en rama, sin mergear a `version-rpa`):
+- `FORMA_PAGO_COMBO_VALUE` en `src/flujos/pedido.py`: mapa de valores `Value.Value` del combo `CboDato` según Inspector:
+  - CONTADO = `"01"`, SIS = `"03"`, INTERVENCION_SANITARIA = `"20"`
+- `leer_forma_pago_seleccionada()`: lee el valor actual del combo con `GetValuePattern().Value` (patrón ya usado en `cliente.py:12`).
+- `selecionar_forma_pago_Julio()`: mantiene los clicks originales pero envuelto en loop de **hasta 3 intentos** (`MAX_INTENTOS_FORMA_PAGO`). Tras cada selección valida que el valor del combo coincida con el esperado. Si no, reintenta; si falla los 3, `raise RuntimeError` → lo captura el `except Exception` de `procesar_pedidos()` que cierra ventanas, reloguea y reintenta el pedido completo.
+- Logs claros para validar en producción:
+  - `[FORMA_PAGO] Intento N/3 - seleccionando SIS (valor esperado CboDato=03)`
+  - `[FORMA_PAGO] OK - se seleccionó forma de pago SIS, se verificó valor CboDato = 03`
+  - `[FORMA_PAGO] El valor CboDato = 01 no corresponde a SIS (esperado 03), reintentando...`
+
+**Estados**: `version-rpa` = versión producción (sin el cambio). `feature/validacion-forma-pago` = cambio listo para validar. Tests: `TestFormaPagoComboValue` en `tests/test_pedido.py` (verifica el mapa). NOTA: hay 4 tests pre-existentes fallando en `test_pedido.py` ajenos a este cambio (relacionados a `sp_adapter`).
+
+**Pendiente**: dejar correr el bot en la rama, revisar que aparezca `[FORMA_PAGO] OK ...` en los logs; si funciona, mergear a `version-rpa`.
+
 ## 🚧 Lo que falta hacer
 
 ### Flujos nuevos (por KS_TIPO_MOV)

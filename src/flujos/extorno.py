@@ -12,12 +12,18 @@ from uiautomation import Click, SendKeys, WindowControl
 
 from database.conexion import ejecutar_sp_update_estado
 from src.config import SISMED_PASSWORD, SISMED_USERNAME
+from src.flujos._comun_almacen import cerrar_sismed
 from src.flujos._login import login
 from src.helpers.comun.input import escribir_input
 from src.helpers.comun.windows import get_system_info_panel
 from src.helpers.pedido.farmacia import seleccionar_farmacia_por_codigo
 from src.logger import logger
 from src.models.extorno import Extorno
+from src.reportes.excel_schema import crear_row_extorno
+from src.reportes.excel_writer import (
+    guardar_movimientos,
+    obtener_siguiente_numero_procesado,
+)
 
 
 def _debug_children(control, label: str = "") -> None:
@@ -332,13 +338,19 @@ def procesar_extorno(extorno: Extorno) -> dict:
     return {"estado": "OK", "correlativo": None}
 
 
-def procesar_extornos(extornos: tuple[Extorno, ...]) -> dict:
+def procesar_extornos(
+    extornos: tuple[Extorno, ...],
+    fecha: str | None = None,
+    fecha_fin: str | None = None,
+    modo: str = "horario",
+) -> dict:
     total = len(extornos)
     logger.info(f"[EXTORNO] Iniciando procesamiento de {total} extorno(s)")
 
     login(SISMED_USERNAME, SISMED_PASSWORD)
     ok_count = 0
     error_count = 0
+    numero_procesado = obtener_siguiente_numero_procesado(fecha, fecha_fin, modo)
 
     for idx, extorno in enumerate(extornos, start=1):
         try:
@@ -354,9 +366,42 @@ def procesar_extornos(extornos: tuple[Extorno, ...]) -> dict:
             logger.success(f"[EXTORNO] {idx}/{total} OK")
             ok_count += 1
 
+            row = crear_row_extorno(
+                i=numero_procesado,
+                username=SISMED_USERNAME,
+                correlativo_ksalud=extorno.correlativo_ksalud,
+                correlativo_sismed="",
+                extorno=extorno,
+                estado="OK",
+            )
+
         except Exception as e:
             logger.error(f"[EXTORNO] {idx}/{total} error: {e}")
             error_count += 1
+
+            if extorno.update_key:
+                try:
+                    ejecutar_sp_update_estado(extorno.update_key, "20")
+                except Exception as update_err:
+                    logger.warning(
+                        f"[EXTORNO] {idx}/{total} No se pudo actualizar estado BD: {update_err}"
+                    )
+
+            row = crear_row_extorno(
+                i=numero_procesado,
+                username=SISMED_USERNAME,
+                correlativo_ksalud=extorno.correlativo_ksalud,
+                correlativo_sismed="",
+                extorno=extorno,
+                estado="ERROR",
+                error=str(e),
+            )
+
+        guardar_movimientos(row, fecha, fecha_fin, modo)
+        numero_procesado += 1
+
+    logger.info("[EXTORNO] Cerrando SISMED...")
+    cerrar_sismed()
 
     return {"total": total, "ok": ok_count, "error": error_count}
 

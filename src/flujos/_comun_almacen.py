@@ -110,7 +110,11 @@ def cerrar_sismed() -> None:
     almacen_window: WindowControl = WindowControl(
         searchDepth=1, Name="ALMACEN - MINSA SISMED"
     )
-    almacen_window.GetWindowPattern().Close()
+    try:
+        almacen_window.GetWindowPattern().Close()
+    except Exception:
+        logger.debug("Ventana 'ALMACEN - MINSA SISMED' no presente, omitiendo.")
+
     minsa_sismed_window: WindowControl = WindowControl(
         searchDepth=1, Name="MINSA SISMED"
     )

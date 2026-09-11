@@ -183,6 +183,18 @@ class TestPedidoRevisiones:
 # Tests de TRANSFORMACIONES (SP Adapter helpers)
 # ============================================================
 
+class TestFormaPagoComboValue:
+    def test_mapa_valores_cbo_dato_segun_inspector(self):
+        from src.flujos.pedido import FORMA_PAGO_COMBO_VALUE
+        assert FORMA_PAGO_COMBO_VALUE[FormaPago.CONTADO] == "01"
+        assert FORMA_PAGO_COMBO_VALUE[FormaPago.SIS] == "03"
+        assert FORMA_PAGO_COMBO_VALUE[FormaPago.INTERVENCION_SANITARIA] == "20"
+
+    def test_mapa_cubre_todas_las_formas(self):
+        from src.flujos.pedido import FORMA_PAGO_COMBO_VALUE
+        assert set(FORMA_PAGO_COMBO_VALUE.keys()) == set(FormaPago)
+
+
 class TestMappingHelpers:
     def test_mapear_forma_pago_nulo_devuelve_contado(self):
         from src.datos.sp_adapter import _mapear_forma_pago

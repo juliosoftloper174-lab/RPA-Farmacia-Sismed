@@ -165,7 +165,9 @@ def _procesar_extorno(extornos, fecha=None, fecha_fin=None, modo="horario"):
         return None
     logger.info(f"Iniciando procesamiento de {len(extornos)} extorno(s)...")
     try:
-        stats_ext = procesar_extornos(tuple(extornos))
+        stats_ext = procesar_extornos(
+            tuple(extornos), fecha=fecha, fecha_fin=fecha_fin, modo=modo
+        )
         logger.success("Extornos procesados correctamente.")
         return stats_ext
     except Exception as e:

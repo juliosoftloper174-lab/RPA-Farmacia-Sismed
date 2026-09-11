@@ -200,24 +200,66 @@ def _esperar_combo(
     )
 
 
-def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
+FORMA_PAGO_COMBO_VALUE = {
+    FormaPago.CONTADO: "01",
+    FormaPago.SIS: "03",
+    FormaPago.INTERVENCION_SANITARIA: "20",
+}
+
+MAX_INTENTOS_FORMA_PAGO = 3
+
+
+def leer_forma_pago_seleccionada() -> str:
     cbo = _esperar_combo("CboDato")
+    return cbo.GetValuePattern().Value.strip()
 
-    cbo.Click()
-    sleep(2)
 
-    if pedido.forma_pago == FormaPago.CONTADO:
+def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
+    esperado = FORMA_PAGO_COMBO_VALUE[pedido.forma_pago]
+
+    for intento in range(1, MAX_INTENTOS_FORMA_PAGO + 1):
+        logger.info(
+            f"[FORMA_PAGO] Intento {intento}/{MAX_INTENTOS_FORMA_PAGO} - "
+            f"seleccionando {pedido.forma_pago.value} "
+            f"(valor esperado CboDato={esperado})"
+        )
+
+        cbo = _esperar_combo("CboDato")
         cbo.Click()
-        sleep(1.5)
-    elif pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
-        Click(537, 427)
-        sleep(1.5)
-    elif pedido.forma_pago == FormaPago.SIS:
-        Click(615, 410)
-        sleep(1.5)
-        Click(495, 385)
-    else:
-        raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago}")
+        sleep(1)
+
+        if pedido.forma_pago == FormaPago.CONTADO:
+            cbo.Click()
+            sleep(1)
+        elif pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
+            Click(537, 427)
+            sleep(1)
+        elif pedido.forma_pago == FormaPago.SIS:
+            Click(615, 410)
+            sleep(1)
+            Click(495, 385)
+        else:
+            raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago}")
+
+        valor_actual = leer_forma_pago_seleccionada()
+
+        if valor_actual == esperado:
+            logger.info(
+                f"[FORMA_PAGO] OK - se seleccionó forma de pago "
+                f"{pedido.forma_pago.value}, se verificó valor CboDato = {valor_actual}"
+            )
+            return
+
+        logger.warning(
+            f"[FORMA_PAGO] El valor CboDato = {valor_actual} no corresponde a "
+            f"{pedido.forma_pago.value} (esperado {esperado}), reintentando..."
+        )
+        sleep(1)
+
+    raise RuntimeError(
+        f"No se pudo seleccionar la forma de pago {pedido.forma_pago.value} "
+        f"tras {MAX_INTENTOS_FORMA_PAGO} intentos"
+    )
 
 
 def rellenar_cabecera(
@@ -399,19 +441,19 @@ def cerrar_sismed_pedido() -> None:
 
     # Click 1
     Click(1168, 188)
-    sleep(3)
+    sleep(2.5)
 
     # Click 2
     Click(1189, 214)
-    sleep(3)
+    sleep(2.5)
 
     # Click 3
     Click(1585, 15)
-    sleep(3)
+    sleep(2.5)
 
     # Click 4
     Click(1585, 15)
-    sleep(3)
+    sleep(2.5)
 
 
 def procesar_pedido(
@@ -471,12 +513,12 @@ def cerrar_ventanas_sismed() -> None:
         Click(1585, 15)
     except Exception:
         pass
-    sleep(3)
+    sleep(2.5)
     try:
         Click(1585, 15)
     except Exception:
         pass
-    sleep(3)
+    sleep(2.5)
 
 
 def procesar_pedidos(
