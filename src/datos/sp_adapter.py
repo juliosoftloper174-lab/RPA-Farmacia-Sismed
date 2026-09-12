@@ -1,5 +1,6 @@
 from src.models.cliente import Cliente
 from src.models.diagnostico import Diagnostico
+from src.models.extorno import Extorno
 from src.models.farmacia import Farmacia
 from src.models.forma_pago import FormaPago
 from src.models.ingreso import Ingreso
@@ -12,10 +13,9 @@ from src.logger import logger
 from database.conexion import ejecutar_sp_movimientos
 
 CLIENTE_HARDCODEADO = "00025759"
-PRESCRIPTOR_HARDCODEADO = "87705"
 
 ESTADOS_OK = {"1", "00"}
-ESTADOS_ERROR = {"01", "02", "10", "20"}
+ESTADOS_ERROR = {"01", "02", "03", "10", "20"}
 
 # NOTE: Pendiente de implementación — requiere coordinación con el área de farmacia del hospital
 # @TODO: Implementar flujo para NOTA DE ENTRADA POR OTROS INGRESOS y NOTA DE SALIDA POR OTROS EGRESOS
@@ -62,6 +62,17 @@ def _parsear_fecha_vencimiento(fecha: str) -> str:
     if len(partes) == 3 and partes[2] == "31":
         partes[2] = "30"
         fecha = "/".join(partes)
+    return fecha
+
+
+def _parsear_fecha_pedido(fecha: str) -> str:
+    """Convierte YYYY-MM-DD a DD/MM/YYYY para la UI de SISMED."""
+    if not fecha or fecha in ("NULL", ""):
+        return ""
+    fecha = fecha.replace("-", "/")
+    partes = fecha.split("/")
+    if len(partes) == 3 and len(partes[0]) == 4:
+        return f"{partes[2]}/{partes[1]}/{partes[0]}"
     return fecha
 
 
@@ -128,14 +139,14 @@ def obtener_movimientos(
     fecha_ini: str,
     fecha_fin: str,
     skip_errores: bool = False,
-) -> tuple[list[Pedido], list[Ingreso], list[Salidas]]:
+) -> tuple[list[Pedido], list[Ingreso], list[Salidas], list[Extorno], int]:
     headers_raw, detalles_raw = ejecutar_sp_movimientos(fecha_ini, fecha_fin)
 
     if not headers_raw:
         logger.warning("No se encontraron movimientos en el rango de fechas.")
-        return [], [], [], 0
+        return [], [], [], [], 0
 
-    tipos_validos = {"PEDIDO", "INGRESO", "SALIDA"}
+    tipos_validos = {"PEDIDO", "INGRESO", "SALIDA", "EXTORNO"}
     headers_raw = [r for r in headers_raw if str(r.get("TIPO_MOVIMIENTO_DES", "")).strip().upper() in tipos_validos]
     logger.info(f"Headers filtrados por tipo válido: {len(headers_raw)}")
 
@@ -150,6 +161,7 @@ def obtener_movimientos(
     pedidos: list[Pedido] = []
     ingresos: list[Ingreso] = []
     salidas: list[Salidas] = []
+    extornos: list[Extorno] = []
 
     def _build_update_key(row: dict) -> tuple[str, ...] | None:
         partes = []
@@ -199,7 +211,7 @@ def obtener_movimientos(
             prescriptor = None
             prescriptor_raw = _obtener_safe(row, "PRESCRIPTOR", "NULL")
             if prescriptor_raw not in (None, "NULL", ""):
-                prescriptor = Prescriptor(PRESCRIPTOR_HARDCODEADO)
+                prescriptor = Prescriptor(str(prescriptor_raw).strip())
 
             diagnosticos = []
             diag_raw = _obtener_safe(row, "DIAGNOSTICO", "NULL")
@@ -272,11 +284,31 @@ def obtener_movimientos(
             )
             salidas.append(salida)
 
+        elif tipo == "EXTORNO":
+            farmacia_cod = str(_obtener_safe(row, "ALMACEN_DESTINO", "")).strip()
+            nro_doc = str(_obtener_safe(row, "NRO_DOC_CLIENTE", "")).strip()
+            fecha_pedido = _parsear_fecha_pedido(str(_obtener_safe(row, "KS_PEDIDO_FECHA", "")).strip())
+            if not nro_doc:
+                nro_doc = CLIENTE_HARDCODEADO
+
+            tipo_doc = str(_obtener_safe(row, "TIPO_DOC_CLIENTE_DES", "")).strip()
+            if tipo_doc in ("", "NULL", "None"):
+                tipo_doc = "DNI"
+
+            extorno = Extorno(
+                farmacia=farmacia_cod,
+                cliente_dni=nro_doc,
+                fecha=fecha_pedido,
+                tipo_documento=tipo_doc,
+                update_key=_build_update_key(row),
+            )
+            extornos.append(extorno)
+
     if skip_errores and saltados_error:
         logger.info(f"Saltados {saltados_error} movimientos con estado de error (skip_errores=True)")
 
     if saltados_otros:
         logger.info(f"Saltados {saltados_otros} movimientos por ser OTROS INGRESOS/EGRESOS (pendientes de implementación)")
 
-    logger.info(f"SP adapter: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas")
-    return pedidos, ingresos, salidas, saltados_otros
+    logger.info(f"SP adapter: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas, {len(extornos)} extornos")
+    return pedidos, ingresos, salidas, extornos, saltados_otros

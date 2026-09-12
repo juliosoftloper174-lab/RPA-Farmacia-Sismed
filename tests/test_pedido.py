@@ -183,6 +183,18 @@ class TestPedidoRevisiones:
 # Tests de TRANSFORMACIONES (SP Adapter helpers)
 # ============================================================
 
+class TestFormaPagoComboValue:
+    def test_mapa_valores_cbo_dato_segun_inspector(self):
+        from src.flujos.pedido import FORMA_PAGO_COMBO_VALUE
+        assert FORMA_PAGO_COMBO_VALUE[FormaPago.CONTADO] == "01"
+        assert FORMA_PAGO_COMBO_VALUE[FormaPago.SIS] == "03"
+        assert FORMA_PAGO_COMBO_VALUE[FormaPago.INTERVENCION_SANITARIA] == "20"
+
+    def test_mapa_cubre_todas_las_formas(self):
+        from src.flujos.pedido import FORMA_PAGO_COMBO_VALUE
+        assert set(FORMA_PAGO_COMBO_VALUE.keys()) == set(FormaPago)
+
+
 class TestMappingHelpers:
     def test_mapear_forma_pago_nulo_devuelve_contado(self):
         from src.datos.sp_adapter import _mapear_forma_pago
@@ -319,7 +331,7 @@ class TestSpAdapterPedidos:
 
         monkeypatch.setattr(sp_adapter, "ejecutar_sp_movimientos", fake_ejecutar_sp)
 
-        pedidos, ingresos, salidas, _ = sp_adapter.obtener_movimientos("2026-06-09", "2026-06-10")
+        pedidos, ingresos, salidas, extornos, _ = sp_adapter.obtener_movimientos("2026-06-09", "2026-06-10")
         assert len(pedidos) == 1
         assert len(ingresos) == 0
         assert len(salidas) == 0
@@ -374,7 +386,7 @@ class TestSpAdapterPedidos:
 
         monkeypatch.setattr(sp_adapter, "ejecutar_sp_movimientos", fake_ejecutar_sp)
 
-        pedidos, _, _, _ = sp_adapter.obtener_movimientos("2026-06-09", "2026-06-10")
+        pedidos, _, _, _, _ = sp_adapter.obtener_movimientos("2026-06-09", "2026-06-10")
         p = pedidos[0]
 
         assert p.prescriptor is not None
@@ -423,7 +435,7 @@ class TestSpAdapterPedidos:
 
         monkeypatch.setattr(sp_adapter, "ejecutar_sp_movimientos", fake_ejecutar_sp)
 
-        pedidos, _, _, _ = sp_adapter.obtener_movimientos("2026-06-09", "2026-06-10")
+        pedidos, _, _, _, _ = sp_adapter.obtener_movimientos("2026-06-09", "2026-06-10")
         p = pedidos[0]
         assert p.farmacia.codigo == "06732F02"
         assert p.forma_pago == FormaPago.INTERVENCION_SANITARIA

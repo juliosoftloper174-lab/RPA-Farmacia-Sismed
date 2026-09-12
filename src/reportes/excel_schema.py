@@ -175,6 +175,39 @@ def crear_row_salida(
     return row
 
 
+def crear_row_extorno(
+    i: int,
+    username: str,
+    correlativo_ksalud: str,
+    correlativo_sismed: str,
+    extorno,
+    estado: str,
+    error: str = "",
+):
+    row = crear_row_base()
+
+    now = datetime.now()
+
+    row.update(
+        {
+            "Nº de Procesado": i,
+            "Nº correlativo Ksalud": correlativo_ksalud,
+            "Nº correlativo Sismed": correlativo_sismed,
+            "Fecha": now.strftime("%Y-%m-%d"),
+            "Hora": now.strftime("%H:%M:%S"),
+            "Usuario": username,
+            "TipoMovimiento": "EXTORNO",
+            "Estado": estado,
+            "Error": error,
+            "farmacia": extorno.farmacia,
+            "cliente": extorno.cliente_dni,
+            "CantidadMedicamentos": 0,
+        }
+    )
+
+    return row
+
+
 def crear_row_saltado(
     i: int,
     tipo_mov: str,

@@ -266,7 +266,107 @@ sismed_wrapper/
 - **`_login.py`**: Manejo automático de backup diario (detecta ventanas y espera regeneración de índices)
 - **Detección cliente no encontrado**: `seleccionar_cliente()` retorna `False` si TxtCliente no cambia → `ClienteNoEncontradoError` → log en Excel sin reintentar
 
+### 📊 Análisis de Tipos de Movimiento (SP_Junio.csv)
+Datos del SP para junio 2026: **7,152 movimientos totales**.
+
+| KS_TIPO_MOV | KS_TIPO_MOVIMIENTO_DES | TIPO_MOV_DES | Cantidad | % | Unidades | % Unid. | Estado |
+|---|---|---|---|---|---|---|---|
+| 211 | ENTREGA A TERCERO POR VENTA | PEDIDO | 6,725 | 94.0% | 1,198,446 | 59.3% | ✅ Procesado como PEDIDO |
+| 207 | ENTREGA A PACIENTE | PEDIDO | 113 | 1.6% | 2,349 | 0.1% | ✅ Procesado como PEDIDO |
+| 205 | EGRESO TRANSFERENCIA A FARMACIA | SALIDA | 144 | 2.0% | 326,805 | 16.2% | ✅ Implementado |
+| 101 | COMPRA INSTITUCIONAL | INGRESO | 58 | 0.8% | ~370,000 | 18.4% | ✅ Implementado |
+| 112 | TRANSFERENCIAS ESTRATEGICAS | INGRESO | 10 | 0.1% | ~5,000 | 0.2% | ✅ Implementado |
+| 108 | EXTORNO DE UN EGRESO | EXTORNO | 80 | 1.1% | 109,615 | 5.4% | ⚠️ No implementado |
+| 206 | ENTREGA A SERVICIO | SALIDA | 21 | 0.3% | 7,082 | 0.3% | ⚠️ No implementado |
+| 202 | EGRESO NO INFORMA AL SAP | SALIDA | 1 | <0.1% | — | — | ⚠️ No implementado |
+
+#### Detalle: PEDIDO 211 vs 207
+Ambos caen en TIPO_MOVIMIENTO_DES="PEDIDO" y el SP adapter los procesa igual.
+La diferencia clave es TIPO_PACIENTE:
+
+| Campo | 211 (Venta/Tercero) | 207 (Paciente Internado) |
+|---|---|---|
+| TIPO_PACIENTE | E (Externo) | I (Internado) |
+| DIAGNOSTICO | Siempre NULL | Siempre lleno (CIE) |
+| PRESCRIPTOR | Siempre NULL | Siempre lleno |
+| FARMACIA/DESTINO | F02/F03/F04/F05 | Solo F02 |
+| Seguros | SIS-MINSA, SALUDPOL, PARTICULAR | Solo SIS-MINSA |
+
+El bot actual procesa ambos como PEDIDO y funciona. Para 211 (externo) es innecesario llenar diagnóstico/prescriptor.
+
+#### Detalle: SALIDA 205 vs 206
+| Campo | 205 (Transferencia) | 206 (Servicio/UPSS) |
+|---|---|---|
+| ALMACEN_DESTINO | Siempre lleno | Siempre NULL |
+| FARMACIA | Siempre lleno | Siempre NULL |
+| ALMACEN_ORIGEN | 06732F01 o F05 | Solo 06732F06 (UPSS) |
+| KS_CONCEPTO | 22 (TRANSFERENCIA) | 02 (CONSUMO) |
+| Movimientos | 144 | 21 |
+
+#### Flujo EXTORNO (KS_TIPO_MOV=108)
+- **Volumen**: 80 movimientos/mes, 504 líneas, 109,615 unidades (5.4% del total)
+- **KS_CONCEPTO**: 20 (NOTA DE ENTRADA POR OTROS INGRESOS)
+- **ALMACEN_ORIGEN**: Siempre NULL
+- **ALMACEN_DESTINO**: Código de farmacia (ej. 06732F01)
+- **KS_PEDIDO_NUMERO**: Referencia al pedido original
+- **Campos vacíos**: FORMA_PAGO, DIAGNOSTICO, PRESCRIPTOR, UPS_VIRTUAL_ORIGEN
+- **Flujo UI esperado**: Similar a INGRESO pero con concepto "OTROS INGRESOS" y referencia al pedido
+
+### 🔍 Investigación Extorno — datos reales 19/07/2026
+
+Archivo analizado: `19-07-26_SP_extorno.csv`
+
+- **6 extornos** y **138 pedidos** en el día.
+- Todos los extornos tienen `KS_PEDIDO_FECHA = 2026-07-19` → **corresponden a pedidos del mismo día**.
+- **Los extornos NO extornan todo el pedido**. Son **devoluciones parciales** de medicamentos específicos.
+- Cada extorno trae su propia lista de medicamentos en el detalle.
+
+| Extorno | Pedido Ref | Farmacia | DNI | Medicamentos en extorno |
+|---|---|---|---|---|
+| 1 | 57 | 06732F02 | 62450106 | 6 medicamentos |
+| 2 | 132 | 06732F03 | 90976850 | 1 medicamento (39992 x 1) |
+| 3 | 134 | 06732F03 | 71213890 | 1 medicamento (08140 x 360) |
+| 4 | 23 | 06732F03 | 71213890 | 1 medicamento (39992 x 1) |
+| 5 | 135 | 06732F03 | 71213890 | 1 medicamento (08140 x 360) |
+| 6 | 22 | 06732F03 | 43901684 | 5 medicamentos |
+
+**Conclusión clave**: `KS_PEDIDO_NUMERO` es una referencia al pedido original, pero el extorno procesa su propio detalle. No asumir relación 1:1 entre pedido y extorno.
+
+### 🛠️ Plan de implementación del flujo Extorno
+
+1. **Modelo**: `src/models/extorno.py` (clase simple: farmacia, almacen_destino, concepto, medicamentos, correlativo_ksalud, update_key)
+2. **SP Adapter**: agregar `"EXTORNO"` a `tipos_validos` y construir objetos `Extorno`
+3. **Navegación**: reutilizar selección de farmacia de `navegar_a_pedidos`, pero después del `{TAB}` enviar `{RIGHT}{Enter}` para llegar a "registro de consumo"
+4. **Flujo**: crear `src/flujos/extorno.py` con `procesar_extornos()`
+5. **Excel**: agregar `crear_row_extorno()` en `excel_schema.py`
+6. **Orquestador**: en `src/__main__.py` ejecutar extornos **después de pedidos**
+7. **Prueba simulada**: crear `src/datos/test_extorno.py` con datos ficticios (cliente 002964401, medicamento 30588, cantidad 1, farmacia 02). Primero ejecutar el pedido, luego el extorno.
+8. **Conexión real**: una vez validada la prueba simulada, conectar al SP real.
+
+### 🔀 Rama `feature/validacion-forma-pago` — Validación de forma de pago (pendiente validar)
+
+**Problema**: En ocasiones, pese a que el bot ejecuta los clicks para seleccionar la forma de pago **SIS** (incluso el click que selecciona SIS en el dropdown), SISMED deja el combo `CboDato` en **CONTADO**. El registro se guarda mal, y al extraer el correlativo el bot espera una ventana `TICKET` pero aparece `BOLETA DE VENTA` → el programa se cae. Descartadas causas de timing/posición (grabado y analizado a detalle): parece bug de SISMED en sí.
+
+**Solución implementada** (en rama, sin mergear a `version-rpa`):
+- `FORMA_PAGO_COMBO_VALUE` en `src/flujos/pedido.py`: mapa de valores `Value.Value` del combo `CboDato` según Inspector:
+  - CONTADO = `"01"`, SIS = `"03"`, INTERVENCION_SANITARIA = `"20"`
+- `leer_forma_pago_seleccionada()`: lee el valor actual del combo con `GetValuePattern().Value` (patrón ya usado en `cliente.py:12`).
+- `selecionar_forma_pago_Julio()`: mantiene los clicks originales pero envuelto en loop de **hasta 3 intentos** (`MAX_INTENTOS_FORMA_PAGO`). Tras cada selección valida que el valor del combo coincida con el esperado. Si no, reintenta; si falla los 3, `raise RuntimeError` → lo captura el `except Exception` de `procesar_pedidos()` que cierra ventanas, reloguea y reintenta el pedido completo.
+- Logs claros para validar en producción:
+  - `[FORMA_PAGO] Intento N/3 - seleccionando SIS (valor esperado CboDato=03)`
+  - `[FORMA_PAGO] OK - se seleccionó forma de pago SIS, se verificó valor CboDato = 03`
+  - `[FORMA_PAGO] El valor CboDato = 01 no corresponde a SIS (esperado 03), reintentando...`
+
+**Estados**: `version-rpa` = versión producción (sin el cambio). `feature/validacion-forma-pago` = cambio listo para validar. Tests: `TestFormaPagoComboValue` en `tests/test_pedido.py` (verifica el mapa). NOTA: hay 4 tests pre-existentes fallando en `test_pedido.py` ajenos a este cambio (relacionados a `sp_adapter`).
+
+**Pendiente**: dejar correr el bot en la rama, revisar que aparezca `[FORMA_PAGO] OK ...` en los logs; si funciona, mergear a `version-rpa`.
+
 ## 🚧 Lo que falta hacer
+
+### Flujos nuevos (por KS_TIPO_MOV)
+- **Extorno** (KS_TIPO_MOV=108): Datos confirmados (ver investigación 19/07/2026). Plan definido. Pendiente implementación.
+- **Consumo/Venta** (KS_TIPO_MOV=206): Salidas sin almacén destino — 21 movimientos/mes, 0.3%. Pendiente implementación.
+- **Filtrar pedidos**: Distinguir KS_TIPO_MOV=201 (dispensación) de 211 (venta) en el SP adapter
 
 ### Pedidos con datos reales
 - El SP adapter ya construye objetos Pedido correctamente (testeado)
@@ -278,6 +378,7 @@ sismed_wrapper/
 - `Concepto` en salidas harcodeado por click ciego → mejorar
 - Validación de Ingresos y Salidas es un passthrough (no hay validación real)
 - Duplicación de productos (mismo código en un movimiento, sumar cantidades) — gap conocido no presente en datos actuales
+- **BOLETA_NO_ENCONTRADA**: ~2.3% de pedidos fallan porque la UI cierra la boleta sin mostrar popup "Volver a Menu" — investigar timeout o estrategia alternativa
 
 ---
 

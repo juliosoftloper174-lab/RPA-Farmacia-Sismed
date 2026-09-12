@@ -1,10 +1,11 @@
 from time import sleep
-from src.logger import logger
+
 import uiautomation as auto
 from uiautomation import TableControl
 
 from src.helpers.comun.input import escribir_input
 from src.helpers.comun.ventana import esperar_ventana
+from src.logger import logger
 from src.models.Medicamento import Medicamento
 
 

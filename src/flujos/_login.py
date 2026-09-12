@@ -7,8 +7,11 @@ from loguru import logger
 from src import config
 from src.notifications.email_sender import (
     enviar_correo,
+    enviar_correo_con_adjunto,
     construir_cuerpo_backup,
+    construir_cuerpo_resumen_diario,
 )
+from src.reportes.excel_writer import leer_resumen_diario, _path_del_dia
 
 _backup_pause_handled = False
 
@@ -36,6 +39,15 @@ def _pausar_por_backup() -> bool:
         enviar_correo(
             f"⚠️ Bot N°{config.BOT_NUMBER} - BACKUP DETECTADO",
             construir_cuerpo_backup("inicio"),
+        )
+
+        fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+        resumen = leer_resumen_diario(fecha_hoy)
+        excel_path = _path_del_dia(fecha_hoy)
+        enviar_correo_con_adjunto(
+            f"📊 Bot N°{config.BOT_NUMBER} - Resumen parcial (backup detectado)",
+            construir_cuerpo_resumen_diario(resumen, fecha_hoy),
+            excel_path,
         )
 
         input()
@@ -87,6 +99,15 @@ def esperar_hora_backup_si_aplica() -> None:
                 f"<p>Esperando confirmación del operador para reanudar...</p>"
                 f"<hr><p style='font-size:12px;color:#999;'>SISMED RPA Bot</p></body></html>",
             )
+
+        fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+        resumen = leer_resumen_diario(fecha_hoy)
+        excel_path = _path_del_dia(fecha_hoy)
+        enviar_correo_con_adjunto(
+            f"📊 Bot N°{config.BOT_NUMBER} - Resumen pre-backup ({config.HORA_CIERRE})",
+            construir_cuerpo_resumen_diario(resumen, fecha_hoy),
+            excel_path,
+        )
 
         input()
 

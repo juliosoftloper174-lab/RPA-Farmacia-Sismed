@@ -1,8 +1,10 @@
 from time import sleep
 
 import uiautomation as auto
+from uiautomation import WindowControl
 
 from src.helpers.comun.input import escribir_input
+from src.helpers.comun.windows import get_farmacia_window, get_registro_pedido_window
 from src.logger import logger
 from src.models.cliente import Cliente
 
@@ -42,18 +44,26 @@ def _seleccionar_item_combo(combo, valor: str):
 def registrar_cliente_en_sismed(cliente: Cliente) -> bool:
     logger.info(f"Abriendo modal de registro para cliente DNI={cliente.codigo}")
 
-    ventana = auto.WindowControl(Name="Registro de Pedido")
+    ventana = get_registro_pedido_window()
     btn_nuevo = ventana.ButtonControl(Name="cmdNueCli")
     btn_nuevo.Click()
 
     modal = None
     for _ in range(20):
-        modal = auto.WindowControl(Name="Registro de Nuevo Cliente")
+        modal = WindowControl(Name="Registro de Nuevo Cliente")
         if modal.Exists(maxSearchSeconds=0.5):
             break
+        modal_mod = WindowControl(Name="Modificar datos Clientes")
+        if modal_mod.Exists(maxSearchSeconds=0.3):
+            logger.info("Cliente ya registrado — ventana 'Modificar datos' detectada, cerrando")
+            btn_aceptar = modal_mod.ButtonControl(Name="Aceptar")
+            if btn_aceptar.Exists(maxSearchSeconds=1):
+                btn_aceptar.Click()
+                sleep(0.5)
+            return True
         sleep(0.5)
     else:
-        logger.error("No apareció la ventana 'Registro de Nuevo Cliente' tras 10s")
+        logger.error("No apareció ninguna ventana de cliente tras 10s")
         return False
 
     logger.info(f"Escribiendo nombre: {cliente.nombre}")

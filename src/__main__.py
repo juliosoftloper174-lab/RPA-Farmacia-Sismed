@@ -26,6 +26,7 @@ from src.reportes.excel_writer import (
     leer_resumen_diario,
     obtener_siguiente_numero_procesado,
 )
+from src.flujos.extorno import procesar_extornos
 from src.flujos.ingreso import procesar_ingresos
 from src.flujos.salida import procesar_salidas
 
@@ -67,13 +68,13 @@ def _signal_handler(sig, frame):
     sys.exit(0)
 
 
-def _procesar_ingreso(ingresos):
+def _procesar_ingreso(ingresos, fecha=None, fecha_fin=None, modo="horario"):
     if not config.procesar_ingresos or not ingresos:
         logger.info("INGRESOS: desactivado o sin datos.")
         return None
     logger.info(f"Iniciando procesamiento de {len(ingresos)} ingresos...")
     try:
-        stats_ing = procesar_ingresos(tuple(ingresos))
+        stats_ing = procesar_ingresos(tuple(ingresos), fecha=fecha, fecha_fin=fecha_fin, modo=modo)
         logger.success("Ingresos procesados correctamente.")
         return stats_ing
     except Exception as e:
@@ -81,13 +82,13 @@ def _procesar_ingreso(ingresos):
         return {"total": len(ingresos), "ok": 0, "error": len(ingresos)}
 
 
-def _procesar_salida(salidas):
+def _procesar_salida(salidas, fecha=None, fecha_fin=None, modo="horario"):
     if not config.procesar_salidas or not salidas:
         logger.info("SALIDAS: desactivado o sin datos.")
         return None
     logger.info(f"Iniciando procesamiento de {len(salidas)} salidas...")
     try:
-        stats_sal = procesar_salidas(tuple(salidas))
+        stats_sal = procesar_salidas(tuple(salidas), fecha=fecha, fecha_fin=fecha_fin, modo=modo)
         logger.success("Salidas procesadas correctamente.")
         return stats_sal
     except Exception as e:
@@ -95,7 +96,7 @@ def _procesar_salida(salidas):
         return {"total": len(salidas), "ok": 0, "error": len(salidas)}
 
 
-def _procesar_pedido(pedidos):
+def _procesar_pedido(pedidos, fecha=None, fecha_fin=None, modo="horario"):
     if not config.procesar_pedidos:
         logger.info("PEDIDOS: desactivado por configuracion.")
         return None
@@ -105,7 +106,7 @@ def _procesar_pedido(pedidos):
 
     pedidos_validos = []
     filas_excel = []
-    numero_procesado = obtener_siguiente_numero_procesado()
+    numero_procesado = obtener_siguiente_numero_procesado(fecha, fecha_fin, modo)
 
     for i, pedido in enumerate(pedidos, start=1):
         motivos = pedido.obtener_revisiones()
@@ -130,7 +131,7 @@ def _procesar_pedido(pedidos):
 
     if filas_excel:
         try:
-            guardar_movimientos(filas_excel)
+            guardar_movimientos(filas_excel, fecha=fecha, fecha_fin=fecha_fin, modo=modo)
         except Exception as e:
             logger.exception(f"Error guardando incidencias de validacion: {e}")
 
@@ -145,7 +146,7 @@ def _procesar_pedido(pedidos):
 
     logger.info("Iniciando procesamiento de pedidos en SISMED...")
     try:
-        stats_ped = procesar_pedidos(tuple(pedidos_validos))
+        stats_ped = procesar_pedidos(tuple(pedidos_validos), fecha=fecha, fecha_fin=fecha_fin, modo=modo)
         logger.success("Todos los pedidos fueron procesados correctamente.")
         return stats_ped
     except Exception as e:
@@ -158,18 +159,34 @@ def _procesar_pedido(pedidos):
         }
 
 
+def _procesar_extorno(extornos, fecha=None, fecha_fin=None, modo="horario"):
+    if not config.procesar_extornos or not extornos:
+        logger.info("EXTORNOS: desactivado o sin datos.")
+        return None
+    logger.info(f"Iniciando procesamiento de {len(extornos)} extorno(s)...")
+    try:
+        stats_ext = procesar_extornos(
+            tuple(extornos), fecha=fecha, fecha_fin=fecha_fin, modo=modo
+        )
+        logger.success("Extornos procesados correctamente.")
+        return stats_ext
+    except Exception as e:
+        logger.exception(f"Error procesando extornos: {e}")
+        return {"total": len(extornos), "ok": 0, "error": len(extornos)}
+
+
 def _ejecutar_ciclo_unico(fecha_hoy: str) -> dict | None:
-    pedidos, ingresos, salidas, saltados_otros = obtener_movimientos(
+    pedidos, ingresos, salidas, extornos, saltados_otros = obtener_movimientos(
         fecha_hoy, fecha_hoy, skip_errores=not config.procesar_errores
     )
 
-    total = len(pedidos) + len(ingresos) + len(salidas)
+    total = len(pedidos) + len(ingresos) + len(salidas) + len(extornos)
     if total == 0:
         return None
 
     logger.info(
         f"SP devolvio: {len(pedidos)} pedidos, {len(ingresos)} ingresos, "
-        f"{len(salidas)} salidas"
+        f"{len(salidas)} salidas, {len(extornos)} extornos"
     )
 
     for pedido in pedidos:
@@ -180,10 +197,13 @@ def _ejecutar_ciclo_unico(fecha_hoy: str) -> dict | None:
         "ingresos": _procesar_ingreso(ingresos),
         "salidas": _procesar_salida(salidas),
         "pedidos": _procesar_pedido(pedidos),
+        "extornos": _procesar_extorno(extornos),
     }
 
 
 def _ejecutar_batch():
+    signal.signal(signal.SIGINT, _signal_handler)
+
     fecha_ini = config.FECHA_INI
     fecha_fin = config.FECHA_FIN
     if not fecha_ini or not fecha_fin:
@@ -195,21 +215,22 @@ def _ejecutar_batch():
     logger.info(f"Procesando {fecha_ini} → {fecha_fin}")
     logger.info(
         f"Flags: ING={config.procesar_ingresos} SAL={config.procesar_salidas} "
-        f"PED={config.procesar_pedidos} ERR={config.procesar_errores}"
+        f"PED={config.procesar_pedidos} EXT={config.procesar_extornos} "
+        f"ERR={config.procesar_errores}"
     )
     logger.info("=" * 50)
 
-    pedidos, ingresos, salidas, saltados_otros = obtener_movimientos(
+    pedidos, ingresos, salidas, extornos, saltados_otros = obtener_movimientos(
         fecha_ini, fecha_fin, skip_errores=not config.procesar_errores
     )
-    total = len(pedidos) + len(ingresos) + len(salidas)
+    total = len(pedidos) + len(ingresos) + len(salidas) + len(extornos)
     if total == 0:
         logger.warning("No se encontraron movimientos en el rango.")
         return
 
     logger.info(
         f"SP devolvio: {len(pedidos)} pedidos, {len(ingresos)} ingresos, "
-        f"{len(salidas)} salidas"
+        f"{len(salidas)} salidas, {len(extornos)} extornos"
     )
 
     for pedido in pedidos:
@@ -217,10 +238,20 @@ def _ejecutar_batch():
             pedido.fua = generar_fua_ficticio()
 
     try:
-        _procesar_ingreso(ingresos)
-        _procesar_salida(salidas)
-        _procesar_pedido(pedidos)
+        _procesar_ingreso(ingresos, fecha_ini, fecha_fin, modo="batch")
+        _procesar_salida(salidas, fecha_ini, fecha_fin, modo="batch")
+        _procesar_pedido(pedidos, fecha_ini, fecha_fin, modo="batch")
+        _procesar_extorno(extornos, fecha_ini, fecha_fin, modo="batch")
         logger.success("Batch completado.")
+
+        if config.NOTIFICAR_CORREO:
+            resumen = leer_resumen_diario(fecha_ini, fecha_fin, modo="batch")
+            excel_path = _path_del_dia(fecha_ini, fecha_fin, modo="batch")
+            enviar_correo_con_adjunto(
+                f"📊 Bot N°{config.BOT_NUMBER} - Resumen batch {fecha_ini} → {fecha_fin}",
+                construir_cuerpo_resumen_diario(resumen, fecha_ini),
+                excel_path,
+            )
     except Exception as e:
         logger.exception(f"ERROR EN BATCH: {e}")
         enviar_correo(
@@ -241,7 +272,8 @@ def main():
     logger.info(f"HORA_CIERRE = {config.HORA_CIERRE}")
     logger.info(
         f"Flags: ING={config.procesar_ingresos} SAL={config.procesar_salidas} "
-        f"PED={config.procesar_pedidos} ERR={config.procesar_errores}"
+        f"PED={config.procesar_pedidos} EXT={config.procesar_extornos} "
+        f"ERR={config.procesar_errores}"
     )
     logger.info("=" * 50)
 
@@ -293,7 +325,7 @@ def main():
             except Exception as e:
                 logger.exception(f"Error al enviar resumen diario: {e}")
 
-        sleep(5)
+        sleep(60)
 
 
 if __name__ == "__main__":

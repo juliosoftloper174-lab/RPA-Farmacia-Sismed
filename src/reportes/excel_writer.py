@@ -5,24 +5,24 @@ from datetime import datetime
 import polars as pl
 from src.reportes.excel_schema import EXCEL_COLUMNS
 
-EXCEL_INCIDENCIAS_PATH = "incidencias.xlsx"
-
-# Columnas especificas para incidencias
-EXCEL_COLUMNS_INCIDENCIAS = [
-    "Nº de Procesado",
-    "Fecha",
-    "Hora",
-    "TipoMovimiento",
-    "Estado",
-    "Error",
-    "CantidadMedicamentos",
+MESES_ES = [
+    "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ]
 
 
-def _path_del_dia(fecha: str | None = None) -> Path:
+def _path_del_dia(fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> Path:
     if fecha is None:
         fecha = datetime.now().strftime("%Y-%m-%d")
-    return Path(f"movimientos_{fecha}.xlsx")
+    dt = datetime.strptime(fecha, "%Y-%m-%d")
+    if fecha_fin:
+        dt_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+        filename = f"MOV_{dt.strftime('%d-%m-%y')}_{dt_fin.strftime('%d-%m-%y')}.xlsx"
+    else:
+        filename = f"MOV_{dt.strftime('%d-%m-%y')}.xlsx"
+    ruta = Path("ReportesExcel") / modo / str(dt.year) / MESES_ES[dt.month] / filename
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    return ruta
 
 
 def _normalize_header_text(value: str) -> str:
@@ -70,7 +70,7 @@ def _normalizar_df_existente(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def guardar_movimientos(rows: list[dict] | dict, fecha: str | None = None):
+def guardar_movimientos(rows: list[dict] | dict, fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario"):
     if isinstance(rows, dict):
         rows = [rows]
 
@@ -78,7 +78,7 @@ def guardar_movimientos(rows: list[dict] | dict, fecha: str | None = None):
         for key, value in row.items():
             row[key] = str(value) if value is not None else ""
 
-    path = _path_del_dia(fecha)
+    path = _path_del_dia(fecha, fecha_fin, modo)
     nuevo_df = pl.DataFrame(rows)
 
     if path.exists():
@@ -92,8 +92,8 @@ def guardar_movimientos(rows: list[dict] | dict, fecha: str | None = None):
     df_final.write_excel(path)
 
 
-def obtener_siguiente_numero_procesado(fecha: str | None = None) -> int:
-    path = _path_del_dia(fecha)
+def obtener_siguiente_numero_procesado(fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> int:
+    path = _path_del_dia(fecha, fecha_fin, modo)
     if not path.exists():
         return 1
 
@@ -118,62 +118,29 @@ def obtener_siguiente_numero_procesado(fecha: str | None = None) -> int:
         return df.height + 1
 
 
-def leer_resumen_diario(fecha: str | None = None) -> dict:
-    path = _path_del_dia(fecha)
+def leer_resumen_diario(fecha: str | None = None, fecha_fin: str | None = None, modo: str = "horario") -> dict:
+    path = _path_del_dia(fecha, fecha_fin, modo)
     if not path.exists():
-        return {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "saltados": 0}
+        return {"ingresos": 0, "salidas": 0, "pedidos": 0, "extornos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0}
 
     schema_overrides = {col: pl.Utf8 for col in EXCEL_COLUMNS}
     df = pl.read_excel(path, schema_overrides=schema_overrides)
 
-    resumen = {"ingresos": 0, "salidas": 0, "pedidos": 0, "ok": 0, "error": 0, "saltados": 0}
+    resumen = {"ingresos": 0, "salidas": 0, "pedidos": 0, "extornos": 0, "ok": 0, "error": 0, "sin_stock": 0, "saltados": 0, "validacion": 0}
 
     if "TipoMovimiento" in df.columns:
-        for tipo in ("INGRESO", "SALIDA", "PEDIDO"):
+        for tipo in ("INGRESO", "SALIDA", "PEDIDO", "EXTORNO"):
             resumen[tipo.lower() + "s"] = (df["TipoMovimiento"] == tipo).sum()
 
     if "Estado" in df.columns:
         estados = df["Estado"].to_list()
         resumen["ok"] = sum(1 for e in estados if str(e).upper() in ("OK", "OK_REPROCESADO"))
         resumen["error"] = sum(1 for e in estados if str(e).upper() == "ERROR")
+        resumen["sin_stock"] = sum(1 for e in estados if str(e).upper() == "SIN_STOCK")
         resumen["saltados"] = sum(1 for e in estados if str(e).upper() == "SALTADO")
+        resumen["validacion"] = sum(1 for e in estados if str(e).upper() == "VALIDACION")
 
     return resumen
 
 
-def guardar_incidencias(rows: list[dict]):
-    if not rows:
-        return
 
-    nuevo_df = pl.DataFrame(rows)
-
-    if Path(EXCEL_INCIDENCIAS_PATH).exists():
-        df_actual = pl.read_excel(EXCEL_INCIDENCIAS_PATH)
-        df_final = pl.concat([df_actual, nuevo_df], how="diagonal_relaxed")
-    else:
-        df_final = nuevo_df
-
-    df_final.write_excel(EXCEL_INCIDENCIAS_PATH)
-
-
-def obtener_siguiente_numero_incidencia() -> int:
-    if not Path(EXCEL_INCIDENCIAS_PATH).exists():
-        return 1
-
-    df = pl.read_excel(EXCEL_INCIDENCIAS_PATH)
-
-    if df.height == 0:
-        return 1
-
-    ultima_fila = df.tail(1)
-
-    if "Nº de Procesado" in df.columns:
-        ultimo_numero = ultima_fila["Nº de Procesado"][0]
-    else:
-        fallback_col = df.columns[0]
-        ultimo_numero = ultima_fila[fallback_col][0]
-
-    try:
-        return int(ultimo_numero) + 1
-    except Exception:
-        return df.height + 1
