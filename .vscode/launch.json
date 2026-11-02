@@ -10,6 +10,28 @@
             "type": "debugpy",
             "request": "launch",
             "module": "src"
+        },
+        {
+            "name": "Debug salida ficticia",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/flujos/test_salida_lote.py",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "env": { "PYDEVD_USE_SYS_MONITORING": "0" },
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Pre-stock salida ficticia",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/prestock_salida_lote.py",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "env": { "PYDEVD_USE_SYS_MONITORING": "0" },
+            "console": "integratedTerminal",
+            "justMyCode": true
         }
     ]
 }

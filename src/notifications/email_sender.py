@@ -175,7 +175,7 @@ def construir_cuerpo_resumen_diario(resumen: dict, fecha: str) -> str:
     desc = _fila_descripcion()
 
     filas = ""
-    for label, key in [("Ingresos", "ingresos"), ("Salidas", "salidas"), ("Pedidos", "pedidos"), ("Extornos", "extornos")]:
+    for label, key in [("Ingresos", "ingresos"), ("Salidas", "salidas"), ("Devoluciones", "devoluciones"), ("Pedidos", "pedidos"), ("Extornos", "extornos")]:
         total = resumen.get(key, 0)
         filas += f"<tr><td style='padding:4px 32px;'>{label}:</td><td style='padding:4px 8px;'><strong>{total}</strong></td></tr>\n"
 

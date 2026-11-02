@@ -172,6 +172,37 @@ def seleccionar_almacen_destino_por_codigo(codigo_objetivo: str):
     raise Exception(f"❌ No se encontró el código: {codigo_objetivo}")
 
 
+def _seleccionar_concepto(salida: Salidas) -> None:
+    tipo = (getattr(salida, "tipo_movimiento", "SALIDA") or "SALIDA").strip().upper()
+
+    if tipo == "DEVOLUCION":
+        logger.info("[CONCEPTO] DEVOLUCION -> SOBRE STOCK")
+        sleep(1.5)
+        Click(700, 280)
+        sleep(1)
+        Click(572, 381)
+        sleep(1)
+        return
+
+    if tipo != "SALIDA":
+        raise RuntimeError(f"Tipo de movimiento no soportado en salidas: {tipo}")
+
+    # NOTE: Se tomo la decision de Harcodear ya que almenos se tiene entendido que siempre sera distribucion, ademas de que esta muy dificil poder seleccionar la acion ya que si jugamos con las opciones algunas quitan el almacen destino y a volver a querer poner distribucion nos da error
+    logger.info("[CONCEPTO] SALIDA -> DISTRIBUCION")
+    sleep(1.5)
+    Click(700, 280)
+    sleep(1)
+    Click(704, 340)
+    sleep(1)
+    Click(507, 307)
+    sleep(1)
+    sleep(1)
+    Click(704, 340)
+    sleep(1)
+    Click(507, 307)
+    sleep(1)
+
+
 def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
 
     sleep(1)
@@ -201,20 +232,7 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
     SendKeys("{Enter}")
 
     # 🔹 Concepto (combo)
-    # seleccionar_combo_por_texto("cmbConcepto", salidas.concepto)
-    # NOTE: Se tomo la decision de Harcodear ya que almenos se tiene entendido que siempre sera distribucion, ademas de que esta muy dificil poder seleccionar la acion ya que si jugamos con las opciones algunas quitan el almacen destino y a volver a querer poner distribucion nos da error
-    sleep(1.5)
-    Click(700, 280)
-    sleep(1)
-    Click(704, 340)
-    sleep(1)
-    Click(507, 307)
-    sleep(1)
-    sleep(1)
-    Click(704, 340)
-    sleep(1)
-    Click(507, 307)
-    sleep(1)
+    _seleccionar_concepto(salidas)
 
 
 def procesar_salidas(
@@ -239,32 +257,37 @@ def procesar_salidas(
         verificar_backup_si_aplica()
         esperar_hora_backup_si_aplica()
 
+        tipo = (getattr(salida, "tipo_movimiento", "SALIDA") or "SALIDA").strip().upper()
+        etiqueta = "DEVOLUCION" if tipo == "DEVOLUCION" else "SALIDA"
+
         logger.info(
-            f"[SALIDA {idx}/{total}] Procesando salida {salida.almacen_origen} -> {salida.almacen_destino} ({len(salida.medicamentos)} medicamentos)"
+            f"[{etiqueta} {idx}/{total}] Procesando {salida.almacen_origen} -> "
+            f"{salida.almacen_destino} concepto={salida.concepto} "
+            f"({len(salida.medicamentos)} medicamentos)"
         )
 
         try:
-            logger.debug(f"[SALIDA {idx}/{total}] Abriendo registro...")
+            logger.debug(f"[{etiqueta} {idx}/{total}] Abriendo registro...")
             registro = abrir_registro_salida()
 
-            logger.debug(f"[SALIDA {idx}/{total}] Rellenando cabecera...")
+            logger.debug(f"[{etiqueta} {idx}/{total}] Rellenando cabecera...")
             rellenar_cabecera_salidas(registro, salida)
 
             logger.debug(
-                f"[SALIDA {idx}/{total}] Agregando {len(salida.medicamentos)} productos..."
+                f"[{etiqueta} {idx}/{total}] Agregando {len(salida.medicamentos)} productos..."
             )
             for producto in salida.medicamentos:
                 agregar_producto(producto)
 
-            logger.debug(f"[SALIDA {idx}/{total}] Guardando...")
+            logger.debug(f"[{etiqueta} {idx}/{total}] Guardando...")
             guardar()
             sleep(1)
 
             correlativo = extraer_correlativo_almacen()
-            logger.debug(f"[SALIDA {idx}/{total}] Correlativo obtenido: {correlativo}")
+            logger.debug(f"[{etiqueta} {idx}/{total}] Correlativo obtenido: {correlativo}")
 
             if salida.update_key:
-                logger.debug(f"[SALIDA {idx}/{total}] Actualizando estado BD (00)...")
+                logger.debug(f"[{etiqueta} {idx}/{total}] Actualizando estado BD (00)...")
                 ejecutar_sp_update_estado(salida.update_key, "00")
 
             row = crear_row_salida(
@@ -276,11 +299,11 @@ def procesar_salidas(
                 estado="OK",
             )
 
-            logger.success(f"[SALIDA {idx}/{total}] OK -> correlativo={correlativo}")
+            logger.success(f"[{etiqueta} {idx}/{total}] OK -> correlativo={correlativo}")
             ok_count += 1
 
         except Exception as e:
-            logger.exception(f"[SALIDA {idx}/{total}] Error: {e}")
+            logger.exception(f"[{etiqueta} {idx}/{total}] Error: {e}")
             error_count += 1
 
             if salida.update_key:
@@ -288,7 +311,7 @@ def procesar_salidas(
                     ejecutar_sp_update_estado(salida.update_key, "20")
                 except Exception as update_err:
                     logger.warning(
-                        f"[SALIDA {idx}/{total}] No se pudo actualizar estado BD: {update_err}"
+                        f"[{etiqueta} {idx}/{total}] No se pudo actualizar estado BD: {update_err}"
                     )
 
             close_doc_windows()

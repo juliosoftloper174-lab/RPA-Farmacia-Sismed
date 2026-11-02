@@ -5,6 +5,11 @@ project_root = Path(__file__).resolve().parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+# NOTE 2026-10-26: Archivo restaurado desde HEAD (commit a8dff98) tras un
+# "Overwrite" accidental de VS Code con un buffer viejo. La version sobrescrita
+# habia perdido el guardado en Excel (crear_row_extorno/guardar_movimientos) y
+# habia cambiado la firma de procesar_extornos, rompiendo src/__main__.py.
+
 from time import sleep
 
 import uiautomation as auto

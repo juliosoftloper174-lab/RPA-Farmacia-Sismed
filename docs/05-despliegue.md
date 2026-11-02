@@ -11,6 +11,26 @@
 
 ## Instalación
 
+### 0. Instalación desde cero en la máquina de producción
+
+Requisitos previos (instalar una sola vez, con permisos de administrador):
+Python 3.12+, ODBC Driver 17 for SQL Server y SISMED v2.
+
+```powershell
+cd C:\
+mkdir RPA
+cd RPA
+git clone https://github.com/juliosoftloper174-lab/RPA-Farmacia-Sismed.git sismed_wrapper
+cd sismed_wrapper
+.\setup.bat
+```
+
+`setup.bat` crea `.venv`, instala las dependencias, crea `.env` desde `.env.example` y verifica el driver ODBC.
+
+> **Importante**: no mueva ni renombre la carpeta después de crear `.venv`. Los lanzadores
+> (`pip.exe`, etc.) guardan la ruta absoluta. Si mueve el repo, borre `.venv` y vuelva a
+> ejecutar `setup.bat`.
+
 ### 1. Crear entorno virtual
 
 ```powershell
@@ -35,16 +55,26 @@ Esto instala las dependencias listadas en `pyproject.toml`:
 
 ### 3. Configurar `.env`
 
-Basarse en `example.env`:
-
+Copiar/editar `.env` (o partir desde `.env.example`):
 ```env
-SISMED_EXE = C:\SISMED\SISMED.exe
+SISMED_EXE = C:\SISMEDV2_HOSPITALRIOJA\sismedv2.exe
 SISMED_USERNAME = rpa
-SISMED_PASSWORD = rpaKsalud
+SISMED_PASSWORD = rpa
+
 DB_SERVER = 192.168.170.37
-DB_NAME = ksalud_qa
-DB_USER = rpa
-DB_PASS = rpaKsalud
+# QA: ksalud_qa | Produccion: ksalud_hr
+DB_NAME = ksalud_hr
+DB_USER = sa
+DB_PASS = ****
+
+MODO = continuo
+PROCESAR_INGRESOS = true
+PROCESAR_SALIDAS = true
+PROCESAR_DEVOLUCIONES = true
+PROCESAR_PEDIDOS = true
+PROCESAR_EXTORNOS = true
+PROCESAR_ERRORES = true
+HORA_CIERRE = 23:45
 ```
 
 ### 4. Probar conexión
@@ -62,7 +92,9 @@ En `.env`:
 MODO = continuo
 PROCESAR_INGRESOS = true
 PROCESAR_SALIDAS = true
+PROCESAR_DEVOLUCIONES = true
 PROCESAR_PEDIDOS = true
+PROCESAR_EXTORNOS = true
 HORA_CIERRE = 23:45
 ```
 
@@ -89,16 +121,20 @@ DESCRIPCION = SISMED BOT - Hospital Rioja
 
 ## Programar en Task Scheduler
 
-Para que el bot arranque automáticamente al iniciar Windows:
+Para que el bot arranque automáticamente al iniciar sesión:
 
 1. Abrir **Task Scheduler**
 2. Crear tarea básica:
    - **Nombre**: SISMED RPA Bot
    - **Disparador**: "Al iniciar sesión"
    - **Acción**: Iniciar programa
-   - **Programa**: `powershell.exe`
-   - **Argumentos**: `-WindowStyle Hidden -Command "cd C:\ruta\sismed_wrapper; .\.venv\Scripts\Activate.ps1; python -m src"`
-   - **Ejecutar como**: Usuario con SISMED instalado
+   - **Programa**: `C:\RPA\sismed_wrapper\scripts\correr_bot.bat`
+   - **Ejecutar como**: el usuario con SISMED instalado
+   - Marcar **"Ejecutar solo cuando el usuario haya iniciado sesión"**
+
+> **Importante**: el bot automatiza la interfaz de SISMED, por lo que necesita una sesión de
+> Windows activa y desbloqueada (no sirve como servicio ni con la sesión cerrada). Desactive
+> suspensión, protector de pantalla y escalado de DPI distinto de 100%.
 
 ## Monitoreo
 

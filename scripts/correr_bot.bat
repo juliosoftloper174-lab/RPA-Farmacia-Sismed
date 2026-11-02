@@ -1,13 +1,9 @@
 @echo off
 chcp 65001 >nul
-TITLE RPA SISMED
+TITLE RPA SISMED - Produccion
 
-if not "%1" == "h" (
-    start /min cmd /C "%~dpnx0" h
-    exit /b
-)
-
-cd ..\
+:: Funciona desde cualquier ubicacion: sube un nivel desde scripts\
+cd /d "%~dp0.."
 
 :: Validar que el entorno virtual exista
 if not exist ".venv\Scripts\python.exe" (
@@ -19,5 +15,13 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
+echo ==========================================
+echo  Iniciando RPA SISMED...
+echo  No cierre esta ventana.
+echo ==========================================
+
 .\.venv\Scripts\python.exe -m src
-pause
+
+echo.
+echo El bot se detuvo. Presione una tecla para cerrar...
+pause >nul

@@ -1,5 +1,8 @@
+from database.conexion import ejecutar_sp_movimientos
+from src.logger import logger
 from src.models.cliente import Cliente
 from src.models.diagnostico import Diagnostico
+from src.models.enums import TipoReceta
 from src.models.extorno import Extorno
 from src.models.farmacia import Farmacia
 from src.models.forma_pago import FormaPago
@@ -8,9 +11,6 @@ from src.models.Medicamento import Medicamento
 from src.models.pedido import Pedido
 from src.models.prescriptor import Prescriptor
 from src.models.Salidas import Salidas
-from src.models.enums import TipoReceta
-from src.logger import logger
-from database.conexion import ejecutar_sp_movimientos
 
 CLIENTE_HARDCODEADO = "00025759"
 
@@ -23,18 +23,41 @@ DOCUMENTOS_OTROS_INGRESOS = {"NOTA DE ENTRADA POR OTROS INGRESOS"}
 DOCUMENTOS_OTROS_EGRESOS = {"NOTA DE SALIDA POR OTROS EGRESOS"}
 
 COLUMNAS_HEADER = [
-    "CORRELATIVO_KSALUD", "TIPO_MOVIMIENTO", "TIPO_MOVIMIENTO_DES",
-    "FECHA_MOVIMIENTO", "ALMACEN_ORIGEN", "ALMACEN_VIRTUAL_ORIGEN",
-    "ALMACEN_DESTINO", "ALMACEN_VIRTUAL_DESTINO", "FARMACIA",
-    "PRESCRIPTOR", "FORMA_PAGO", "DIAGNOSTICO", "FUA",
-    "TIPO_DOC_CLIENTE", "NRO_DOC_CLIENTE",
-    "TIPO_DOC_PRESCRIPTOR", "NRO_DOC_PRESCRIPTOR",
-    "KS_ORIGEN_CAS", "KS_CENTRO_CAS", "KS_TIPO_ALMACEN", "KS_ALMACEN",
-    "KS_ALMACEN_DES", "KS_DOCUMENTO", "KS_DOCUMENTO_DES",
-    "KS_NUMERO_MOVIMIENTO", "KS_TIPO_TRANSACCION", "KS_TIPO_TRANSACCION_DES",
-    "KS_TIPO_MOVIMIENTO", "KS_TIPO_MOVIMIENTO_DES",
-    "KS_CONCEPTO", "KS_CONCEPTO_DES", "KS_PEDIDO_NUMERO",
-    "KS_PEDIDO_FECHA", "KS_PEDIDO_SEGURO", "KS_PEDIDO_SEGURO_DES",
+    "CORRELATIVO_KSALUD",
+    "TIPO_MOVIMIENTO",
+    "TIPO_MOVIMIENTO_DES",
+    "FECHA_MOVIMIENTO",
+    "ALMACEN_ORIGEN",
+    "ALMACEN_VIRTUAL_ORIGEN",
+    "ALMACEN_DESTINO",
+    "ALMACEN_VIRTUAL_DESTINO",
+    "FARMACIA",
+    "PRESCRIPTOR",
+    "FORMA_PAGO",
+    "DIAGNOSTICO",
+    "FUA",
+    "TIPO_DOC_CLIENTE",
+    "NRO_DOC_CLIENTE",
+    "TIPO_DOC_PRESCRIPTOR",
+    "NRO_DOC_PRESCRIPTOR",
+    "KS_ORIGEN_CAS",
+    "KS_CENTRO_CAS",
+    "KS_TIPO_ALMACEN",
+    "KS_ALMACEN",
+    "KS_ALMACEN_DES",
+    "KS_DOCUMENTO",
+    "KS_DOCUMENTO_DES",
+    "KS_NUMERO_MOVIMIENTO",
+    "KS_TIPO_TRANSACCION",
+    "KS_TIPO_TRANSACCION_DES",
+    "KS_TIPO_MOVIMIENTO",
+    "KS_TIPO_MOVIMIENTO_DES",
+    "KS_CONCEPTO",
+    "KS_CONCEPTO_DES",
+    "KS_PEDIDO_NUMERO",
+    "KS_PEDIDO_FECHA",
+    "KS_PEDIDO_SEGURO",
+    "KS_PEDIDO_SEGURO_DES",
     "KS_PEDIDO_FORMA_PAGO",
     "KS_COD_TIPO_ALMACEN_VIRTUAL",
     "ESTADO",
@@ -91,16 +114,27 @@ def _extraer_precio(valor) -> float | None:
 def _construir_medicamentos(detalles: list[dict]) -> list[Medicamento]:
     medicamentos = []
     for det in detalles:
-        medicamentos.append(Medicamento(
-            codigo=str(det.get("MATERIAL_CODIGO", "")).strip(),
-            cantidad=int(float(str(det.get("CANTIDAD", 0)).strip())),
-            lote=str(det.get("LOTE", "")).strip() or None,
-            tipo_sum=_mapear_tipo_suministro(str(det.get("TIPO_SUMINISTRO", "")).strip()) or None,
-            fuente_fin=_mapear_fuente_financiamiento(str(det.get("FUENTE_FINANCIAMIENTO", "")).strip()) or None,
-            registro_sanitario=str(det.get("REGISTRO_SANITARIO", "")).strip() or None,
-            fecha_vencimiento=_parsear_fecha_vencimiento(str(det.get("FECHA_VENCIMIENTO", "")).strip()),
-            precio_compra=_extraer_precio(det.get("PRECIO_COMPRA")),
-        ))
+        medicamentos.append(
+            Medicamento(
+                codigo=str(det.get("MATERIAL_CODIGO", "")).strip(),
+                cantidad=int(float(str(det.get("CANTIDAD", 0)).strip())),
+                lote=str(det.get("LOTE", "")).strip() or None,
+                tipo_sum=_mapear_tipo_suministro(
+                    str(det.get("TIPO_SUMINISTRO", "")).strip()
+                )
+                or None,
+                fuente_fin=_mapear_fuente_financiamiento(
+                    str(det.get("FUENTE_FINANCIAMIENTO", "")).strip()
+                )
+                or None,
+                registro_sanitario=str(det.get("REGISTRO_SANITARIO", "")).strip()
+                or None,
+                fecha_vencimiento=_parsear_fecha_vencimiento(
+                    str(det.get("FECHA_VENCIMIENTO", "")).strip()
+                ),
+                precio_compra=_extraer_precio(det.get("PRECIO_COMPRA")),
+            )
+        )
     return medicamentos
 
 
@@ -110,6 +144,7 @@ MAPA_TIPO_SUMINISTRO = {
     "CN": "SISMED-COMPRA NACIONAL (CN)",
     "CI": "SISMED-COMPRA UNIDAD EJECUTORA (CI)",
     "SC": "SISMED-CENTRALIZADO (SC)",
+    "CR": "SISMED-COMPRA REGIONAL (CR)",
 }
 
 MAPA_FUENTE_FINANCIAMIENTO = {
@@ -146,8 +181,12 @@ def obtener_movimientos(
         logger.warning("No se encontraron movimientos en el rango de fechas.")
         return [], [], [], [], 0
 
-    tipos_validos = {"PEDIDO", "INGRESO", "SALIDA", "EXTORNO"}
-    headers_raw = [r for r in headers_raw if str(r.get("TIPO_MOVIMIENTO_DES", "")).strip().upper() in tipos_validos]
+    tipos_validos = {"PEDIDO", "INGRESO", "SALIDA", "DEVOLUCION", "EXTORNO"}
+    headers_raw = [
+        r
+        for r in headers_raw
+        if str(r.get("TIPO_MOVIMIENTO_DES", "")).strip().upper() in tipos_validos
+    ]
     logger.info(f"Headers filtrados por tipo válido: {len(headers_raw)}")
 
     columns_detail = list(detalles_raw[0].keys()) if detalles_raw else []
@@ -165,9 +204,16 @@ def obtener_movimientos(
 
     def _build_update_key(row: dict) -> tuple[str, ...] | None:
         partes = []
-        for col in ("KS_ORIGEN_CAS", "KS_CENTRO_CAS", "KS_TIPO_ALMACEN", "KS_ALMACEN",
-                     "KS_DOCUMENTO", "KS_NUMERO_MOVIMIENTO", "KS_TIPO_TRANSACCION",
-                     "KS_COD_TIPO_ALMACEN_VIRTUAL"):
+        for col in (
+            "KS_ORIGEN_CAS",
+            "KS_CENTRO_CAS",
+            "KS_TIPO_ALMACEN",
+            "KS_ALMACEN",
+            "KS_DOCUMENTO",
+            "KS_NUMERO_MOVIMIENTO",
+            "KS_TIPO_TRANSACCION",
+            "KS_COD_TIPO_ALMACEN_VIRTUAL",
+        ):
             val = str(row.get(col, "")).strip()
             if not val or val in ("NULL", "None"):
                 return None
@@ -189,7 +235,9 @@ def obtener_movimientos(
 
         ks_doc_des = str(row.get("KS_DOCUMENTO_DES", "")).strip().upper()
 
-        if tipo == "INGRESO" and ks_doc_des in {d.upper() for d in DOCUMENTOS_OTROS_INGRESOS}:
+        if tipo == "INGRESO" and ks_doc_des in {
+            d.upper() for d in DOCUMENTOS_OTROS_INGRESOS
+        }:
             logger.warning(
                 f"[SKIP] Ingreso {ks} omitido: KS_DOCUMENTO_DES='{row.get('KS_DOCUMENTO_DES')}' "
                 f"— pendiente de implementación con apoyo del hospital"
@@ -197,7 +245,9 @@ def obtener_movimientos(
             saltados_otros += 1
             continue
 
-        if tipo == "SALIDA" and ks_doc_des in {d.upper() for d in DOCUMENTOS_OTROS_EGRESOS}:
+        if tipo == "SALIDA" and ks_doc_des in {
+            d.upper() for d in DOCUMENTOS_OTROS_EGRESOS
+        }:
             logger.warning(
                 f"[SKIP] Salida {ks} omitido: KS_DOCUMENTO_DES='{row.get('KS_DOCUMENTO_DES')}' "
                 f"— pendiente de implementación con apoyo del hospital"
@@ -227,17 +277,35 @@ def obtener_movimientos(
                 farmacia_cod = _obtener_safe(row, "ALMACEN_DESTINO", "")
 
             nro_doc = str(_obtener_safe(row, "NRO_DOC_CLIENTE", "")).strip()
-            nombre_cliente = str(_obtener_safe(row, "NOMBRE_COMPLETO_CLIENTE", "")).strip()
+            nombre_cliente = str(
+                _obtener_safe(row, "NOMBRE_COMPLETO_CLIENTE", "")
+            ).strip()
             sexo_cliente = str(_obtener_safe(row, "SEXO_DES_CLIENTE", "")).strip()
-            fecha_nac_cliente = str(_obtener_safe(row, "FECHA_NACIMIENTO_CLIENTE", "")).strip()
-            tipo_doc_cliente = str(_obtener_safe(row, "TIPO_DOC_CLIENTE_DES", "")).strip()
+            fecha_nac_cliente = str(
+                _obtener_safe(row, "FECHA_NACIMIENTO_CLIENTE", "")
+            ).strip()
+            tipo_doc_cliente = str(
+                _obtener_safe(row, "TIPO_DOC_CLIENTE_DES", "")
+            ).strip()
 
             cliente = Cliente(
                 codigo=nro_doc if nro_doc else CLIENTE_HARDCODEADO,
-                nombre=nombre_cliente if nombre_cliente not in ("", "NULL", "None") else None,
+                nombre=(
+                    nombre_cliente
+                    if nombre_cliente not in ("", "NULL", "None")
+                    else None
+                ),
                 sexo=sexo_cliente if sexo_cliente not in ("", "NULL", "None") else None,
-                fecha_nacimiento=fecha_nac_cliente if fecha_nac_cliente not in ("", "NULL", "None") else None,
-                tipo_documento=tipo_doc_cliente if tipo_doc_cliente not in ("", "NULL", "None") else None,
+                fecha_nacimiento=(
+                    fecha_nac_cliente
+                    if fecha_nac_cliente not in ("", "NULL", "None")
+                    else None
+                ),
+                tipo_documento=(
+                    tipo_doc_cliente
+                    if tipo_doc_cliente not in ("", "NULL", "None")
+                    else None
+                ),
             )
 
             pedido = Pedido(
@@ -268,26 +336,35 @@ def obtener_movimientos(
             )
             ingresos.append(ingreso)
 
-        elif tipo == "SALIDA":
+        elif tipo in ("SALIDA", "DEVOLUCION"):
             almacen_origen = str(_obtener_safe(row, "ALMACEN_ORIGEN", "")).strip()
             almacen_destino = str(_obtener_safe(row, "ALMACEN_DESTINO", "")).strip()
             almacen_virtual_origen = f"{almacen_origen}01" if almacen_origen else ""
+
+            concepto = "DISTRIBUCION"
+            if tipo == "DEVOLUCION":
+                concepto = str(_obtener_safe(row, "KS_CONCEPTO_DES", "")).strip()
+                if concepto.upper() in ("", "NULL", "NONE"):
+                    concepto = "SOBRE STOCK"
 
             salida = Salidas(
                 almacen_origen=almacen_origen if almacen_origen != "NULL" else "",
                 almacen_destino=almacen_destino,
                 almacen_virtual_origen=almacen_virtual_origen,
-                concepto="DISTRIBUCION",
+                concepto=concepto,
                 medicamentos=medicamentos,
                 correlativo_ksalud=ks,
                 update_key=_build_update_key(row),
+                tipo_movimiento=tipo,
             )
             salidas.append(salida)
 
         elif tipo == "EXTORNO":
             farmacia_cod = str(_obtener_safe(row, "ALMACEN_DESTINO", "")).strip()
             nro_doc = str(_obtener_safe(row, "NRO_DOC_CLIENTE", "")).strip()
-            fecha_pedido = _parsear_fecha_pedido(str(_obtener_safe(row, "KS_PEDIDO_FECHA", "")).strip())
+            fecha_pedido = _parsear_fecha_pedido(
+                str(_obtener_safe(row, "KS_PEDIDO_FECHA", "")).strip()
+            )
             if not nro_doc:
                 nro_doc = CLIENTE_HARDCODEADO
 
@@ -305,10 +382,23 @@ def obtener_movimientos(
             extornos.append(extorno)
 
     if skip_errores and saltados_error:
-        logger.info(f"Saltados {saltados_error} movimientos con estado de error (skip_errores=True)")
+        logger.info(
+            f"Saltados {saltados_error} movimientos con estado de error (skip_errores=True)"
+        )
 
     if saltados_otros:
-        logger.info(f"Saltados {saltados_otros} movimientos por ser OTROS INGRESOS/EGRESOS (pendientes de implementación)")
+        logger.info(
+            f"Saltados {saltados_otros} movimientos por ser OTROS INGRESOS/EGRESOS (pendientes de implementación)"
+        )
 
-    logger.info(f"SP adapter: {len(pedidos)} pedidos, {len(ingresos)} ingresos, {len(salidas)} salidas, {len(extornos)} extornos")
+    devoluciones = sum(
+        1
+        for s in salidas
+        if str(getattr(s, "tipo_movimiento", "SALIDA")).strip().upper() == "DEVOLUCION"
+    )
+    logger.info(
+        f"SP adapter: {len(pedidos)} pedidos, {len(ingresos)} ingresos, "
+        f"{len(salidas) - devoluciones} salidas, {devoluciones} devoluciones, "
+        f"{len(extornos)} extornos"
+    )
     return pedidos, ingresos, salidas, extornos, saltados_otros

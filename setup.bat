@@ -2,6 +2,9 @@
 chcp 65001 >nul
 TITLE RPA SISMED - Setup
 
+:: Ejecutar siempre desde la raiz del repositorio
+cd /d "%~dp0"
+
 echo ==========================================
 echo  RPA SISMED - Instalacion automatica
 echo ==========================================
@@ -47,8 +50,8 @@ if exist ".venv\Scripts\python.exe" (
 
 :: Instalar dependencias
 echo [INFO] Instalando dependencias...
-.\.venv\Scripts\pip.exe install --upgrade pip
-.\.venv\Scripts\pip.exe install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 if %errorlevel% neq 0 (
     echo [ERROR] Fallo la instalacion de dependencias.
     pause
@@ -91,3 +94,6 @@ echo Recuerde:
 echo  1. Editar el archivo .env con sus credenciales.
 echo  2. Verificar que SISMED este instalado en la ruta indicada.
 echo  3. Ejecutar: scripts\correr_bot.bat
+echo.
+echo Setup finalizado. Presione una tecla para cerrar...
+pause >nul

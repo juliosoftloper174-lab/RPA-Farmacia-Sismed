@@ -51,7 +51,8 @@ SISMED_PASSWORD = tu_clave
 
 # Base de datos SQL Server
 DB_SERVER = 192.168.x.x
-DB_NAME = ksalud_qa
+# QA: ksalud_qa | Produccion: ksalud_hr
+DB_NAME = ksalud_hr
 DB_USER = rpa
 DB_PASS = rpaKsalud
 
@@ -61,6 +62,7 @@ MODO = continuo
 # Activar/desactivar flujos
 PROCESAR_INGRESOS = true
 PROCESAR_SALIDAS = true
+PROCESAR_DEVOLUCIONES = true
 PROCESAR_PEDIDOS = true
 PROCESAR_EXTORNOS = true
 

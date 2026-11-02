@@ -26,6 +26,7 @@ MODO: str = environ.get("MODO", "continuo")
 # Control de flujos
 procesar_ingresos: bool = _bool_env("PROCESAR_INGRESOS", True)
 procesar_salidas: bool = _bool_env("PROCESAR_SALIDAS", True)
+procesar_devoluciones: bool = _bool_env("PROCESAR_DEVOLUCIONES", True)
 procesar_pedidos: bool = _bool_env("PROCESAR_PEDIDOS", True)
 procesar_extornos: bool = _bool_env("PROCESAR_EXTORNOS", True)
 

@@ -159,7 +159,7 @@ def crear_row_salida(
             "Fecha": now.strftime("%Y-%m-%d"),
             "Hora": now.strftime("%H:%M:%S"),
             "Usuario": username,
-            "TipoMovimiento": "SALIDA",
+            "TipoMovimiento": getattr(salida, "tipo_movimiento", "SALIDA"),
             "Estado": estado,
             "Error": error,
             # SALIDAS

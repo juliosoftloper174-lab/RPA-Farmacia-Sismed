@@ -82,17 +82,55 @@ def _procesar_ingreso(ingresos, fecha=None, fecha_fin=None, modo="horario"):
         return {"total": len(ingresos), "ok": 0, "error": len(ingresos)}
 
 
+def _filtrar_salidas_por_tipo(salidas):
+    procesables = []
+    omitidas_salidas = 0
+    omitidas_devoluciones = 0
+
+    for salida in salidas:
+        tipo = str(getattr(salida, "tipo_movimiento", "SALIDA")).strip().upper()
+        if tipo == "DEVOLUCION":
+            if not config.procesar_devoluciones:
+                omitidas_devoluciones += 1
+                continue
+        elif not config.procesar_salidas:
+            omitidas_salidas += 1
+            continue
+        procesables.append(salida)
+
+    if omitidas_salidas:
+        logger.info(
+            f"SALIDAS: PROCESAR_SALIDAS=false — se omiten {omitidas_salidas} salida(s)."
+        )
+    if omitidas_devoluciones:
+        logger.info(
+            f"DEVOLUCIONES: PROCESAR_DEVOLUCIONES=false — se omiten "
+            f"{omitidas_devoluciones} devolucion(es)."
+        )
+
+    return procesables
+
+
 def _procesar_salida(salidas, fecha=None, fecha_fin=None, modo="horario"):
-    if not config.procesar_salidas or not salidas:
-        logger.info("SALIDAS: desactivado o sin datos.")
+    if not salidas:
+        logger.info("SALIDAS: sin datos.")
         return None
-    logger.info(f"Iniciando procesamiento de {len(salidas)} salidas...")
+    if not config.procesar_salidas and not config.procesar_devoluciones:
+        logger.info("SALIDAS/DEVOLUCIONES: desactivado por configuracion.")
+        return None
+
+    salidas = _filtrar_salidas_por_tipo(salidas)
+    if not salidas:
+        logger.info("SALIDAS: no quedan movimientos para procesar tras aplicar flags.")
+        return None
+
+    logger.info(f"Iniciando procesamiento de {len(salidas)} salida(s)/devolucion(es)...")
     try:
         stats_sal = procesar_salidas(tuple(salidas), fecha=fecha, fecha_fin=fecha_fin, modo=modo)
-        logger.success("Salidas procesadas correctamente.")
+        logger.success("Salidas/devoluciones procesadas correctamente.")
         return stats_sal
     except Exception as e:
-        logger.exception(f"Error procesando salidas: {e}")
+        logger.exception(f"Error procesando salidas/devoluciones: {e}")
         return {"total": len(salidas), "ok": 0, "error": len(salidas)}
 
 
@@ -215,8 +253,8 @@ def _ejecutar_batch():
     logger.info(f"Procesando {fecha_ini} → {fecha_fin}")
     logger.info(
         f"Flags: ING={config.procesar_ingresos} SAL={config.procesar_salidas} "
-        f"PED={config.procesar_pedidos} EXT={config.procesar_extornos} "
-        f"ERR={config.procesar_errores}"
+        f"DEV={config.procesar_devoluciones} PED={config.procesar_pedidos} "
+        f"EXT={config.procesar_extornos} ERR={config.procesar_errores}"
     )
     logger.info("=" * 50)
 
@@ -272,8 +310,8 @@ def main():
     logger.info(f"HORA_CIERRE = {config.HORA_CIERRE}")
     logger.info(
         f"Flags: ING={config.procesar_ingresos} SAL={config.procesar_salidas} "
-        f"PED={config.procesar_pedidos} EXT={config.procesar_extornos} "
-        f"ERR={config.procesar_errores}"
+        f"DEV={config.procesar_devoluciones} PED={config.procesar_pedidos} "
+        f"EXT={config.procesar_extornos} ERR={config.procesar_errores}"
     )
     logger.info("=" * 50)
 
