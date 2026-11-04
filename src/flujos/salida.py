@@ -79,18 +79,21 @@ def seleccionar_combo_sismed(nombre_combo: str, texto_objetivo: str, max_intento
 # 🔹 FLUJO BASE
 # =========================================================
 
-
 def navegar_a_salidas() -> WindowControl:
-    Click(355, 115)
+    Click(355, 115)  # control de almacenes
     sleep(0.3)
-    SendKeys("{Enter}")
+    SendKeys("{Enter}")  # entra en el modulo
 
     sleep(0.3)
-    Click(48, 122)
+    Click(48, 122)  # procesos
 
     sleep(0.3)
-    Click(455, 115)
+    SendKeys("{TAB}")
+    sleep(0.3)
+    SendKeys("{RIGHT}")
+    sleep(0.3)
     SendKeys("{Enter}")
+    sleep(0.3)
 
     registro = WindowControl(Name="Registro de Salidas ")
 
@@ -103,6 +106,7 @@ def navegar_a_salidas() -> WindowControl:
             sleep(1)
 
     raise Exception("No se encontró la ventana 'Registro de Salidas'")
+
 
 
 def abrir_registro_salida() -> WindowControl:
@@ -194,7 +198,7 @@ def _seleccionar_concepto(salida: Salidas) -> None:
     sleep(1)
     Click(704, 340)
     sleep(1)
-    Click(507, 307)
+    Click(507, 317)
     sleep(1)
     sleep(1)
     Click(704, 340)
