@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 from subprocess import Popen
 from time import sleep
 
@@ -128,12 +129,17 @@ def esperar_hora_backup_si_aplica() -> None:
             )
 
 
+def _abrir_sismed() -> None:
+    exe = Path(config.SISMED_EXE)
+    Popen(str(exe), cwd=str(exe.parent))
+
+
 def login(username: str, password: str) -> None:
     SendKeys("{Win}d")
 
     LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
     if not LOGIN_WINDOW.Exists(maxSearchSeconds=0):
-        Popen(config.SISMED_EXE)
+        _abrir_sismed()
         sleep(3)
         LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
 
@@ -158,7 +164,7 @@ def login(username: str, password: str) -> None:
                 + "=" * 60
             )
             input()
-            Popen(config.SISMED_EXE)
+            _abrir_sismed()
             sleep(3)
 
 

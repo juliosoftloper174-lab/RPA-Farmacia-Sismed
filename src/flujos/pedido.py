@@ -526,6 +526,8 @@ def procesar_pedidos(
     fecha: str | None = None,
     fecha_fin: str | None = None,
     modo: str = "horario",
+    consultar_estado=None,
+    parar_tras_ok: int = 0,
 ) -> dict:
 
     login(
@@ -539,11 +541,38 @@ def procesar_pedidos(
     error_count = 0
     sin_cliente_count = 0
     sin_stock_count = 0
+    omitidos_count = 0
+    consecutivos_ok = 0
+    detenido_por = ""
 
     for idx, pedido in enumerate(pedidos, start=1):
 
         verificar_backup_si_aplica()
         esperar_hora_backup_si_aplica()
+
+        if consultar_estado:
+            estado_actual = consultar_estado(pedido)
+            if estado_actual:
+                omitidos_count += 1
+                logger.info(
+                    f"[LOTE] Pedido {idx}/{total} ya no esta pendiente "
+                    f"(estado={estado_actual}), se omite"
+                )
+                if str(estado_actual).strip() == "00":
+                    consecutivos_ok += 1
+                else:
+                    consecutivos_ok = 0
+                if parar_tras_ok and consecutivos_ok >= parar_tras_ok:
+                    detenido_por = (
+                        f"{consecutivos_ok} pedidos consecutivos ya registrados (00)"
+                    )
+                    logger.warning(
+                        f"[LOTE] {detenido_por}. Se alcanzo la zona de la otra "
+                        f"maquina, deteniendo el lote en el pedido {idx}/{total}."
+                    )
+                    break
+                continue
+            consecutivos_ok = 0
 
         reintentos = 0
 
@@ -716,6 +745,8 @@ def procesar_pedidos(
         "error": error_count,
         "sin_cliente": sin_cliente_count,
         "sin_stock": sin_stock_count,
+        "omitidos": omitidos_count,
+        "detenido_por": detenido_por,
     }
 
 

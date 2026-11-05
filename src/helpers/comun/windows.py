@@ -2,16 +2,16 @@
 
 from uiautomation import GroupControl, PaneControl, WindowControl
 
+TITULO_FARMACIA = r"^FARMACIA - MINSA SISMED.*"
+
 
 def get_farmacia_window() -> WindowControl:
-    return WindowControl(
-        searchDepth=1, Name="FARMACIA - MINSA SISMED C:\sismedv2_hospitalrioja ()"
-    )
+    return WindowControl(searchDepth=1, RegexName=TITULO_FARMACIA)
 
 
 def get_farmacia_panel() -> PaneControl:
     return get_farmacia_window().PaneControl(
-        searchDepth=1, Name="FARMACIA - MINSA SISMED C:\sismedv2_hospitalrioja ()"
+        searchDepth=1, RegexName=TITULO_FARMACIA
     )
 
 
