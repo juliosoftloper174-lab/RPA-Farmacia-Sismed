@@ -44,6 +44,7 @@ from uiautomation import (
 )
 
 from database.conexion import ejecutar_sp_update_estado
+from src import config
 from src.flujos._login import (
     esperar_hora_backup_si_aplica,
     login,
@@ -66,9 +67,8 @@ from src.reportes.excel_writer import (
     obtener_siguiente_numero_procesado,
 )
 
-# --- USAR EN PRODUCCIÓN ---
-SISMED_USERNAME = "RPA"
-SISMED_PASSWORD = "RPA"
+SISMED_USERNAME = config.SISMED_USERNAME
+SISMED_PASSWORD = config.SISMED_PASSWORD
 
 
 class ClienteNoEncontradoError(Exception):
