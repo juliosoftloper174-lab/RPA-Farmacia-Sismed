@@ -70,6 +70,14 @@ from src.reportes.excel_writer import (
 SISMED_USERNAME = config.SISMED_USERNAME
 SISMED_PASSWORD = config.SISMED_PASSWORD
 
+# Timeouts largos (solo rama dos bots, SISMED en Z: responde lento)
+TIMEOUT_VENTANA_FARMACIAS = 25
+TIMEOUT_VENTANA_REGISTRO = 30
+TIMEOUT_COMBO = 12
+TIMEOUT_VENTANA_TICKET = 40
+ESPERA_ENTRE_REINTENTOS = 5
+ESPERA_ENTRE_INTENTOS_NAV = 3
+
 
 class ClienteNoEncontradoError(Exception):
     pass
@@ -91,31 +99,58 @@ def navegar_a_pedidos(pedido: Pedido) -> None:
 
     # selecte
     pane.SendKeys("{RIGHT}")
+    sleep(1)
 
     # enter
     ventana: WindowControl = WindowControl(Name="Selección de Farmacias")
-    for attempt in range(3):
+    for attempt in range(1, 4):
         pane.SendKeys("{Enter}")
-        if ventana.Exists():
+        if ventana.Exists(
+            maxSearchSeconds=TIMEOUT_VENTANA_FARMACIAS,
+            searchIntervalSeconds=0.5,
+        ):
             break
+        logger.warning(
+            f"[NAVEGAR] Ventana 'Selección de Farmacias' no apareció "
+            f"(intento {attempt}/3), esperando {ESPERA_ENTRE_INTENTOS_NAV}s..."
+        )
+        sleep(ESPERA_ENTRE_INTENTOS_NAV)
 
-    if not ventana.Exists():
+    if not ventana.Exists(maxSearchSeconds=2):
         raise RuntimeError(
             "No se encontró la ventana de selección de farmacias después de 3 intentos"
         )
 
     seleccionar_farmacia_por_codigo(pedido.farmacia.codigo)
 
-    sleep(0.5)
+    sleep(1.5)
 
     for _ in range(2):
         SendKeys("{DOWN}")
+        sleep(0.3)
 
     SendKeys("{TAB}")
+    sleep(1)
 
-    SendKeys("{Enter}")
+    registro = get_registro_pedido_window()
+    for attempt in range(1, 4):
+        SendKeys("{Enter}")
+        if registro.Exists(
+            maxSearchSeconds=TIMEOUT_VENTANA_REGISTRO,
+            searchIntervalSeconds=0.5,
+        ):
+            break
+        logger.warning(
+            f"[NAVEGAR] Ventana 'Registro de Pedido' no apareció "
+            f"(intento {attempt}/3), esperando {ESPERA_ENTRE_INTENTOS_NAV}s..."
+        )
+        sleep(ESPERA_ENTRE_INTENTOS_NAV)
 
-    sleep(0.5)
+    if not registro.Exists(maxSearchSeconds=2):
+        raise RuntimeError(
+            "No se encontró la ventana 'Registro de Pedido' después de guardar "
+            "la selección de farmacia"
+        )
 
     logger.debug("[NAVEGAR] Navegación completada")
 
@@ -185,7 +220,7 @@ def selecionar_receta(pedido: Pedido) -> None:
 
 
 def _esperar_combo(
-    name: str, intentos: int = 3, espera_seg: float = 5.0
+    name: str, intentos: int = 3, espera_seg: float = TIMEOUT_COMBO
 ) -> ComboBoxControl:
     """Espera a que el ComboBox exista.
     Reintenta `intentos` veces, esperando hasta `espera_seg` segundos por intento."""
@@ -193,7 +228,11 @@ def _esperar_combo(
     for intento in range(1, intentos + 1):
         if cbo.Exists(maxSearchSeconds=espera_seg, searchIntervalSeconds=0.5):
             return cbo
-        print(f"CBO '{name}' no encontrado (intento {intento}/{intentos}).")
+        logger.warning(
+            f"CBO '{name}' no encontrado (intento {intento}/{intentos}), "
+            f"esperando antes de reintentar..."
+        )
+        sleep(1)
     raise RuntimeError(
         f"No se encontró el ComboBox '{name}' tras {intentos} intentos "
         f"de {espera_seg}s cada uno."
@@ -214,6 +253,22 @@ def leer_forma_pago_seleccionada() -> str:
     return cbo.GetValuePattern().Value.strip()
 
 
+def _esperar_valor_forma_pago(esperado: str, timeout: float = 10.0) -> str:
+    """Espera a que el combo CboDato tome el valor esperado (SISMED lo actualiza con retraso)."""
+    fin = time() + timeout
+    valor = ""
+    while time() < fin:
+        try:
+            valor = leer_forma_pago_seleccionada()
+        except Exception:
+            sleep(0.5)
+            continue
+        if valor == esperado:
+            return valor
+        sleep(0.5)
+    return valor
+
+
 def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
     esperado = FORMA_PAGO_COMBO_VALUE[pedido.forma_pago]
 
@@ -226,22 +281,23 @@ def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
 
         cbo = _esperar_combo("CboDato")
         cbo.Click()
-        sleep(1)
+        sleep(1.5)
 
         if pedido.forma_pago == FormaPago.CONTADO:
             cbo.Click()
-            sleep(1)
+            sleep(1.5)
         elif pedido.forma_pago == FormaPago.INTERVENCION_SANITARIA:
             Click(537, 427)
-            sleep(1)
+            sleep(1.5)
         elif pedido.forma_pago == FormaPago.SIS:
             Click(615, 410)
-            sleep(1)
+            sleep(1.5)
             Click(495, 385)
+            sleep(0.5)
         else:
             raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago}")
 
-        valor_actual = leer_forma_pago_seleccionada()
+        valor_actual = _esperar_valor_forma_pago(esperado)
 
         if valor_actual == esperado:
             logger.info(
@@ -266,7 +322,14 @@ def rellenar_cabecera(
     pedido: Pedido,
 ) -> None:
 
-    sleep(2.5)
+    if not get_registro_pedido_window().Exists(
+        maxSearchSeconds=TIMEOUT_VENTANA_REGISTRO,
+        searchIntervalSeconds=0.5,
+    ):
+        raise RuntimeError(
+            "La ventana 'Registro de Pedido' no está disponible para llenar la cabecera"
+        )
+    sleep(1)
     logger.debug("[CABECERA] Seleccionando forma de pago")
 
     selecionar_forma_pago_Julio(pedido)
@@ -346,7 +409,7 @@ def selecionar_receta_verificacion() -> None:
 def verificar_receta() -> bool:
     for name in ("Aviso", "Microsoft Visual FoxPro"):
         w = WindowControl(Name=name, searchDepth=2)
-        if w.Exists(maxSearchSeconds=1):
+        if w.Exists(maxSearchSeconds=3, searchIntervalSeconds=0.5):
             logger.warning(f"Error de receta detectado: '{name}'. Corrigiendo...")
             w.ButtonControl(Name="Aceptar").Click()
             sleep(1)
@@ -358,7 +421,7 @@ def verificar_receta() -> bool:
 
 def verificar_stock() -> bool:
     aviso = WindowControl(Name="Aviso", searchDepth=2)
-    if not aviso.Exists(maxSearchSeconds=1):
+    if not aviso.Exists(maxSearchSeconds=3, searchIntervalSeconds=0.5):
         return False
     try:
         mensaje = aviso.TextControl(searchDepth=1).Name.strip()
@@ -381,13 +444,21 @@ def extraer_correlativo_farmacia(forma_pago: FormaPago) -> str:
     tipo = "BOLETA" if forma_pago == FormaPago.CONTADO else "TICKET"
     if forma_pago == FormaPago.CONTADO:
         ventana = WindowControl(RegexName=r"^BOLETA DE VENTA #")
-        if not ventana.Exists(maxSearchSeconds=5):
+        encontrada = ventana.Exists(
+            maxSearchSeconds=TIMEOUT_VENTANA_TICKET,
+            searchIntervalSeconds=0.5,
+        )
+        if not encontrada:
             raise RuntimeError(
                 "No se encontró la ventana BOLETA DE VENTA después de guardar"
             )
     else:
         ventana = WindowControl(RegexName=r"^TICKET #")
-        if not ventana.Exists(maxSearchSeconds=5):
+        encontrada = ventana.Exists(
+            maxSearchSeconds=TIMEOUT_VENTANA_TICKET,
+            searchIntervalSeconds=0.5,
+        )
+        if not encontrada:
             raise RuntimeError("No se encontró la ventana TICKET después de guardar")
 
     match = re.search(r"#(.+)", ventana.Name)
@@ -405,9 +476,16 @@ def procesar_boleta_venta(forma_pago: FormaPago) -> None:
     - CONTADO: ventana 'BOLETA DE VENTA #...', extrae TxtValVta → TxtImpPag → Aceptar
     - SIS / INTERVENCION_SANITARIA: ventana 'TICKET #...', solo Aceptar
     """
-    sleep(3)
+    sleep(1)
     if forma_pago == FormaPago.CONTADO:
         ventana = WindowControl(RegexName=r"^BOLETA DE VENTA #")
+        if not ventana.Exists(
+            maxSearchSeconds=TIMEOUT_VENTANA_TICKET,
+            searchIntervalSeconds=0.5,
+        ):
+            raise RuntimeError(
+                "No se encontró la ventana BOLETA DE VENTA para aceptar"
+            )
         txt_val_vta = ventana.EditControl(Name="TxtValVta")
         valor = txt_val_vta.GetValuePattern().Value
         if valor.strip() == "0":
@@ -419,9 +497,20 @@ def procesar_boleta_venta(forma_pago: FormaPago) -> None:
         sleep(0.5)
     else:
         ventana = WindowControl(RegexName=r"^TICKET #")
+        if not ventana.Exists(
+            maxSearchSeconds=TIMEOUT_VENTANA_TICKET,
+            searchIntervalSeconds=0.5,
+        ):
+            raise RuntimeError("No se encontró la ventana TICKET para aceptar")
 
     ventana.ButtonControl(Name="Aceptar").Click()
-    sleep(3)
+
+    for _ in range(30):
+        if not ventana.Exists(maxSearchSeconds=0.5, searchIntervalSeconds=0.5):
+            break
+        sleep(0.5)
+
+    sleep(2)
 
 
 def volver_a_menuprincipal() -> None:
@@ -718,6 +807,8 @@ def procesar_pedidos(
                     f"(intento {reintentos}/{MAX_REINTENTOS_PEDIDO}), reintentando... "
                     f"[no se escribe al Excel hasta resultado final]"
                 )
+
+                sleep(ESPERA_ENTRE_REINTENTOS)
 
                 try:
                     cerrar_ventanas_sismed()
