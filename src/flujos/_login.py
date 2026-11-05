@@ -16,11 +16,12 @@ from src.reportes.excel_writer import leer_resumen_diario, _path_del_dia
 
 _backup_pause_handled = False
 
-# Timeouts largos (rama dos bots, SISMED en Z: responde lento)
-LOGIN_ESPERA_VENTANA = 60
-LOGIN_TIMEOUT_CONTROLES = 30
+# Timeouts (rama dos bots, SISMED en Z: responde lento)
+LOGIN_ESPERA_INICIAL = 8
+LOGIN_ESPERA_VENTANA = 20
+LOGIN_TIMEOUT_CONTROLES = 15
 LOGIN_MAX_INTENTOS = 3
-LOGIN_ESPERA_REINTENTO = 10
+LOGIN_ESPERA_REINTENTO = 5
 
 PATRONES_BACKUP = [
     "Envío de información de Consumo Diaria.*",
@@ -150,10 +151,8 @@ def _esperar_ventana_login(timeout: float) -> WindowControl | None:
 def _hay_proceso_sismed() -> bool:
     if WindowControl(Name="Acceso al Sistema").Exists(maxSearchSeconds=0):
         return True
-    if WindowControl(searchDepth=1, Name="MINSA SISMED").Exists(maxSearchSeconds=0):
-        return True
     return WindowControl(
-        searchDepth=1, RegexName=r"^FARMACIA - MINSA SISMED.*"
+        searchDepth=1, RegexName=r"^(MINSA SISMED|FARMACIA - MINSA SISMED).*"
     ).Exists(maxSearchSeconds=0)
 
 
@@ -161,7 +160,8 @@ def login(username: str, password: str) -> None:
     SendKeys("{Win}d")
 
     for intento in range(1, LOGIN_MAX_INTENTOS + 1):
-        ventana = _esperar_ventana_login(LOGIN_ESPERA_VENTANA)
+        espera = LOGIN_ESPERA_INICIAL if intento == 1 else LOGIN_ESPERA_VENTANA
+        ventana = _esperar_ventana_login(espera)
 
         if ventana is None:
             logger.warning(
@@ -228,8 +228,8 @@ def login(username: str, password: str) -> None:
 
 def cerrar_ventana_inicial() -> None:
     ventana: WindowControl = WindowControl(Name="Productos Vencidos y por Vencer")
-    if ventana.Exists(maxSearchSeconds=20, searchIntervalSeconds=0.5):
+    if ventana.Exists(maxSearchSeconds=8, searchIntervalSeconds=0.5):
         exit_button: ButtonControl = ventana.ButtonControl(Name="Salir")
-        if exit_button.Exists(maxSearchSeconds=10, searchIntervalSeconds=0.5):
+        if exit_button.Exists(maxSearchSeconds=5, searchIntervalSeconds=0.5):
             exit_button.Click()
     return None
