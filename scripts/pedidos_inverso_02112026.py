@@ -31,6 +31,8 @@ from src import config
 from src.datos.sp_adapter import obtener_movimientos
 from src.flujos.pedido import procesar_pedidos
 from src.logger import logger
+from src.models.forma_pago import FormaPago
+from src.models.pedido import generar_fua_ficticio
 
 FECHA_POR_DEFECTO = "2026-11-02"
 ESTADOS_PENDIENTES = {"", "NONE", "NULL"}
@@ -122,7 +124,24 @@ class EstadoTracker:
 def _pendientes(fecha: str):
     logger.info(f"Consultando SP_MOVIMIENTOS_SISMED_RPA {fecha} -> {fecha}")
     pedidos, _, _, _, _ = obtener_movimientos(fecha, fecha, skip_errores=True)
-    return list(pedidos)
+
+    validos = []
+    for pedido in pedidos:
+        if pedido.forma_pago == FormaPago.SIS and not pedido.fua:
+            pedido.fua = generar_fua_ficticio()
+
+        motivos = pedido.obtener_revisiones()
+        if motivos:
+            logger.warning(
+                f"[VALIDACION] {pedido.correlativo_ksalud} omitido: {'; '.join(motivos)}"
+            )
+            continue
+        validos.append(pedido)
+
+    logger.info(
+        f"Pedidos validos: {len(validos)} de {len(pedidos)} pendientes"
+    )
+    return validos
 
 
 def main() -> int:
