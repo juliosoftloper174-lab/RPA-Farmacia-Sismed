@@ -3,7 +3,7 @@ from pathlib import Path
 from subprocess import Popen
 from time import sleep
 
-from uiautomation import SendKeys, WindowControl, ButtonControl
+from uiautomation import ButtonControl, EditControl, SendKeys, WindowControl
 from loguru import logger
 from src import config
 from src.notifications.email_sender import (
@@ -15,6 +15,12 @@ from src.notifications.email_sender import (
 from src.reportes.excel_writer import leer_resumen_diario, _path_del_dia
 
 _backup_pause_handled = False
+
+# Timeouts largos (rama dos bots, SISMED en Z: responde lento)
+LOGIN_ESPERA_VENTANA = 60
+LOGIN_TIMEOUT_CONTROLES = 30
+LOGIN_MAX_INTENTOS = 3
+LOGIN_ESPERA_REINTENTO = 10
 
 PATRONES_BACKUP = [
     "Envío de información de Consumo Diaria.*",
@@ -134,43 +140,96 @@ def _abrir_sismed() -> None:
     Popen(str(exe), cwd=str(exe.parent))
 
 
+def _esperar_ventana_login(timeout: float) -> WindowControl | None:
+    ventana = WindowControl(Name="Acceso al Sistema")
+    if ventana.Exists(maxSearchSeconds=timeout, searchIntervalSeconds=0.5):
+        return ventana
+    return None
+
+
+def _hay_proceso_sismed() -> bool:
+    if WindowControl(Name="Acceso al Sistema").Exists(maxSearchSeconds=0):
+        return True
+    if WindowControl(searchDepth=1, Name="MINSA SISMED").Exists(maxSearchSeconds=0):
+        return True
+    return WindowControl(
+        searchDepth=1, RegexName=r"^FARMACIA - MINSA SISMED.*"
+    ).Exists(maxSearchSeconds=0)
+
+
 def login(username: str, password: str) -> None:
     SendKeys("{Win}d")
 
-    LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
-    if not LOGIN_WINDOW.Exists(maxSearchSeconds=0):
-        _abrir_sismed()
-        sleep(3)
-        LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
+    for intento in range(1, LOGIN_MAX_INTENTOS + 1):
+        ventana = _esperar_ventana_login(LOGIN_ESPERA_VENTANA)
 
-    _pausar_por_backup()
+        if ventana is None:
+            logger.warning(
+                f"[LOGIN] Ventana de acceso no encontrada "
+                f"(intento {intento}/{LOGIN_MAX_INTENTOS}), abriendo SISMED..."
+            )
+            if not _hay_proceso_sismed():
+                _abrir_sismed()
+            sleep(LOGIN_ESPERA_REINTENTO)
+            continue
 
-    while True:
+        if _pausar_por_backup():
+            ventana = _esperar_ventana_login(LOGIN_ESPERA_VENTANA)
+            if ventana is None:
+                continue
+
         try:
-            LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
-            LOGIN_WINDOW.EditControl(Name="txtUsuario").SendKeys(username)
-            LOGIN_WINDOW.EditControl(Name="txtClave").SendKeys(password)
-            LOGIN_WINDOW.ButtonControl(Name="Aceptar").Click()
+            usuario: EditControl = ventana.EditControl(Name="txtUsuario", searchDepth=2)
+            if not usuario.Exists(
+                maxSearchSeconds=LOGIN_TIMEOUT_CONTROLES,
+                searchIntervalSeconds=0.5,
+            ):
+                raise RuntimeError("No apareció el campo 'txtUsuario'")
 
-            return cerrar_ventana_inicial()
+            clave: EditControl = ventana.EditControl(Name="txtClave", searchDepth=2)
+            if not clave.Exists(
+                maxSearchSeconds=LOGIN_TIMEOUT_CONTROLES,
+                searchIntervalSeconds=0.5,
+            ):
+                raise RuntimeError("No apareció el campo 'txtClave'")
+
+            aceptar: ButtonControl = ventana.ButtonControl(
+                Name="Aceptar", searchDepth=2
+            )
+            if not aceptar.Exists(
+                maxSearchSeconds=LOGIN_TIMEOUT_CONTROLES,
+                searchIntervalSeconds=0.5,
+            ):
+                raise RuntimeError("No apareció el botón 'Aceptar'")
+
+            usuario.SendKeys(username)
+            clave.SendKeys(password)
+            aceptar.Click()
+
+            cerrar_ventana_inicial()
+            return
 
         except Exception as e:
-            logger.error(f"No se pudo completar el login: {e}")
-            logger.warning(
-                "\n" + "=" * 60 + "\n"
-                "  SISMED no pudo iniciar sesión automáticamente.\n"
-                "  Verifique que SISMED esté accesible (sin ventanas bloqueando)\n"
-                "  y presione Enter para reintentar...\n"
-                + "=" * 60
+            logger.error(
+                f"[LOGIN] No se pudo completar el login "
+                f"(intento {intento}/{LOGIN_MAX_INTENTOS}): {e}"
             )
-            input()
-            _abrir_sismed()
-            sleep(3)
+            sleep(LOGIN_ESPERA_REINTENTO)
+
+            if not _hay_proceso_sismed():
+                logger.warning("[LOGIN] SISMED no está abierto, lanzando de nuevo...")
+                _abrir_sismed()
+                sleep(LOGIN_ESPERA_VENTANA)
+
+    raise RuntimeError(
+        f"No se pudo iniciar sesión en SISMED tras {LOGIN_MAX_INTENTOS} intentos"
+    )
 
 
 def cerrar_ventana_inicial() -> None:
     ventana: WindowControl = WindowControl(Name="Productos Vencidos y por Vencer")
-    if ventana.Exists():
+    if ventana.Exists(maxSearchSeconds=20, searchIntervalSeconds=0.5):
         exit_button: ButtonControl = ventana.ButtonControl(Name="Salir")
-        exit_button.Click()
+        if exit_button.Exists(maxSearchSeconds=10, searchIntervalSeconds=0.5):
+            exit_button.Click()
     return None

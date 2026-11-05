@@ -71,12 +71,15 @@ SISMED_USERNAME = config.SISMED_USERNAME
 SISMED_PASSWORD = config.SISMED_PASSWORD
 
 # Timeouts largos (solo rama dos bots, SISMED en Z: responde lento)
-TIMEOUT_VENTANA_FARMACIAS = 25
-TIMEOUT_VENTANA_REGISTRO = 30
-TIMEOUT_COMBO = 12
+TIMEOUT_VENTANA_FARMACIAS = 60
+TIMEOUT_VENTANA_REGISTRO = 60
+TIMEOUT_COMBO = 20
 TIMEOUT_VENTANA_TICKET = 40
-ESPERA_ENTRE_REINTENTOS = 5
-ESPERA_ENTRE_INTENTOS_NAV = 3
+ESPERA_ENTRE_REINTENTOS = 10
+ESPERA_ENTRE_INTENTOS_NAV = 10
+ESPERA_POST_NAV = 10
+ESPERA_POST_GUARDAR = 10
+ESPERA_POST_TICKET = 10
 
 
 class ClienteNoEncontradoError(Exception):
@@ -104,6 +107,11 @@ def navegar_a_pedidos(pedido: Pedido) -> None:
     # enter
     ventana: WindowControl = WindowControl(Name="Selección de Farmacias")
     for attempt in range(1, 4):
+        try:
+            get_main_window().SetActive()
+            sleep(1)
+        except Exception:
+            pass
         pane.SendKeys("{Enter}")
         if ventana.Exists(
             maxSearchSeconds=TIMEOUT_VENTANA_FARMACIAS,
@@ -134,6 +142,11 @@ def navegar_a_pedidos(pedido: Pedido) -> None:
 
     registro = get_registro_pedido_window()
     for attempt in range(1, 4):
+        try:
+            get_farmacia_window().SetActive()
+            sleep(0.5)
+        except Exception:
+            pass
         SendKeys("{Enter}")
         if registro.Exists(
             maxSearchSeconds=TIMEOUT_VENTANA_REGISTRO,
@@ -510,7 +523,7 @@ def procesar_boleta_venta(forma_pago: FormaPago) -> None:
             break
         sleep(0.5)
 
-    sleep(2)
+    sleep(ESPERA_POST_TICKET)
 
 
 def volver_a_menuprincipal() -> None:
@@ -553,6 +566,7 @@ def procesar_pedido(
 
     t_nav = time()
     navegar_a_pedidos(pedido)
+    sleep(ESPERA_POST_NAV)
     t_nav = time() - t_nav
 
     t_cab = time()
@@ -570,6 +584,7 @@ def procesar_pedido(
 
     t_guard = time()
     guardar()
+    sleep(ESPERA_POST_GUARDAR)
     if verificar_stock():
         volver_a_menuprincipal()
         raise SinStockError("No hay stock disponible")
@@ -805,6 +820,7 @@ def procesar_pedidos(
                 logger.warning(
                     f"[LOTE] Pedido {idx}/{total} falló "
                     f"(intento {reintentos}/{MAX_REINTENTOS_PEDIDO}), reintentando... "
+                    f"| motivo: {motivo} "
                     f"[no se escribe al Excel hasta resultado final]"
                 )
 
