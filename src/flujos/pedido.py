@@ -158,9 +158,9 @@ def manejar_forma_pago(pedido: Pedido) -> None:
         logger.debug("Rellenando FUA para pago SIS")
         rellenar_fua(pedido)
 
-    elif tipo == FormaPago.CONTADO:
+    elif tipo in (FormaPago.CONTADO, FormaPago.SALUDPOL):
 
-        logger.debug("Pago CONTADO: no requiere campos adicionales")
+        logger.debug(f"Pago {tipo.value}: no requiere campos adicionales")
 
     elif tipo == FormaPago.INTERVENCION_SANITARIA:
 
@@ -204,6 +204,7 @@ FORMA_PAGO_COMBO_VALUE = {
     FormaPago.CONTADO: "01",
     FormaPago.SIS: "03",
     FormaPago.INTERVENCION_SANITARIA: "20",
+    FormaPago.SALUDPOL: "04",  # TODO: confirmar valor real del combo CboDato
 }
 
 MAX_INTENTOS_FORMA_PAGO = 3
@@ -215,6 +216,9 @@ def leer_forma_pago_seleccionada() -> str:
 
 
 def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
+    if pedido.forma_pago == FormaPago.DESCONOCIDO:
+        raise ValueError("Forma de pago desconocida o nula; no se puede seleccionar")
+
     esperado = FORMA_PAGO_COMBO_VALUE[pedido.forma_pago]
 
     for intento in range(1, MAX_INTENTOS_FORMA_PAGO + 1):
@@ -238,6 +242,10 @@ def selecionar_forma_pago_Julio(pedido: Pedido) -> None:
             Click(615, 410)
             sleep(1)
             Click(495, 385)
+        elif pedido.forma_pago == FormaPago.SALUDPOL:
+            Click(615, 410)
+            sleep(1)
+            Click(495, 375)  # unos píxeles más arriba que SIS
         else:
             raise ValueError(f"Forma de pago no soportada: {pedido.forma_pago}")
 
@@ -376,10 +384,11 @@ def extraer_correlativo_farmacia(forma_pago: FormaPago) -> str:
     """
     Extrae el número de la ventana que aparece después de guardar.
     - CONTADO: 'BOLETA DE VENTA #176-0000007' → '176-0000007'
-    - SIS / INTERVENCION_SANITARIA: 'TICKET #003-0000008' → '003-0000008'
+    - SIS / INTERVENCION_SANITARIA / SALUDPOL: 'TICKET #003-0000008' → '003-0000008'
     """
-    tipo = "BOLETA" if forma_pago == FormaPago.CONTADO else "TICKET"
-    if forma_pago == FormaPago.CONTADO:
+    es_boleta = forma_pago == FormaPago.CONTADO
+    tipo = "BOLETA" if es_boleta else "TICKET"
+    if es_boleta:
         ventana = WindowControl(RegexName=r"^BOLETA DE VENTA #")
         if not ventana.Exists(maxSearchSeconds=5):
             raise RuntimeError(
@@ -403,11 +412,16 @@ def procesar_boleta_venta(forma_pago: FormaPago) -> None:
     """
     Maneja la ventana que aparece después de guardar un pedido.
     - CONTADO: ventana 'BOLETA DE VENTA #...', extrae TxtValVta → TxtImpPag → Aceptar
+    - SALUDPOL: ventana 'TICKET #...', extrae TxtValVta → TxtImpPag → Aceptar
     - SIS / INTERVENCION_SANITARIA: ventana 'TICKET #...', solo Aceptar
     """
     sleep(3)
     if forma_pago == FormaPago.CONTADO:
         ventana = WindowControl(RegexName=r"^BOLETA DE VENTA #")
+    else:
+        ventana = WindowControl(RegexName=r"^TICKET #")
+
+    if forma_pago in (FormaPago.CONTADO, FormaPago.SALUDPOL):
         txt_val_vta = ventana.EditControl(Name="TxtValVta")
         valor = txt_val_vta.GetValuePattern().Value
         if valor.strip() == "0":
@@ -417,8 +431,6 @@ def procesar_boleta_venta(forma_pago: FormaPago) -> None:
         sleep(0.5)
         txt_imp_pag.SendKeys(valor)
         sleep(0.5)
-    else:
-        ventana = WindowControl(RegexName=r"^TICKET #")
 
     ventana.ButtonControl(Name="Aceptar").Click()
     sleep(3)
@@ -539,11 +551,36 @@ def procesar_pedidos(
     error_count = 0
     sin_cliente_count = 0
     sin_stock_count = 0
+    forma_pago_desconocida_count = 0
 
     for idx, pedido in enumerate(pedidos, start=1):
 
         verificar_backup_si_aplica()
         esperar_hora_backup_si_aplica()
+
+        if pedido.forma_pago == FormaPago.DESCONOCIDO:
+            motivo = "Forma de pago nula o desconocida; no se procesa"
+            logger.error(f"[LOTE] Pedido {idx}/{total}: {motivo}")
+            forma_pago_desconocida_count += 1
+            if pedido.update_key:
+                try:
+                    ejecutar_sp_update_estado(pedido.update_key, "04")
+                except Exception as update_err:
+                    logger.warning(
+                        f"[LOTE] No se pudo actualizar estado BD: {update_err}"
+                    )
+            row = crear_row_pedido(
+                i=numero_procesado,
+                username=SISMED_USERNAME,
+                correlativo_ksalud=pedido.correlativo_ksalud,
+                correlativo_sismed="",
+                pedido=pedido,
+                estado="FORMA_PAGO_DESCONOCIDA",
+                error=motivo,
+            )
+            guardar_movimientos(row, fecha, fecha_fin, modo)
+            numero_procesado += 1
+            continue
 
         reintentos = 0
 
@@ -716,6 +753,7 @@ def procesar_pedidos(
         "error": error_count,
         "sin_cliente": sin_cliente_count,
         "sin_stock": sin_stock_count,
+        "forma_pago_desconocida": forma_pago_desconocida_count,
     }
 
 

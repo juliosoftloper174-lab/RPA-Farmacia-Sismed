@@ -118,6 +118,16 @@ def rellenar_cabecera(registro: WindowControl, ingreso: Ingreso):
     SendKeys("{Enter}")
     sleep(1.5)
 
+    # Almacén virtual destino (nuevo en versión de producción).
+    # Se escribe 0 para seleccionar siempre la primera opción de la lista.
+    sleep(1.8)
+    Click(1140, 250)
+    sleep(1.8)
+    SendKeys("0")
+    sleep(1.8)
+    SendKeys("{Enter}")
+    sleep(1.5)
+
     seleccionar_combo_por_texto_con_autoenter("cmbConcepto", ingreso.concepto)
 
     codigo = generar_codigo_ngr()

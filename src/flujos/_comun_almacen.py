@@ -88,8 +88,13 @@ def cerrar_ventana_registro(nombre_ventana: str = "Registro de Ingresos .") -> N
 
 
 def cerrar_ventana_salida_guardada() -> None:
+    """Cierra la ventana de registro de salidas tras guardar.
+
+    En versiones anteriores de SISMED la ventana cambiaba de nombre a E-XXXXX.
+    En la versión actual de producción conserva el nombre 'Registro de Salidas '.
+    """
     for intento in range(5):
-        ventana = WindowControl(RegexName=r"^E-\d+")
+        ventana = WindowControl(Name="Registro de Salidas ")
         if ventana.Exists(1):
             title_bar = ventana.TitleBarControl(searchDepth=1)
             close_button = title_bar.ButtonControl(searchDepth=1, Name="Cerrar")
@@ -103,7 +108,7 @@ def cerrar_ventana_salida_guardada() -> None:
                         si.Click()
             return
         sleep(1)
-    logger.warning("No se encontró ventana E-* para cerrar")
+    logger.warning("No se encontró ventana 'Registro de Salidas ' para cerrar")
 
 
 def cerrar_sismed() -> None:

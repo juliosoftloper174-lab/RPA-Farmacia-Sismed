@@ -66,7 +66,7 @@ COLUMNAS_HEADER = [
 
 def _mapear_forma_pago(valor) -> FormaPago:
     if valor is None or str(valor).strip() in ("", "NULL"):
-        return FormaPago.CONTADO
+        return FormaPago.DESCONOCIDO
     v = str(valor).strip()
     if v == "0":
         return FormaPago.CONTADO
@@ -74,7 +74,9 @@ def _mapear_forma_pago(valor) -> FormaPago:
         return FormaPago.SIS
     if v == "2":
         return FormaPago.INTERVENCION_SANITARIA
-    return FormaPago.CONTADO
+    if v == "3":
+        return FormaPago.SALUDPOL
+    return FormaPago.DESCONOCIDO
 
 
 def _parsear_fecha_vencimiento(fecha: str) -> str:
@@ -140,6 +142,12 @@ def _construir_medicamentos(detalles: list[dict]) -> list[Medicamento]:
 
 MAPA_ALMACEN_VIRTUAL_ORIGEN = {"0": "030S0101", "1": "030S0102"}
 
+# Mapeo para salidas externas. El SP envía 1/2; SISMED busca por código en GrdCatalogo.
+MAPA_ALMACEN_DESTINO_SALIDA = {
+    "1": "030S01",  # Anexo Rioja
+    "2": "030A00",  # Logística
+}
+
 MAPA_TIPO_SUMINISTRO = {
     "CN": "SISMED-COMPRA NACIONAL (CN)",
     "CI": "SISMED-COMPRA UNIDAD EJECUTORA (CI)",
@@ -156,6 +164,10 @@ MAPA_FUENTE_FINANCIAMIENTO = {
 
 def _mapear_almacen_virtual(valor_sp: str) -> str:
     return MAPA_ALMACEN_VIRTUAL_ORIGEN.get(valor_sp.strip(), "030S0101")
+
+
+def _mapear_almacen_destino_salida(valor_sp: str) -> str:
+    return MAPA_ALMACEN_DESTINO_SALIDA.get(valor_sp.strip(), valor_sp.strip())
 
 
 def _mapear_tipo_suministro(valor_sp: str) -> str:
@@ -349,7 +361,7 @@ def obtener_movimientos(
 
             salida = Salidas(
                 almacen_origen=almacen_origen if almacen_origen != "NULL" else "",
-                almacen_destino=almacen_destino,
+                almacen_destino=_mapear_almacen_destino_salida(almacen_destino),
                 almacen_virtual_origen=almacen_virtual_origen,
                 concepto=concepto,
                 medicamentos=medicamentos,

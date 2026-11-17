@@ -1,5 +1,15 @@
 # SISMED RPA - Contexto del Proyecto
 
+## 🌿 Ramas activas
+
+| Rama | Propósito | Base | Estado |
+|---|---|---|---|
+| `RPA-Version-Producion-Funcional-cambios` | Versión que estuvo en producción del 01 al 10/11/2026 | `main` | Estable (ya no se toca) |
+| `Bot-produccion2.0-correciones` | Rama de trabajo actual para correcciones y mejoras de producción | `RPA-Version-Producion-Funcional-cambios` | En desarrollo |
+| `RPA-Version-Dos-Bots` | Versión con login más ágil y dos bots | `main` | Tiene cambios sin commit guardados en stash |
+
+> **Nota importante:** en la máquina de producción existen cambios no comiteados (selección del almacén virtual destino en ingresos). Cuando se tenga acceso, se subirán a una rama `produccion-01-11-estado-actual` y se compararán con `Bot-produccion2.0-correciones`.
+
 ## 📌 Descripción General
 
 Proyecto **sismed_wrapper** v0.1.7 — Bot RPA que automatiza 3 flujos en el sistema desktop **SISMED**:

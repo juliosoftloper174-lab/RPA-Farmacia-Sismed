@@ -332,7 +332,6 @@ def procesar_salidas(
 
         cerrar_ventana_salida_guardada()
         sleep(1.5)
-        SendKeys("{Enter}")
 
         guardar_movimientos(row, fecha, fecha_fin, modo)
         numero_procesado += 1
