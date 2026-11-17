@@ -257,15 +257,17 @@ def obtener_movimientos(
             saltados_otros += 1
             continue
 
-        if tipo == "SALIDA" and ks_doc_des in {
-            d.upper() for d in DOCUMENTOS_OTROS_EGRESOS
-        }:
-            logger.warning(
-                f"[SKIP] Salida {ks} omitido: KS_DOCUMENTO_DES='{row.get('KS_DOCUMENTO_DES')}' "
-                f"— pendiente de implementación con apoyo del hospital"
-            )
-            saltados_otros += 1
-            continue
+        # TODO: reactivar filtro cuando el flujo de salidas externas (doc 05) esté listo.
+        # Temporalmente desactivado para prueba de salidas con destino 1/2.
+        # if tipo == "SALIDA" and ks_doc_des in {
+        #     d.upper() for d in DOCUMENTOS_OTROS_EGRESOS
+        # }:
+        #     logger.warning(
+        #         f"[SKIP] Salida {ks} omitido: KS_DOCUMENTO_DES='{row.get('KS_DOCUMENTO_DES')}' "
+        #         f"— pendiente de implementación con apoyo del hospital"
+        #     )
+        #     saltados_otros += 1
+        #     continue
         detalles = detalles_por_ks.get(ks, [])
         medicamentos = _construir_medicamentos(detalles)
 
