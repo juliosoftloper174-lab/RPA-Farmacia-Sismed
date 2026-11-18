@@ -191,6 +191,23 @@ def _seleccionar_concepto(salida: Salidas) -> None:
     if tipo != "SALIDA":
         raise RuntimeError(f"Tipo de movimiento no soportado en salidas: {tipo}")
 
+    # Salida externa (doc 05): usa coordenadas configuradas por NSEAP/concepto
+    if getattr(salida, "es_salida_externa", False):
+        coordenadas = getattr(salida, "coordenadas_concepto", []) or []
+        if not coordenadas:
+            raise RuntimeError(
+                f"Salida externa {salida.correlativo_ksalud} sin coordenadas de concepto"
+            )
+        logger.info(
+            f"[CONCEPTO] SALIDA EXTERNA {salida.nseap} -> {salida.concepto_sismed}"
+        )
+        sleep(1.5)
+        for x, y in coordenadas:
+            Click(x, y)
+            sleep(1)
+        return
+
+    # Transferencia interna (doc 06): DISTRIBUCION hardcodeado
     # NOTE: Se tomo la decision de Harcodear ya que almenos se tiene entendido que siempre sera distribucion, ademas de que esta muy dificil poder seleccionar la acion ya que si jugamos con las opciones algunas quitan el almacen destino y a volver a querer poner distribucion nos da error
     logger.info("[CONCEPTO] SALIDA -> DISTRIBUCION")
     sleep(1.5)

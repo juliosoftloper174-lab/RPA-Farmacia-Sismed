@@ -1,4 +1,5 @@
 from database.conexion import ejecutar_sp_movimientos
+from src.datos.config_salidas_externas import obtener_config_salida_externa
 from src.logger import logger
 from src.models.cliente import Cliente
 from src.models.diagnostico import Diagnostico
@@ -354,7 +355,62 @@ def obtener_movimientos(
             almacen_origen = str(_obtener_safe(row, "ALMACEN_ORIGEN", "")).strip()
             almacen_destino = str(_obtener_safe(row, "ALMACEN_DESTINO", "")).strip()
             almacen_virtual_origen = f"{almacen_origen}01" if almacen_origen else ""
+            ks_documento = str(_obtener_safe(row, "KS_DOCUMENTO", "")).strip()
+            ks_tipo_movimiento = str(_obtener_safe(row, "KS_TIPO_MOVIMIENTO", "")).strip()
+            ks_concepto = str(_obtener_safe(row, "KS_CONCEPTO", "")).strip()
 
+            # Salidas externas (doc 05)
+            if ks_documento == "05":
+                config = obtener_config_salida_externa(
+                    ks_documento, ks_tipo_movimiento, ks_concepto
+                )
+                if config is None:
+                    logger.warning(
+                        f"[SKIP] Salida externa {ks} omitida: combinación no reconocida "
+                        f"(doc={ks_documento}, tipo={ks_tipo_movimiento}, concepto={ks_concepto})"
+                    )
+                    saltados_otros += 1
+                    continue
+
+                if almacen_destino != config["destino_ksalud"]:
+                    logger.warning(
+                        f"[SKIP] Salida externa {ks} omitida: destino no coincide. "
+                        f"SP={almacen_destino} ({config['destino_ksalud']} esperado "
+                        f"para {config['nseap']}/{config['concepto_sismed']})"
+                    )
+                    saltados_otros += 1
+                    continue
+
+                if config["coordenadas"] is None:
+                    logger.warning(
+                        f"[SKIP] Salida externa {ks} omitida: coordenadas UI no configuradas "
+                        f"para {config['nseap']}/{config['concepto_sismed']}"
+                    )
+                    saltados_otros += 1
+                    continue
+
+                salida = Salidas(
+                    almacen_origen=almacen_origen if almacen_origen != "NULL" else "",
+                    almacen_destino=config["destino_sismed"],
+                    almacen_virtual_origen=almacen_virtual_origen,
+                    concepto=config["concepto_sismed"],
+                    medicamentos=medicamentos,
+                    correlativo_ksalud=ks,
+                    update_key=_build_update_key(row),
+                    tipo_movimiento=tipo,
+                    tipo_documento=ks_documento,
+                    tipo_movimiento_sp=ks_tipo_movimiento,
+                    concepto_sp=ks_concepto,
+                    nseap=config["nseap"],
+                    concepto_sismed=config["concepto_sismed"],
+                    destino_ksalud=config["destino_ksalud"],
+                    destino_sismed=config["destino_sismed"],
+                    coordenadas_concepto=config["coordenadas"],
+                )
+                salidas.append(salida)
+                continue
+
+            # Transferencias internas (doc 06) y devoluciones
             concepto = "DISTRIBUCION"
             if tipo == "DEVOLUCION":
                 concepto = str(_obtener_safe(row, "KS_CONCEPTO_DES", "")).strip()
@@ -370,6 +426,7 @@ def obtener_movimientos(
                 correlativo_ksalud=ks,
                 update_key=_build_update_key(row),
                 tipo_movimiento=tipo,
+                tipo_documento=ks_documento,
             )
             salidas.append(salida)
 
