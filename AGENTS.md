@@ -17,6 +17,7 @@ Proyecto **sismed_wrapper** v0.1.7 — Bot RPA que automatiza 3 flujos en el sis
 1. **Ingresos** (entradas de medicamentos a almacén) — ✅ Funcional con datos reales
 2. **Salidas** (transferencias entre almacenes) — ✅ Funcional con datos reales
 3. **Pedidos** (recetas / dispensación a pacientes) — ✅ Funcional con reintentos automáticos, actualización de estado en BD, y detección de clientes no encontrados
+4. **Salidas externas** (doc 05 - NOTA DE SALIDA POR OTROS EGRESOS) — 🔄 En desarrollo en `Bot-produccion2.0-correciones`
 
 ---
 
@@ -389,6 +390,48 @@ Archivo analizado: `19-07-26_SP_extorno.csv`
 - Validación de Ingresos y Salidas es un passthrough (no hay validación real)
 - Duplicación de productos (mismo código en un movimiento, sumar cantidades) — gap conocido no presente en datos actuales
 - **BOLETA_NO_ENCONTRADA**: ~2.3% de pedidos fallan porque la UI cierra la boleta sin mostrar popup "Volver a Menu" — investigar timeout o estrategia alternativa
+
+---
+
+## 🚚 Salidas externas (en desarrollo)
+
+### Fuente oficial
+`DOC_TIPMOV_CON_NOTA_DE_SALIDA_KSALUD.xlsx` — tabla de equivalencias entregada por el grupo de desarrollo de Ksalud.
+
+### Clave de búsqueda
+`(KS_DOCUMENTO, KS_TIPO_MOVIMIENTO, KS_CONCEPTO)` usando códigos, no descripciones.
+
+### Mapeo configurado
+
+| KS_DOCUMENTO | KS_TIPO_MOVIMIENTO | KS_CONCEPTO | NSEAP | Concepto SISMED | Destino Ksalud | Destino SISMED |
+|---|---:|---:|---|---|---|---|
+| 05 | 203 | 31-33, 35, 36 | C1 | DEVOLUCION X SOBRE STOCK | 1 (Anexo Rioja) | `030S01` (TODO confirmar) |
+| 05 | 208 | 20 | C2 | DEV. X R.S. CAN/SUSP/VENC/ANUL | 1 (Anexo Rioja) | `030S01` (TODO confirmar) |
+| 05 | 213 | 10 | C2 | DEV. X R.S. CAN/SUSP/VENC/ANUL | 1 (Anexo Rioja) | `030S01` (TODO confirmar) |
+| 05 | 214 | 26 | C3 | DISTRIBUCION | 2 (Logística) | `030A00` (TODO confirmar) |
+
+### Conceptos pendientes de confirmar
+- Tipo 203, concepto 34 (si existe).
+- Tipo 213, REGISTRO SANITARIO (código desconocido).
+- Tipo 214, SUSPENSIÓN (código desconocido).
+- Tipos 216 (VENTA INSTITUCIONAL) y 217 (EGRESO POR DETERIORO).
+
+### Reglas de validación
+1. Combinación `(doc, tipo, concepto)` no reconocida → **NO procesar**, loguear y marcar error.
+2. `ALMACEN_DESTINO` del SP no coincide con el destino Ksalud esperado → **NO procesar**, loguear y marcar error.
+3. Lote vencido solo permitido con tipo 213 (EGRESO POR VENCIMIENTO).
+4. UPS: campo preparado en el modelo, desactivado hasta que el SP lo envíe.
+
+### Archivos involucrados
+- `src/datos/config_salidas_externas.py`: tabla de configuración.
+- `src/models/Salidas.py`: modelo extendido con campos de salida externa.
+- `src/datos/sp_adapter.py`: validación y construcción de objetos.
+- `src/flujos/salida.py`: selección de concepto por coordenadas configuradas.
+
+### Casos de prueba reales
+- **Día 03 QA**: `214/26` con destino Anexo Rioja → rechazado por destino incorrecto (esperado Logística).
+- **Día 04 producción**: `208/20` con destino Logística → rechazado por destino incorrecto (esperado Anexo Rioja).
+- **Día 04 producción**: `208/20` con destino Anexo Rioja → procesable, pendiente coordenadas C2.
 
 ---
 
