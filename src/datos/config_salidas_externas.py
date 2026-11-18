@@ -22,7 +22,11 @@ MAPA_SALIDAS_EXTERNAS: dict[tuple[str, str, str], dict] = {
         "concepto_sismed": "DEVOLUCION X SOBRE STOCK",
         "destino_ksalud": "1",  # Anexo Rioja
         "destino_sismed": "030S01",  # TODO: confirmar código real en SISMED
-        "coordenadas": None,  # TODO: agregar cuando se confirmen
+        "coordenadas": [
+            (700, 280),  # abrir combo box
+            (700, 361),  # bajar combo box
+            (596, 303),  # seleccionar Sobre Stock
+        ],
     },
     ("05", "203", "32"): {
         "nseap": "C1",
@@ -75,11 +79,9 @@ MAPA_SALIDAS_EXTERNAS: dict[tuple[str, str, str], dict] = {
         "destino_ksalud": "2",  # Logistica
         "destino_sismed": "030A00",  # TODO: confirmar código real en SISMED
         "coordenadas": [
-            (700, 280),
-            (704, 340),
-            (507, 317),
-            (704, 340),
-            (507, 307),
+            (700, 280),  # abrir combo box
+            (700, 361),  # bajar combo box
+            (515, 315),  # seleccionar Distribucion
         ],
     },
 }
