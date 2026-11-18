@@ -25,7 +25,7 @@ MAPA_SALIDAS_EXTERNAS: dict[tuple[str, str, str], dict] = {
         "coordenadas": [
             (700, 280),  # abrir combo box
             (700, 361),  # bajar combo box
-            (596, 303),  # seleccionar Sobre Stock
+            (596, 307),  # seleccionar Sobre Stock (bajado 4 px)
         ],
     },
     ("05", "203", "32"): {
