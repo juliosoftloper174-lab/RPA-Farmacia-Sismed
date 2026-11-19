@@ -254,6 +254,7 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
 
     # 🔹 Concepto (combo)
     _seleccionar_concepto(salidas)
+    sleep(1.5)  # pausa para que SISMED registre el concepto antes de agregar productos
 
 
 def procesar_salidas(
