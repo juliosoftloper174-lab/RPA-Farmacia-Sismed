@@ -62,7 +62,10 @@ MAPA_SALIDAS_EXTERNAS: dict[tuple[str, str, str], dict] = {
         "concepto_sismed": "DEV. X R.S. CAN/SUSP/VENC/ANUL",
         "destino_ksalud": "1",
         "destino_sismed": "030S01",
-        "coordenadas": None,
+        "coordenadas": [
+            (700, 280),  # abrir combo box
+            (598, 343),  # seleccionar Dev. x R.S.
+        ],
     },
     # Tipo 213 - EGRESO POR VENCIMIENTO -> C2
     ("05", "213", "10"): {
