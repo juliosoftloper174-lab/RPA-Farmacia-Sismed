@@ -48,6 +48,7 @@ def close_doc_windows() -> None:
         logger.debug("Closed report designer window.")
 
 
+@retry(tries=3, backoff=2, delay=1, exceptions=(COMError,))
 def extraer_correlativo_almacen(timeout: float = 90.0) -> str:
     ALMACEN_WINDOW: WindowControl = WindowControl(
         searchDepth=1, Name="ALMACEN - MINSA SISMED"
@@ -55,29 +56,33 @@ def extraer_correlativo_almacen(timeout: float = 90.0) -> str:
 
     inicio = time()
     while (time() - inicio) < timeout:
-        aviso = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
+        try:
+            aviso = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
 
-        if aviso.Exists(maxSearchSeconds=1):
-            mensaje: str = aviso.TextControl(searchDepth=1).Name.strip()
-            logger.debug(f"{mensaje = }.")
+            if aviso.Exists(0):
+                mensaje: str = aviso.TextControl(searchDepth=1).Name.strip()
+                logger.debug(f"{mensaje = }.")
 
-            accept_button: ButtonControl = aviso.ButtonControl(Name="Aceptar")
-            accept_button.GetInvokePattern().Invoke()
+                accept_button: ButtonControl = aviso.ButtonControl(Name="Aceptar")
+                accept_button.GetInvokePattern().Invoke()
 
-            close_doc_windows()
+                close_doc_windows()
 
-            if correlative_match := CORRELATIVO_PATTERN.search(mensaje):
-                return correlative_match.group(2)
+                if correlative_match := CORRELATIVO_PATTERN.search(mensaje):
+                    return correlative_match.group(2)
 
-            raise ValueError(f"SISMED: {mensaje}")
+                raise ValueError(f"SISMED: {mensaje}")
 
-        minsa = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="MINSA SISMED")
+            minsa = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="MINSA SISMED")
 
-        if minsa.Exists(1):
-            mensaje_error: str = minsa.TextControl(
-                searchDepth=1, foundIndex=1
-            ).Name.strip()
-            raise ValueError(f"MINSA: {mensaje_error}")
+            if minsa.Exists(0):
+                mensaje_error: str = minsa.TextControl(
+                    searchDepth=1, foundIndex=1
+                ).Name.strip()
+                raise ValueError(f"MINSA: {mensaje_error}")
+
+        except COMError as e:
+            logger.warning(f"[CORRELATIVO] Error COM al buscar aviso: {e}")
 
         sleep(1)
 
@@ -102,19 +107,24 @@ def cerrar_ventana_salida_guardada() -> None:
     En la versión actual de producción conserva el nombre 'Registro de Salidas '.
     """
     for intento in range(5):
-        ventana = WindowControl(Name="Registro de Salidas ")
-        if ventana.Exists(1):
-            title_bar = ventana.TitleBarControl(searchDepth=1)
-            close_button = title_bar.ButtonControl(searchDepth=1, Name="Cerrar")
-            if close_button.Exists():
-                close_button.GetInvokePattern().Invoke()
-                sleep(0.5)
-                confirmacion = WindowControl(Name="Aviso")
-                if confirmacion.Exists(2):
-                    si = confirmacion.ButtonControl(Name="Sí")
-                    if si.Exists():
-                        si.Click()
-            return
+        try:
+            ventana = WindowControl(Name="Registro de Salidas ")
+            if ventana.Exists(1):
+                title_bar = ventana.TitleBarControl(searchDepth=1)
+                close_button = title_bar.ButtonControl(searchDepth=1, Name="Cerrar")
+                if close_button.Exists():
+                    close_button.GetInvokePattern().Invoke()
+                    sleep(0.5)
+                    confirmacion = WindowControl(Name="Aviso")
+                    if confirmacion.Exists(2):
+                        si = confirmacion.ButtonControl(Name="Sí")
+                        if si.Exists():
+                            si.Click()
+                return
+        except COMError as e:
+            logger.warning(
+                f"[CERRAR SALIDA] Error COM en intento {intento + 1}: {e}"
+            )
         sleep(1)
     logger.warning("No se encontró ventana 'Registro de Salidas ' para cerrar")
 
