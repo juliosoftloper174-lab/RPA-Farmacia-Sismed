@@ -1,5 +1,5 @@
 from re import Pattern, compile
-from time import sleep
+from time import sleep, time
 
 from comtypes import COMError
 from retry import retry
@@ -48,34 +48,42 @@ def close_doc_windows() -> None:
         logger.debug("Closed report designer window.")
 
 
-def extraer_correlativo_almacen() -> str:
+def extraer_correlativo_almacen(timeout: float = 90.0) -> str:
     ALMACEN_WINDOW: WindowControl = WindowControl(
         searchDepth=1, Name="ALMACEN - MINSA SISMED"
     )
 
-    aviso = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
+    inicio = time()
+    while (time() - inicio) < timeout:
+        aviso = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="Aviso")
 
-    if aviso.Exists():
-        mensaje: str = aviso.TextControl(searchDepth=1).Name.strip()
-        logger.debug(f"{mensaje = }.")
+        if aviso.Exists(maxSearchSeconds=1):
+            mensaje: str = aviso.TextControl(searchDepth=1).Name.strip()
+            logger.debug(f"{mensaje = }.")
 
-        accept_button: ButtonControl = aviso.ButtonControl(Name="Aceptar")
-        accept_button.GetInvokePattern().Invoke()
+            accept_button: ButtonControl = aviso.ButtonControl(Name="Aceptar")
+            accept_button.GetInvokePattern().Invoke()
 
-        close_doc_windows()
+            close_doc_windows()
 
-        if correlative_match := CORRELATIVO_PATTERN.search(mensaje):
-            return correlative_match.group(2)
+            if correlative_match := CORRELATIVO_PATTERN.search(mensaje):
+                return correlative_match.group(2)
 
-        raise ValueError(f"SISMED: {mensaje}")
+            raise ValueError(f"SISMED: {mensaje}")
 
-    minsa = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="MINSA SISMED")
+        minsa = ALMACEN_WINDOW.WindowControl(searchDepth=1, Name="MINSA SISMED")
 
-    if minsa.Exists(1):
-        mensaje_error: str = minsa.TextControl(searchDepth=1, foundIndex=1).Name.strip()
-        raise ValueError(f"MINSA: {mensaje_error}")
+        if minsa.Exists(1):
+            mensaje_error: str = minsa.TextControl(
+                searchDepth=1, foundIndex=1
+            ).Name.strip()
+            raise ValueError(f"MINSA: {mensaje_error}")
 
-    raise RuntimeError("No se encontró ni correlativo ni mensaje de error.")
+        sleep(1)
+
+    raise RuntimeError(
+        f"No se encontró ni correlativo ni mensaje de error después de {timeout}s."
+    )
 
 
 def cerrar_ventana_registro(nombre_ventana: str = "Registro de Ingresos .") -> None:
