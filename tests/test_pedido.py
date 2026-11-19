@@ -196,16 +196,29 @@ class TestFormaPagoComboValue:
 
 
 class TestMappingHelpers:
-    def test_mapear_forma_pago_nulo_devuelve_contado(self):
+    def test_mapear_forma_pago_nulo_devuelve_desconocido(self):
         from src.datos.sp_adapter import _mapear_forma_pago
-        assert _mapear_forma_pago(None) == FormaPago.CONTADO
-        assert _mapear_forma_pago("") == FormaPago.CONTADO
-        assert _mapear_forma_pago("NULL") == FormaPago.CONTADO
+        assert _mapear_forma_pago(None) == FormaPago.DESCONOCIDO
+        assert _mapear_forma_pago("") == FormaPago.DESCONOCIDO
+        assert _mapear_forma_pago("NULL") == FormaPago.DESCONOCIDO
 
-    def test_mapear_forma_pago_cero_devuelve_intervencion(self):
+    def test_mapear_forma_pago_nulo_con_seguro_saludpol(self):
         from src.datos.sp_adapter import _mapear_forma_pago
-        assert _mapear_forma_pago("0") == FormaPago.INTERVENCION_SANITARIA
-        assert _mapear_forma_pago(0) == FormaPago.INTERVENCION_SANITARIA
+        assert _mapear_forma_pago(None, "SALUDPOL") == FormaPago.SALUDPOL
+        assert _mapear_forma_pago("", "SALUDPOL") == FormaPago.SALUDPOL
+        assert _mapear_forma_pago("NULL", "SALUDPOL") == FormaPago.SALUDPOL
+        # No debe afectar si el seguro no es SALUDPOL
+        assert _mapear_forma_pago(None, "SIS") == FormaPago.DESCONOCIDO
+
+    def test_mapear_forma_pago_tres_devuelve_saludpol(self):
+        from src.datos.sp_adapter import _mapear_forma_pago
+        assert _mapear_forma_pago("3") == FormaPago.SALUDPOL
+        assert _mapear_forma_pago(3) == FormaPago.SALUDPOL
+
+    def test_mapear_forma_pago_cero_devuelve_contado(self):
+        from src.datos.sp_adapter import _mapear_forma_pago
+        assert _mapear_forma_pago("0") == FormaPago.CONTADO
+        assert _mapear_forma_pago(0) == FormaPago.CONTADO
 
     def test_mapear_forma_pago_uno_devuelve_sis(self):
         from src.datos.sp_adapter import _mapear_forma_pago

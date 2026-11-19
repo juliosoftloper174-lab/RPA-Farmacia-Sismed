@@ -65,18 +65,22 @@ COLUMNAS_HEADER = [
 ]
 
 
-def _mapear_forma_pago(valor) -> FormaPago:
-    if valor is None or str(valor).strip() in ("", "NULL"):
+def _mapear_forma_pago(valor, seguro_des: str | None = None) -> FormaPago:
+    v = str(valor).strip() if valor is not None else ""
+    if v == "3":
+        return FormaPago.SALUDPOL
+    if v in ("", "NULL"):
+        # Mientras el SP no actualice FORMA_PAGO para SALUDPOL,
+        # detectamos por el seguro declarado en el pedido.
+        if seguro_des and str(seguro_des).strip().upper() == "SALUDPOL":
+            return FormaPago.SALUDPOL
         return FormaPago.DESCONOCIDO
-    v = str(valor).strip()
     if v == "0":
         return FormaPago.CONTADO
     if v == "1":
         return FormaPago.SIS
     if v == "2":
         return FormaPago.INTERVENCION_SANITARIA
-    if v == "3":
-        return FormaPago.SALUDPOL
     return FormaPago.DESCONOCIDO
 
 
@@ -286,7 +290,10 @@ def obtener_movimientos(
             fua = _obtener_safe(row, "FUA", "NULL")
             fua = str(fua).strip() if fua not in (None, "NULL", "") else None
 
-            forma_pago = _mapear_forma_pago(_obtener_safe(row, "FORMA_PAGO"))
+            forma_pago = _mapear_forma_pago(
+                _obtener_safe(row, "FORMA_PAGO"),
+                _obtener_safe(row, "KS_PEDIDO_SEGURO_DES"),
+            )
             farmacia_cod = _obtener_safe(row, "FARMACIA", "")
             if not farmacia_cod or str(farmacia_cod).strip() in ("NULL", ""):
                 farmacia_cod = _obtener_safe(row, "ALMACEN_DESTINO", "")
