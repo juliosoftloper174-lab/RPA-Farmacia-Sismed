@@ -136,10 +136,13 @@ def login(username: str, password: str, timeout: float = 60.0) -> None:
         Popen(config.SISMED_EXE)
         sleep(3)
 
-    _pausar_por_backup()
-
     inicio = time()
     while True:
+        if _pausar_por_backup():
+            logger.info("[LOGIN] Backup detectado durante espera; reiniciando timeout.")
+            inicio = time()
+            continue
+
         LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
         if LOGIN_WINDOW.Exists(maxSearchSeconds=0):
             logger.info("[LOGIN] Ventana de login detectada.")

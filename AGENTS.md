@@ -275,7 +275,7 @@ sismed_wrapper/
 - **`test_data.py` y `data_simulator.py`**: Ya no son importados por ningún módulo
 - **`SP_UPDESTADOMOV_RPA`**: Actualización de estado en BD tras cada ingreso/salida/pedido exitoso (vía `ejecutar_sp_update_estado`)
 - **`_login.py`**: Manejo automático de backup diario (detecta ventanas y espera regeneración de índices)
-- **Login robusto**: `login()` espera hasta **60s** a que aparezca la ventana `Acceso al Sistema`; si aparece antes, continúa de inmediato
+- **Login robusto**: `login()` espera hasta **60s** a que aparezca la ventana `Acceso al Sistema`; si aparece antes, continúa de inmediato. Durante la espera también detecta ventanas de backup y reinicia el timeout si el operador confirma que ya cerró todo
 - **Detección cliente no encontrado**: `seleccionar_cliente()` retorna `False` si TxtCliente no cambia → `ClienteNoEncontradoError` → log en Excel sin reintentar
 - **Detección concepto no seleccionado en salidas**: `agregar_producto()` detecta aviso `Aviso` al abrir el primer medicamento; si el mensaje contiene "concepto", lanza `ConceptoNoSeleccionadoError` para reintentar el movimiento completo
 - **Reintentos automáticos en salidas**: `procesar_salidas()` reintenta cada salida hasta **3 veces**, relogueando y navegando de nuevo en cada fallo; al agotarse, marca estado BD `20` y Excel `ERROR`
