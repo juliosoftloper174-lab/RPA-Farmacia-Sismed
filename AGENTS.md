@@ -275,7 +275,10 @@ sismed_wrapper/
 - **`test_data.py` y `data_simulator.py`**: Ya no son importados por ningún módulo
 - **`SP_UPDESTADOMOV_RPA`**: Actualización de estado en BD tras cada ingreso/salida/pedido exitoso (vía `ejecutar_sp_update_estado`)
 - **`_login.py`**: Manejo automático de backup diario (detecta ventanas y espera regeneración de índices)
+- **Login robusto**: `login()` espera hasta **60s** a que aparezca la ventana `Acceso al Sistema`; si aparece antes, continúa de inmediato
 - **Detección cliente no encontrado**: `seleccionar_cliente()` retorna `False` si TxtCliente no cambia → `ClienteNoEncontradoError` → log en Excel sin reintentar
+- **Detección concepto no seleccionado en salidas**: `agregar_producto()` detecta aviso `Aviso` al abrir el primer medicamento; si el mensaje contiene "concepto", lanza `ConceptoNoSeleccionadoError` para reintentar el movimiento completo
+- **Reintentos automáticos en salidas**: `procesar_salidas()` reintenta cada salida hasta **3 veces**, relogueando y navegando de nuevo en cada fallo; al agotarse, marca estado BD `20` y Excel `ERROR`
 
 ### 📊 Análisis de Tipos de Movimiento (SP_Junio.csv)
 Datos del SP para junio 2026: **7,152 movimientos totales**.
@@ -386,10 +389,10 @@ Archivo analizado: `19-07-26_SP_extorno.csv`
 ### Mejoras pendientes
 - `_obtener_fechas()` en `__main__.py` está harcodeado → parametrizar
 - Manejo de cliente y prescriptor real desde SP (no harcodeado)
-- `Concepto` en salidas harcodeado por click ciego → mejorar
 - Validación de Ingresos y Salidas es un passthrough (no hay validación real)
 - Duplicación de productos (mismo código en un movimiento, sumar cantidades) — gap conocido no presente en datos actuales
 - **BOLETA_NO_ENCONTRADA**: ~2.3% de pedidos fallan porque la UI cierra la boleta sin mostrar popup "Volver a Menu" — investigar timeout o estrategia alternativa
+- **Salidas externas C2**: investigar por qué la ventana de productos no muestra `GrdConsolidado` en el concepto DEV. X R.S. (`208/20`). Puede ser una variante de ventana que requiera ajustar `_esperar_ventana_salida_producto()`.
 
 ---
 
@@ -432,6 +435,20 @@ Archivo analizado: `19-07-26_SP_extorno.csv`
 - **Día 03 QA**: `214/26` con destino Anexo Rioja → rechazado por destino incorrecto (esperado Logística).
 - **Día 04 producción**: `208/20` con destino Logística → rechazado por destino incorrecto (esperado Anexo Rioja).
 - **Día 04 producción**: `208/20` con destino Anexo Rioja → procesable, pendiente coordenadas C2.
+
+### Prueba de 3 salidas externas — 19/11/2026
+Script: `prueba_tres_salidas.py`. Objetivo: validar que el bot llega a los conceptos C1, C2 y C3 y selecciona los almacenes destino correctos.
+
+| Intento | Hora | C1 Sobre Stock (030S01) | C3 Distribución (030A00) | C2 Dev. x R.S. (030S01) |
+|---|---|---|---|---|
+| 1 | 14:28 | ❌ No encontró `GrdConsolidado` | — | — |
+| 2 | 14:46 | ✅ OK — correlativo **260090837** | ❌ Sin correlativo ni mensaje | — |
+| 3 | 15:20 | ✅ OK — correlativo **260090839** | ❌ Error COM | — |
+| 4 | 15:31 | ✅ OK — correlativo **260090841** (con retry COM) | ✅ OK — correlativo **260090842** | ❌ No encontró `GrdConsolidado` |
+
+**Resultado**: se validó que C1 y C3 funcionan correctamente. C2 falló al abrir la ventana de productos (`GrdConsolidado` no encontrado), no por el concepto en sí. Se crearon 2 salidas reales en SISMED QA: **260090841** y **260090842**.
+
+**Log**: `C:\Users\DELL\Documents\RPA-Sismed\sismed_wrapper\.data\logs\2026-11-19.log`.
 
 ---
 
@@ -483,3 +500,4 @@ Archivo analizado: `19-07-26_SP_extorno.csv`
   .\.venv\Scripts\python.exe Movimientos09062026\main.py
   ```
 - **Datos reales del SP (09/06/2026)**: 5 ingresos → F01, 8 salidas (3 desde F01 a F02/F05, 5 entre otras farmacias). Los archivos de `Movimientos09062026/` usan estos datos adaptados al flujo "ingreso central → distribución".
+- **Tests antiguos rotos**: `tests/test_ingreso.py`, `tests/test_salida.py` y `tests/test_children.py` importan `src.sidmed.ingreso` / `src.sidmed.salidas`, pero el código activo fue movido a `src/flujos/`. Estos tests no se ejecutan actualmente. `tests/test_pedido.py` sí corre; tiene 4 fallas pre-existentes ajenas a los últimos cambios (mapeo de `FormaPago.DESCONOCIDO`, lote `"None"` vs `None`, prescriptor y fallback de farmacia).

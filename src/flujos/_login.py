@@ -1,6 +1,6 @@
 from datetime import datetime
 from subprocess import Popen
-from time import sleep
+from time import sleep, time
 
 from uiautomation import SendKeys, WindowControl, ButtonControl
 from loguru import logger
@@ -128,16 +128,28 @@ def esperar_hora_backup_si_aplica() -> None:
             )
 
 
-def login(username: str, password: str) -> None:
+def login(username: str, password: str, timeout: float = 60.0) -> None:
     SendKeys("{Win}d")
 
     LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
     if not LOGIN_WINDOW.Exists(maxSearchSeconds=0):
         Popen(config.SISMED_EXE)
         sleep(3)
-        LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
 
     _pausar_por_backup()
+
+    inicio = time()
+    while True:
+        LOGIN_WINDOW = WindowControl(Name="Acceso al Sistema")
+        if LOGIN_WINDOW.Exists(maxSearchSeconds=0):
+            logger.info("[LOGIN] Ventana de login detectada.")
+            break
+        if time() - inicio >= timeout:
+            raise RuntimeError(
+                f"[LOGIN] No apareció ventana de login después de {timeout}s"
+            )
+        logger.debug("[LOGIN] Esperando ventana de login...")
+        sleep(1)
 
     while True:
         try:

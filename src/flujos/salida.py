@@ -45,6 +45,11 @@ from src.reportes.excel_writer import (
     obtener_siguiente_numero_procesado,
 )
 
+
+class ConceptoNoSeleccionadoError(Exception):
+    """El concepto de salida no quedó seleccionado antes de agregar productos."""
+
+
 # =========================================================
 # 🔹 HELPERS
 # =========================================================
@@ -257,6 +262,56 @@ def rellenar_cabecera_salidas(registro: WindowControl, salidas: Salidas):
     sleep(1.5)  # pausa para que SISMED registre el concepto antes de agregar productos
 
 
+def _procesar_salida(
+    salida: Salidas,
+    idx: int,
+    total: int,
+    numero_procesado: int,
+    fecha: str | None,
+    fecha_fin: str | None,
+    modo: str,
+    etiqueta: str,
+) -> dict:
+    logger.debug(f"[{etiqueta} {idx}/{total}] Abriendo registro...")
+    registro = abrir_registro_salida()
+
+    logger.debug(f"[{etiqueta} {idx}/{total}] Rellenando cabecera...")
+    rellenar_cabecera_salidas(registro, salida)
+
+    logger.debug(
+        f"[{etiqueta} {idx}/{total}] Agregando {len(salida.medicamentos)} productos..."
+    )
+    for i, producto in enumerate(salida.medicamentos):
+        agregar_producto(producto, salida=salida, es_primero=(i == 0))
+
+    logger.debug(f"[{etiqueta} {idx}/{total}] Guardando...")
+    guardar()
+    sleep(1)
+
+    correlativo = extraer_correlativo_almacen()
+    logger.debug(f"[{etiqueta} {idx}/{total}] Correlativo obtenido: {correlativo}")
+
+    if salida.update_key:
+        logger.debug(f"[{etiqueta} {idx}/{total}] Actualizando estado BD (00)...")
+        ejecutar_sp_update_estado(salida.update_key, "00")
+
+    cerrar_ventana_salida_guardada()
+    sleep(1.5)
+    SendKeys("{Enter}")  # abre nuevo registro para la siguiente salida
+    sleep(1.5)
+
+    logger.success(f"[{etiqueta} {idx}/{total}] OK -> correlativo={correlativo}")
+
+    return crear_row_salida(
+        i=numero_procesado,
+        username=SISMED_USERNAME,
+        correlativo_ksalud=salida.correlativo_ksalud,
+        correlativo_sismed=correlativo,
+        salida=salida,
+        estado="OK",
+    )
+
+
 def procesar_salidas(
     salidas: tuple[Salidas, ...],
     fecha: str | None = None,
@@ -275,7 +330,6 @@ def procesar_salidas(
     navegar_a_salidas()
 
     for idx, salida in enumerate(salidas, start=1):
-
         verificar_backup_si_aplica()
         esperar_hora_backup_si_aplica()
 
@@ -288,48 +342,51 @@ def procesar_salidas(
             f"({len(salida.medicamentos)} medicamentos)"
         )
 
-        try:
-            logger.debug(f"[{etiqueta} {idx}/{total}] Abriendo registro...")
-            registro = abrir_registro_salida()
+        ultimo_error: Exception | None = None
+        row: dict | None = None
 
-            logger.debug(f"[{etiqueta} {idx}/{total}] Rellenando cabecera...")
-            rellenar_cabecera_salidas(registro, salida)
+        for reintento in range(3):
+            try:
+                if reintento > 0:
+                    logger.warning(
+                        f"[{etiqueta} {idx}/{total}] Reintento {reintento}/2..."
+                    )
+                    close_doc_windows()
+                    cerrar_ventana_salida_guardada()
+                    cerrar_sismed()
+                    sleep(2)
+                    logger.info("[SALIDAS] Login SISMED...")
+                    login(SISMED_USERNAME, SISMED_PASSWORD)
+                    logger.info("[SALIDAS] Navegando a menu salidas...")
+                    sleep(2)
+                    navegar_a_salidas()
 
-            logger.debug(
-                f"[{etiqueta} {idx}/{total}] Agregando {len(salida.medicamentos)} productos..."
-            )
-            for producto in salida.medicamentos:
-                agregar_producto(producto)
+                row = _procesar_salida(
+                    salida, idx, total, numero_procesado, fecha, fecha_fin, modo, etiqueta
+                )
+                ok_count += 1
+                break
 
-            logger.debug(f"[{etiqueta} {idx}/{total}] Guardando...")
-            guardar()
-            sleep(1)
+            except ConceptoNoSeleccionadoError as e:
+                ultimo_error = e
+                logger.warning(
+                    f"[{etiqueta} {idx}/{total}] Concepto no seleccionado: {e}"
+                )
+            except Exception as e:
+                ultimo_error = e
+                logger.exception(f"[{etiqueta} {idx}/{total}] Error: {e}")
 
-            correlativo = extraer_correlativo_almacen()
-            logger.debug(f"[{etiqueta} {idx}/{total}] Correlativo obtenido: {correlativo}")
-
-            if salida.update_key:
-                logger.debug(f"[{etiqueta} {idx}/{total}] Actualizando estado BD (00)...")
-                ejecutar_sp_update_estado(salida.update_key, "00")
-
-            row = crear_row_salida(
-                i=numero_procesado,
-                username=SISMED_USERNAME,
-                correlativo_ksalud=salida.correlativo_ksalud,
-                correlativo_sismed=correlativo,
-                salida=salida,
-                estado="OK",
-            )
-
-            logger.success(f"[{etiqueta} {idx}/{total}] OK -> correlativo={correlativo}")
-            ok_count += 1
-
-        except Exception as e:
-            logger.exception(f"[{etiqueta} {idx}/{total}] Error: {e}")
+        if row is None:
             error_count += 1
+            logger.error(
+                f"[{etiqueta} {idx}/{total}] Agotados reintentos. Último error: {ultimo_error}"
+            )
 
             if salida.update_key:
                 try:
+                    logger.debug(
+                        f"[{etiqueta} {idx}/{total}] Actualizando estado BD (20)..."
+                    )
                     ejecutar_sp_update_estado(salida.update_key, "20")
                 except Exception as update_err:
                     logger.warning(
@@ -337,6 +394,7 @@ def procesar_salidas(
                     )
 
             close_doc_windows()
+            cerrar_ventana_salida_guardada()
 
             row = crear_row_salida(
                 i=numero_procesado,
@@ -345,13 +403,8 @@ def procesar_salidas(
                 correlativo_sismed="",
                 salida=salida,
                 estado="ERROR",
-                error=str(e),
+                error=str(ultimo_error),
             )
-
-        cerrar_ventana_salida_guardada()
-        sleep(1.5)
-        SendKeys("{Enter}")  # abre nuevo registro para la siguiente salida
-        sleep(1.5)
 
         guardar_movimientos(row, fecha, fecha_fin, modo)
         numero_procesado += 1
@@ -494,13 +547,38 @@ def _seleccionar_lote(
     primera_fila.Click()
 
 
-def agregar_producto(producto: Medicamento):
+def agregar_producto(
+    producto: Medicamento,
+    salida: Salidas | None = None,
+    es_primero: bool = False,
+):
     logger.debug(
         f"[SALIDA PRODUCTO] Agregando código={producto.codigo}, lote={producto.lote}, cantidad={producto.cantidad}"
     )
 
     SendKeys("{CONTROL}{INSERT}")
     sleep(2)
+
+    if es_primero and salida is not None:
+        aviso = WindowControl(Name="Aviso")
+        if aviso.Exists(2):
+            try:
+                mensaje = aviso.TextControl(searchDepth=1).Name.strip()
+            except Exception:
+                mensaje = ""
+            logger.warning(
+                f"[SALIDA PRODUCTO] Aviso detectado al abrir primer producto: {mensaje}"
+            )
+            try:
+                aviso.ButtonControl(Name="Aceptar").Click()
+                sleep(1)
+            except Exception as e:
+                logger.warning(f"[SALIDA PRODUCTO] No se pudo cerrar aviso: {e}")
+
+            if "concepto" in mensaje.lower():
+                raise ConceptoNoSeleccionadoError(
+                    f"Concepto no seleccionado correctamente: {mensaje}"
+                )
 
     ventana = _esperar_ventana_salida_producto()
 
