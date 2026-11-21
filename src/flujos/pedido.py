@@ -204,7 +204,7 @@ FORMA_PAGO_COMBO_VALUE = {
     FormaPago.CONTADO: "01",
     FormaPago.SIS: "03",
     FormaPago.INTERVENCION_SANITARIA: "20",
-    FormaPago.SALUDPOL: "04",  # TODO: confirmar valor real del combo CboDato
+    FormaPago.SALUDPOL: "21",
 }
 
 MAX_INTENTOS_FORMA_PAGO = 3

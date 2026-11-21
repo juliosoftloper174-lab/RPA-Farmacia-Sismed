@@ -279,6 +279,7 @@ sismed_wrapper/
 - **Detección cliente no encontrado**: `seleccionar_cliente()` retorna `False` si TxtCliente no cambia → `ClienteNoEncontradoError` → log en Excel sin reintentar
 - **Detección concepto no seleccionado en salidas**: `agregar_producto()` detecta aviso `Aviso` al abrir el primer medicamento; si el mensaje contiene "concepto", lanza `ConceptoNoSeleccionadoError` para reintentar el movimiento completo
 - **Reintentos automáticos en salidas**: `procesar_salidas()` reintenta cada salida hasta **3 veces**, relogueando y navegando de nuevo en cada fallo; al agotarse, marca estado BD `20` y Excel `ERROR`
+- **Valor SALUDPOL confirmado**: `FORMA_PAGO_COMBO_VALUE` usa `SALUDPOL: "21"` (confirmado con Inspector de Accesibilidad). Anteriormente estaba `"04"` sin confirmar.
 
 ### 📊 Análisis de Tipos de Movimiento (SP_Junio.csv)
 Datos del SP para junio 2026: **7,152 movimientos totales**.
